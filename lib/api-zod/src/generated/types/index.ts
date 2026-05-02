@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./conditionalAccessPolicyItem";
 export * from "./healthStatus";
 export * from "./licenseItem";
 export * from "./m365ComplianceData";
@@ -23,6 +24,7 @@ export * from "./m365TeamsData";
 export * from "./m365TeamsDataTeamsBySizeItem";
 export * from "./m365UsersData";
 export * from "./m365UsersDataUsersByDepartmentItem";
+export * from "./sensitivityLabelItem";
 export * from "./serviceHealthItem";
 export * from "./sharePointSiteItem";
 export * from "./userItem";

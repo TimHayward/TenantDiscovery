@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ConditionalAccessPolicyItem } from "./conditionalAccessPolicyItem";
 import type { M365SecurityDataControlCategoriesItem } from "./m365SecurityDataControlCategoriesItem";
 import type { M365SecurityDataSecureScoreHistoryItem } from "./m365SecurityDataSecureScoreHistoryItem";
 
@@ -21,6 +22,7 @@ export interface M365SecurityData {
   reportOnlyCAPs: number;
   secureScoreHistory: M365SecurityDataSecureScoreHistoryItem[];
   controlCategories: M365SecurityDataControlCategoriesItem[];
+  caPolicies: ConditionalAccessPolicyItem[];
   riskyUsers: number;
   adminsWithoutMfa: number;
 }

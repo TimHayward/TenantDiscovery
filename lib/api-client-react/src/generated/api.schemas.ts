@@ -75,6 +75,26 @@ export interface M365LicensesData {
   licenses: LicenseItem[];
 }
 
+export interface ConditionalAccessPolicyItem {
+  id: string;
+  displayName: string;
+  state: string;
+  targetUsers: string;
+  targetApps: string;
+  authStrength: string;
+  modifiedDateTime: string | null;
+}
+
+export interface SensitivityLabelItem {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  sensitivity: number;
+  isActive: boolean;
+  parent: string | null;
+}
+
 export type M365SecurityDataSecureScoreHistoryItem = {
   date: string;
   score: number;
@@ -100,6 +120,7 @@ export interface M365SecurityData {
   reportOnlyCAPs: number;
   secureScoreHistory: M365SecurityDataSecureScoreHistoryItem[];
   controlCategories: M365SecurityDataControlCategoriesItem[];
+  caPolicies: ConditionalAccessPolicyItem[];
   riskyUsers: number;
   adminsWithoutMfa: number;
 }
@@ -186,6 +207,8 @@ export interface M365ComplianceData {
   auditLogEnabled: boolean;
   unifiedAuditLogEnabled: boolean;
   eDiscoveryCases: number;
+  sensitivityLabelsList: SensitivityLabelItem[];
+  sensitivityLabelsPermissionRequired: boolean;
 }
 
 export interface ServiceHealthItem {

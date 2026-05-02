@@ -330,6 +330,46 @@ components:
         - utilizationPercent
         - licenses
 
+    ConditionalAccessPolicyItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        state:
+          type: string
+        targetUsers:
+          type: string
+        targetApps:
+          type: string
+        authStrength:
+          type: string
+        modifiedDateTime:
+          type: string
+          nullable: true
+      required: [id, displayName, state, targetUsers, targetApps, authStrength, modifiedDateTime]
+
+    SensitivityLabelItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        sensitivity:
+          type: integer
+        isActive:
+          type: boolean
+        parent:
+          type: string
+          nullable: true
+      required: [id, name, description, color, sensitivity, isActive, parent]
+
     M365SecurityData:
       type: object
       properties:
@@ -377,6 +417,10 @@ components:
               maxScore:
                 type: number
             required: [category, score, maxScore]
+        caPolicies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConditionalAccessPolicyItem"
         riskyUsers:
           type: integer
         adminsWithoutMfa:
@@ -394,6 +438,7 @@ components:
         - reportOnlyCAPs
         - secureScoreHistory
         - controlCategories
+        - caPolicies
         - riskyUsers
         - adminsWithoutMfa
 
@@ -596,6 +641,12 @@ components:
           type: boolean
         eDiscoveryCases:
           type: integer
+        sensitivityLabelsList:
+          type: array
+          items:
+            $ref: "#/components/schemas/SensitivityLabelItem"
+        sensitivityLabelsPermissionRequired:
+          type: boolean
       required:
         - dlpPolicies
         - activeDlpPolicies
@@ -607,6 +658,8 @@ components:
         - auditLogEnabled
         - unifiedAuditLogEnabled
         - eDiscoveryCases
+        - sensitivityLabelsList
+        - sensitivityLabelsPermissionRequired
 
     ServiceHealthItem:
       type: object

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SensitivityLabelItem } from "./sensitivityLabelItem";
 
 export interface M365ComplianceData {
   dlpPolicies: number;
@@ -17,4 +18,6 @@ export interface M365ComplianceData {
   auditLogEnabled: boolean;
   unifiedAuditLogEnabled: boolean;
   eDiscoveryCases: number;
+  sensitivityLabelsList: SensitivityLabelItem[];
+  sensitivityLabelsPermissionRequired: boolean;
 }

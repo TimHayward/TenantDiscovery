@@ -5,7 +5,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, Info } from "lucide-react";
+import { AlertTriangle, CheckCircle, Info, Lock, Tag } from "lucide-react";
+import { useState } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  flexRender,
+  type ColumnDef,
+  type SortingState,
+} from "@tanstack/react-table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { CSVLink } from "react-csv";
+import { Download } from "lucide-react";
+import type { SensitivityLabelItem } from "@workspace/api-client-react/src/generated/api.schemas";
 
 const CHART_COLORS = {
   blue: "#0079F2",
@@ -14,40 +31,110 @@ const CHART_COLORS = {
   red: "#A60808",
   pink: "#ec4899",
   yellow: "#eab308",
-  gray: "#9ca3af"
+  gray: "#9ca3af",
 };
+
+const labelColumns: ColumnDef<SensitivityLabelItem>[] = [
+  {
+    accessorKey: "name",
+    header: "Label Name",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        {row.original.color ? (
+          <span
+            className="inline-block w-3 h-3 rounded-sm flex-shrink-0"
+            style={{ backgroundColor: row.original.color }}
+          />
+        ) : (
+          <Tag className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+        )}
+        <span className="font-medium">{row.original.name}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "description",
+    header: "Description",
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">
+        {row.original.description || "—"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "sensitivity",
+    header: "Sensitivity",
+    cell: ({ row }) => (
+      <span className="font-mono text-sm">{row.original.sensitivity}</span>
+    ),
+  },
+  {
+    accessorKey: "parent",
+    header: "Parent",
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">
+        {row.original.parent ? "Sub-label" : "Top-level"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "isActive",
+    header: "Status",
+    cell: ({ row }) =>
+      row.original.isActive ? (
+        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 font-normal text-xs">Active</Badge>
+      ) : (
+        <Badge variant="outline" className="text-muted-foreground font-normal text-xs">Inactive</Badge>
+      ),
+  },
+];
 
 export function ComplianceTab() {
   const { data: compliance, isLoading: isComplianceLoading, isFetching: isComplianceFetching } = useGetM365Compliance();
   const { data: health, isLoading: isHealthLoading, isFetching: isHealthFetching } = useGetM365ServiceHealth();
-  
+
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   const compLoading = isComplianceLoading || isComplianceFetching;
   const healthLoading = isHealthLoading || isHealthFetching;
 
-  // Gauge chart data for Compliance Score
   const scoreValue = compliance?.complianceScore || 0;
   const scoreMax = compliance?.complianceScoreMax || 100;
   const scorePercent = scoreMax > 0 ? (scoreValue / scoreMax) * 100 : 0;
-  
+
   const gaugeData = [
     { name: "Score", value: scoreValue },
-    { name: "Remaining", value: scoreMax - scoreValue }
+    { name: "Remaining", value: scoreMax - scoreValue },
   ];
+
+  const [labelSorting, setLabelSorting] = useState<SortingState>([{ id: "sensitivity", desc: true }]);
+  const [labelFilter, setLabelFilter] = useState("");
+
+  const labelTable = useReactTable({
+    data: compliance?.sensitivityLabelsList ?? [],
+    columns: labelColumns,
+    state: { sorting: labelSorting, globalFilter: labelFilter },
+    onSortingChange: setLabelSorting,
+    onGlobalFilterChange: setLabelFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 10 } },
+  });
 
   return (
     <div className="space-y-8">
-      {/* COMPLIANCE SECTION */}
+      {/* COMPLIANCE OVERVIEW */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold border-b pb-2">Compliance</h2>
-        
+        <h2 className="text-xl font-semibold border-b pb-2">Compliance Overview</h2>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard title="DLP Policies" value={compliance?.dlpPolicies} loading={compLoading} />
-          <KPICard title="Active DLP" value={compliance?.activeDlpPolicies} loading={compLoading} />
+          <KPICard title="Active DLP" value={compliance?.activeDlpPolicies} loading={compLoading} valueColor={CHART_COLORS.green} />
           <KPICard title="Retention Policies" value={compliance?.retentionPolicies} loading={compLoading} />
-          <KPICard title="Sensitivity Labels" value={compliance?.sensitivityLabels} loading={compLoading} />
+          <KPICard title="Sensitivity Labels" value={compliance?.sensitivityLabels} loading={compLoading} valueColor={CHART_COLORS.blue} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -80,7 +167,7 @@ export function ComplianceTab() {
                   </ResponsiveContainer>
                   <div className="absolute top-[130px] flex flex-col items-center">
                     <span className="text-3xl font-bold">{Math.round(scorePercent)}%</span>
-                    <span className="text-xs text-muted-foreground">{scoreValue} / {scoreMax}</span>
+                    <span className="text-xs text-muted-foreground">{Math.round(scoreValue)} / {Math.round(scoreMax)}</span>
                   </div>
                 </div>
               )}
@@ -93,25 +180,25 @@ export function ComplianceTab() {
             </CardHeader>
             <CardContent>
               {compLoading ? (
-                 <div className="grid grid-cols-2 gap-4 mt-4">
-                    <Skeleton className="h-24 w-full" />
-                    <Skeleton className="h-24 w-full" />
-                    <Skeleton className="h-24 w-full" />
-                    <Skeleton className="h-24 w-full" />
-                 </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <div className="p-4 border rounded-md flex flex-col justify-center items-center text-center bg-card">
                     <p className="text-sm text-muted-foreground font-medium mb-2">Unified Audit Log</p>
-                    {compliance?.unifiedAuditLogEnabled ? 
-                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-sm py-1 px-3">Enabled</Badge> : 
+                    {compliance?.unifiedAuditLogEnabled ?
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-sm py-1 px-3">Enabled</Badge> :
                       <Badge variant="destructive" className="text-sm py-1 px-3">Disabled</Badge>
                     }
                   </div>
                   <div className="p-4 border rounded-md flex flex-col justify-center items-center text-center bg-card">
                     <p className="text-sm text-muted-foreground font-medium mb-2">Audit Log Search</p>
-                    {compliance?.auditLogEnabled ? 
-                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-sm py-1 px-3">Enabled</Badge> : 
+                    {compliance?.auditLogEnabled ?
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-sm py-1 px-3">Enabled</Badge> :
                       <Badge variant="destructive" className="text-sm py-1 px-3">Disabled</Badge>
                     }
                   </div>
@@ -130,10 +217,138 @@ export function ComplianceTab() {
         </div>
       </div>
 
-      {/* SERVICE HEALTH SECTION */}
-      <div className="space-y-4 pt-4">
-        <h2 className="text-xl font-semibold border-b pb-2">Service Health Full Report</h2>
-        
+      {/* SENSITIVITY LABELS */}
+      <div className="space-y-4 pt-2">
+        <h2 className="text-xl font-semibold border-b pb-2">Sensitivity Labels</h2>
+
+        {compLoading ? (
+          <div className="space-y-2">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
+        ) : compliance?.sensitivityLabelsPermissionRequired && compliance.sensitivityLabelsList.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center justify-center py-8 gap-3 text-center">
+                <Lock className="w-10 h-10 text-muted-foreground" />
+                <p className="font-medium">Additional permission required</p>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  To display sensitivity labels, add the <code className="bg-muted px-1 rounded text-xs">InformationProtection.Read.All</code> application permission to your Azure app registration and grant admin consent.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : compliance?.sensitivityLabelsList.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                <Tag className="w-8 h-8 text-muted-foreground" />
+                <p className="text-muted-foreground">No sensitivity labels found in this tenant.</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-base">Sensitivity Labels</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {compliance?.sensitivityLabelsList.length} labels configured
+                </p>
+              </div>
+              {compliance && compliance.sensitivityLabelsList.length > 0 && (
+                <CSVLink
+                  data={compliance.sensitivityLabelsList.map(l => ({
+                    Name: l.name,
+                    Description: l.description,
+                    Sensitivity: l.sensitivity,
+                    Color: l.color,
+                    Active: l.isActive,
+                    Type: l.parent ? "Sub-label" : "Top-level",
+                  }))}
+                  filename="sensitivity-labels.csv"
+                  className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80"
+                  style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
+                  aria-label="Export labels as CSV"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </CSVLink>
+              )}
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <Input
+                  placeholder="Search labels..."
+                  value={labelFilter}
+                  onChange={(e) => setLabelFilter(e.target.value)}
+                  className="max-w-sm"
+                />
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      {labelTable.getHeaderGroups().map((hg) => (
+                        <TableRow key={hg.id}>
+                          {hg.headers.map((header) => (
+                            <TableHead
+                              key={header.id}
+                              onClick={header.column.getToggleSortingHandler()}
+                              className="cursor-pointer select-none"
+                            >
+                              <div className="flex items-center gap-1">
+                                {flexRender(header.column.columnDef.header, header.getContext())}
+                                {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                              </div>
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableHeader>
+                    <TableBody>
+                      {labelTable.getRowModel().rows.length > 0 ? (
+                        labelTable.getRowModel().rows.map((row) => (
+                          <TableRow key={row.id}>
+                            {row.getVisibleCells().map((cell) => (
+                              <TableCell key={cell.id}>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={labelColumns.length} className="h-20 text-center text-muted-foreground">
+                            No labels match the search.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing{" "}
+                    {labelTable.getState().pagination.pageIndex * labelTable.getState().pagination.pageSize + (labelTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)}{" "}
+                    to{" "}
+                    {Math.min(
+                      (labelTable.getState().pagination.pageIndex + 1) * labelTable.getState().pagination.pageSize,
+                      labelTable.getFilteredRowModel().rows.length
+                    )}{" "}
+                    of {labelTable.getFilteredRowModel().rows.length}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => labelTable.previousPage()} disabled={!labelTable.getCanPreviousPage()}>Previous</Button>
+                    <Button variant="outline" size="sm" onClick={() => labelTable.nextPage()} disabled={!labelTable.getCanNextPage()}>Next</Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* SERVICE HEALTH */}
+      <div className="space-y-4 pt-2">
+        <h2 className="text-xl font-semibold border-b pb-2">Service Health</h2>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <KPICard title="Total Services" value={health?.totalServices} loading={healthLoading} />
           <KPICard title="Active Incidents" value={health?.activeIncidents} loading={healthLoading} valueColor={health && health.activeIncidents > 0 ? CHART_COLORS.red : CHART_COLORS.green} />
@@ -146,34 +361,42 @@ export function ComplianceTab() {
           </CardHeader>
           <CardContent>
             {healthLoading ? (
-              <div className="space-y-2 mt-4">
+              <div className="space-y-2 mt-2">
                 {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                {health?.services.map(service => {
-                  const isHealthy = service.status === 'Service operational';
-                  const isAdvisory = service.status.toLowerCase().includes('advisory');
-                  
+            ) : health?.services && health.services.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                {health.services.map((service) => {
+                  const isHealthy = service.status === "Service operational";
+                  const isAdvisory = service.status.toLowerCase().includes("advisory");
+
                   return (
                     <div key={service.service} className="p-3 border rounded-md flex items-center bg-card">
                       <div className="mr-3">
-                        {isHealthy ? <CheckCircle className="w-5 h-5 text-green-500" /> : 
-                         isAdvisory ? <Info className="w-5 h-5 text-yellow-500" /> : 
-                         <AlertTriangle className="w-5 h-5 text-red-500" />}
+                        {isHealthy ? <CheckCircle className="w-5 h-5 text-green-500" /> :
+                          isAdvisory ? <Info className="w-5 h-5 text-yellow-500" /> :
+                            <AlertTriangle className="w-5 h-5 text-red-500" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{service.service}</p>
                         <p className="text-xs text-muted-foreground truncate">{service.status}</p>
                       </div>
                       {service.hasActiveIssues && (
-                         <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900">
-                           {service.activeIncidents > 0 ? `${service.activeIncidents} Incidents` : 'Issue'}
-                         </Badge>
+                        <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900 whitespace-nowrap">
+                          {service.activeIncidents > 0 ? `${service.activeIncidents} Incident(s)` : "Advisory"}
+                        </Badge>
                       )}
                     </div>
                   );
                 })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+                <Lock className="w-8 h-8 text-muted-foreground" />
+                <p className="font-medium text-sm">Service Health data unavailable</p>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  Add <code className="bg-muted px-1 rounded">ServiceHealth.Read.All</code> application permission to your Azure app registration to enable this section.
+                </p>
               </div>
             )}
           </CardContent>

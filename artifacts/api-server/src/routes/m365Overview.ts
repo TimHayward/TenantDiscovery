@@ -3,33 +3,72 @@ import { graphClient, getCached } from "../lib/graphClient.js";
 
 const router = Router();
 
+async function fetchWithToken(url: string): Promise<any> {
+  const { ClientSecretCredential } = await import("@azure/identity");
+  const cred = new ClientSecretCredential(
+    process.env.AZURE_TENANT_ID!,
+    process.env.AZURE_CLIENT_ID!,
+    process.env.AZURE_CLIENT_SECRET!
+  );
+  const token = await cred.getToken("https://graph.microsoft.com/.default");
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token!.token}` },
+  });
+  if (!resp.ok) return null;
+  return resp.json();
+}
+
+async function fetchAllPages(firstUrl: string): Promise<any[]> {
+  const results: any[] = [];
+  let url: string | null = firstUrl;
+  while (url) {
+    const page: any = await fetchWithToken(url);
+    if (!page || !page.value) break;
+    results.push(...page.value);
+    url = page["@odata.nextLink"] ?? null;
+  }
+  return results;
+}
+
 router.get("/m365/overview", async (req, res): Promise<void> => {
   try {
     const data = await getCached("m365-overview", async () => {
-      const [orgRes, usersRes, subsRes, secScoreRes] = await Promise.allSettled([
-        graphClient.api("/organization").select("displayName,id").get(),
-        graphClient.api("/users").select("id,accountEnabled,userType").count(true).header("ConsistencyLevel", "eventual").get(),
-        graphClient.api("/subscribedSkus").get(),
-        graphClient.api("/security/secureScores").top(1).get(),
-      ]);
+      const [orgData, usersData, subsData, secScoreData, mfaData, healthData] =
+        await Promise.all([
+          fetchWithToken(
+            "https://graph.microsoft.com/v1.0/organization?$select=displayName,id"
+          ),
+          fetchAllPages(
+            "https://graph.microsoft.com/v1.0/users?$select=id,accountEnabled,userType&$top=999"
+          ),
+          fetchWithToken("https://graph.microsoft.com/v1.0/subscribedSkus"),
+          fetchWithToken(
+            "https://graph.microsoft.com/v1.0/security/secureScores?$top=1"
+          ),
+          fetchAllPages(
+            "https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails?$select=id,isMfaRegistered&$top=999"
+          ),
+          fetchWithToken(
+            "https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/healthOverviews"
+          ).catch(() => null),
+        ]);
 
-      const org = orgRes.status === "fulfilled" ? orgRes.value?.value?.[0] : null;
-      const usersData = usersRes.status === "fulfilled" ? usersRes.value : null;
-      const subs = subsRes.status === "fulfilled" ? subsRes.value?.value ?? [] : [];
-      const secScore = secScoreRes.status === "fulfilled" ? secScoreRes.value?.value?.[0] : null;
+      const org = orgData?.value?.[0] ?? null;
+      const rawUsers: any[] = usersData ?? [];
+      const subs: any[] = subsData?.value ?? [];
+      const secScore = secScoreData?.value?.[0] ?? null;
+      const mfaUsers: any[] = mfaData ?? [];
+      const services: any[] = healthData?.value ?? [];
 
-      let totalUsers = 0;
+      let totalUsers = rawUsers.length;
       let activeUsers = 0;
       let guestUsers = 0;
       let disabledUsers = 0;
 
-      if (usersData?.value) {
-        totalUsers = usersData["@odata.count"] ?? usersData.value.length;
-        for (const u of usersData.value) {
-          if (u.userType === "Guest") guestUsers++;
-          if (!u.accountEnabled) disabledUsers++;
-        }
-        activeUsers = totalUsers - disabledUsers - guestUsers;
+      for (const u of rawUsers) {
+        if (u.userType === "Guest") guestUsers++;
+        if (!u.accountEnabled) disabledUsers++;
+        else if (u.userType !== "Guest") activeUsers++;
       }
 
       let totalLicenses = 0;
@@ -42,31 +81,16 @@ router.get("/m365/overview", async (req, res): Promise<void> => {
       const secureScore = secScore?.currentScore ?? 0;
       const secureScoreMax = secScore?.maxScore ?? 100;
 
-      let mfaEnabledPercent = 0;
-      try {
-        const mfaRes = await graphClient
-          .api("/reports/authenticationMethods/userRegistrationDetails")
-          .filter("isMfaRegistered eq true")
-          .count(true)
-          .header("ConsistencyLevel", "eventual")
-          .get();
-        const mfaCount = mfaRes?.["@odata.count"] ?? 0;
-        mfaEnabledPercent = totalUsers > 0 ? Math.round((mfaCount / totalUsers) * 100) : 0;
-      } catch {
-        mfaEnabledPercent = 0;
-      }
+      const mfaEnabledCount = mfaUsers.filter((u: any) => u.isMfaRegistered).length;
+      const mfaEnabledPercent =
+        mfaUsers.length > 0
+          ? Math.round((mfaEnabledCount / mfaUsers.length) * 100)
+          : 0;
 
-      let activeServices = 0;
-      let totalServices = 0;
-      try {
-        const healthRes = await graphClient.api("/admin/serviceAnnouncement/healthOverviews").get();
-        const services = healthRes?.value ?? [];
-        totalServices = services.length;
-        activeServices = services.filter((s: any) => s.status === "serviceOperational").length;
-      } catch {
-        totalServices = 0;
-        activeServices = 0;
-      }
+      const totalServices = services.length;
+      const activeServices = services.filter(
+        (s: any) => s.status === "serviceOperational"
+      ).length;
 
       return {
         tenantName: org?.displayName ?? "Unknown Tenant",

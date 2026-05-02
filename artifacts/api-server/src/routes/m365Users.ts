@@ -1,28 +1,49 @@
 import { Router } from "express";
-import { graphClient, getCached } from "../lib/graphClient.js";
+import { getCached } from "../lib/graphClient.js";
 
 const router = Router();
+
+async function fetchWithToken(url: string): Promise<any> {
+  const { ClientSecretCredential } = await import("@azure/identity");
+  const cred = new ClientSecretCredential(
+    process.env.AZURE_TENANT_ID!,
+    process.env.AZURE_CLIENT_ID!,
+    process.env.AZURE_CLIENT_SECRET!
+  );
+  const token = await cred.getToken("https://graph.microsoft.com/.default");
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token!.token}` },
+  });
+  if (!resp.ok) return null;
+  return resp.json();
+}
+
+async function fetchAllPages(firstUrl: string): Promise<any[]> {
+  const results: any[] = [];
+  let url: string | null = firstUrl;
+  while (url) {
+    const page: any = await fetchWithToken(url);
+    if (!page || !page.value) break;
+    results.push(...page.value);
+    url = page["@odata.nextLink"] ?? null;
+  }
+  return results;
+}
 
 router.get("/m365/users", async (req, res): Promise<void> => {
   try {
     const data = await getCached("m365-users", async () => {
-      const [usersRes, mfaRes] = await Promise.allSettled([
-        graphClient
-          .api("/users")
-          .select("id,displayName,userPrincipalName,accountEnabled,userType,lastSignInDateTime,assignedLicenses,department,jobTitle")
-          .top(999)
-          .header("ConsistencyLevel", "eventual")
-          .orderby("displayName")
-          .get(),
-        graphClient
-          .api("/reports/authenticationMethods/userRegistrationDetails")
-          .select("id,isMfaRegistered")
-          .top(999)
-          .get(),
+      const [rawUsers, mfaUsers] = await Promise.all([
+        fetchAllPages(
+          "https://graph.microsoft.com/v1.0/users" +
+            "?$select=id,displayName,userPrincipalName,accountEnabled,userType,signInActivity,assignedLicenses,department,jobTitle" +
+            "&$top=999"
+        ),
+        fetchAllPages(
+          "https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails" +
+            "?$select=id,isMfaRegistered&$top=999"
+        ),
       ]);
-
-      const rawUsers = usersRes.status === "fulfilled" ? usersRes.value?.value ?? [] : [];
-      const mfaUsers = mfaRes.status === "fulfilled" ? mfaRes.value?.value ?? [] : [];
 
       const mfaMap = new Map<string, boolean>();
       for (const m of mfaUsers) {
@@ -39,6 +60,7 @@ router.get("/m365/users", async (req, res): Promise<void> => {
       let neverSignedIn = 0;
 
       const deptMap = new Map<string, number>();
+
       const users = rawUsers.map((u: any) => {
         const isMfa = mfaMap.get(u.id) ?? false;
         if (u.accountEnabled) activeUsers++;
@@ -47,7 +69,12 @@ router.get("/m365/users", async (req, res): Promise<void> => {
         else memberUsers++;
         if (isMfa) mfaEnabled++;
         else mfaDisabled++;
-        if (!u.lastSignInDateTime) neverSignedIn++;
+
+        const lastSignIn =
+          u.signInActivity?.lastSignInDateTime ??
+          u.signInActivity?.lastNonInteractiveSignInDateTime ??
+          null;
+        if (!lastSignIn) neverSignedIn++;
 
         const dept = u.department ?? "Unassigned";
         deptMap.set(dept, (deptMap.get(dept) ?? 0) + 1);
@@ -59,7 +86,7 @@ router.get("/m365/users", async (req, res): Promise<void> => {
           accountEnabled: u.accountEnabled ?? false,
           userType: u.userType ?? "Member",
           mfaEnabled: isMfa,
-          lastSignIn: u.lastSignInDateTime ?? null,
+          lastSignIn,
           assignedLicenses: u.assignedLicenses?.length ?? 0,
           department: u.department ?? null,
           jobTitle: u.jobTitle ?? null,

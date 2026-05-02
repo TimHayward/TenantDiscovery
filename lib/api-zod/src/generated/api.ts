@@ -117,6 +117,17 @@ export const GetM365SecurityResponse = zod.object({
       maxScore: zod.number(),
     }),
   ),
+  caPolicies: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      state: zod.string(),
+      targetUsers: zod.string(),
+      targetApps: zod.string(),
+      authStrength: zod.string(),
+      modifiedDateTime: zod.string().nullable(),
+    }),
+  ),
   riskyUsers: zod.number(),
   adminsWithoutMfa: zod.number(),
 });
@@ -213,6 +224,18 @@ export const GetM365ComplianceResponse = zod.object({
   auditLogEnabled: zod.boolean(),
   unifiedAuditLogEnabled: zod.boolean(),
   eDiscoveryCases: zod.number(),
+  sensitivityLabelsList: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      description: zod.string(),
+      color: zod.string(),
+      sensitivity: zod.number(),
+      isActive: zod.boolean(),
+      parent: zod.string().nullable(),
+    }),
+  ),
+  sensitivityLabelsPermissionRequired: zod.boolean(),
 });
 
 /**
