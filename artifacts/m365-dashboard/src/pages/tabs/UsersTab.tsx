@@ -1,4 +1,5 @@
-import { useGetM365Users } from "@workspace/api-client-react";
+import { useGetM365Users, useGetM365Security } from "@workspace/api-client-react";
+import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -210,6 +211,7 @@ const allColumns: ColumnDef<UserItem>[] = [
 
 export function UsersTab() {
   const { data, isLoading, isFetching } = useGetM365Users();
+  const { data: sec } = useGetM365Security();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const loading = isLoading || isFetching;
@@ -304,6 +306,128 @@ export function UsersTab() {
         <Download className="w-3.5 h-3.5" />
       </CSVLink>
     ) : null;
+
+  // ── Section 1: Entra ID security checklist ─────────────────────────────────
+  const section1Groups = useMemo<ChecklistGroup[]>(() => {
+    const caps: Array<{ displayName?: string; state?: string; targetUsers?: string; authStrength?: string }> =
+      (sec as { caPolicies?: Array<{ displayName?: string; state?: string; targetUsers?: string; authStrength?: string }> })?.caPolicies ?? [];
+    const capEnabled = (kw: string) => caps.some(p => p.displayName?.toLowerCase().includes(kw.toLowerCase()) && p.state === "enabled");
+    const capAny    = (kw: string) => caps.some(p => p.displayName?.toLowerCase().includes(kw.toLowerCase()));
+    const hasMFAAllUsersEnabled = caps.some(p =>
+      (p.targetUsers?.includes("All Users") || p.displayName?.toLowerCase().includes("base protection")) &&
+      p.displayName?.toLowerCase().includes("mfa") && p.state === "enabled");
+    const hasMFAAdminsEnabled = caps.some(p =>
+      p.displayName?.toLowerCase().includes("admin") && p.displayName?.toLowerCase().includes("mfa") && p.state === "enabled");
+    const hasAzureMgmtMFA = capAny("privileged systems");
+    const hasLegacyAuthPolicy = capAny("other clients") || capAny("active sync");
+    const hasLegacyAuthEnabled = capEnabled("other clients") || capEnabled("active sync");
+    const breakGlassPresent = (sec as { mfaUsersList?: Array<{ displayName?: string }> })?.mfaUsersList?.some(
+      u => u.displayName?.toLowerCase().includes("break glass")) ?? false;
+    const mfaDisabledCount = sec?.mfaDisabledUsers ?? data?.mfaDisabled ?? 0;
+    const allUsersMFA = mfaDisabledCount === 0;
+    const adminsWithoutMfa = sec?.adminsWithoutMfa ?? 0;
+    const hasBrowserSessionPolicy = capAny("browser session") || capAny("sign-in frequency");
+    const hasHighRiskBlock = capAny("high sign-in risk") || capAny("high user risk");
+    const hasCompliantDevicePolicy = capAny("trusted device") || capAny("compliant");
+    const hasPhishingResistantAdmin = caps.some(p =>
+      p.displayName?.toLowerCase().includes("admin") && p.authStrength?.toLowerCase().includes("phishing") && p.state === "enabled");
+    const neverSignedIn = data?.neverSignedIn ?? 0;
+    return [
+      { id: "1.1", title: "1.1 Multi-factor authentication is enforced for all users", items: [
+        { label: "MFA is enforced for all users", status: hasMFAAllUsersEnabled ? "pass" : allUsersMFA ? "warning" : "fail",
+          detail: hasMFAAllUsersEnabled ? "Enforced" : allUsersMFA ? "Policy exists but verify enforcement" : `${mfaDisabledCount} user${mfaDisabledCount !== 1 ? "s" : ""} not enrolled` },
+        { label: "MFA is enforced for Azure Management", status: hasAzureMgmtMFA ? "warning" : "manual",
+          detail: hasAzureMgmtMFA ? "Report Only – not yet enforced" : "Manual Check Required" },
+        { label: "Users are enrolled in MFA and covered by a policy", status: allUsersMFA ? "pass" : "fail",
+          detail: allUsersMFA ? "All users enrolled" : `${mfaDisabledCount} user${mfaDisabledCount !== 1 ? "s" : ""} not enrolled` },
+      ]},
+      { id: "1.2", title: "1.2 MFA is required for all Admins", items: [
+        { label: "MFA is enforced on accounts with highly privileged roles",
+          status: hasMFAAdminsEnabled && adminsWithoutMfa === 0 ? "pass" : hasMFAAdminsEnabled ? "warning" : "fail",
+          detail: hasMFAAdminsEnabled && adminsWithoutMfa === 0 ? "Enforced" : hasMFAAdminsEnabled ? `${adminsWithoutMfa} admin${adminsWithoutMfa !== 1 ? "s" : ""} not registered` : "Not Enforced" },
+      ]},
+      { id: "1.3", title: "1.3 Legacy Authentication is blocked", items: [
+        { label: "Legacy Authentication shall be blocked",
+          status: hasLegacyAuthEnabled ? "pass" : hasLegacyAuthPolicy ? "warning" : "fail",
+          detail: hasLegacyAuthEnabled ? "Enforced" : hasLegacyAuthPolicy ? "Report Only – not yet enforced" : "Not Configured" },
+      ]},
+      { id: "1.4", title: "1.4 Break Glass users are created for emergency access", items: [
+        { label: "Break Glass users are created for emergency access",
+          status: breakGlassPresent ? "pass" : "fail", detail: breakGlassPresent ? "Present" : "Not Found" },
+      ]},
+      { id: "1.5", title: "1.5 Ensure that between two and four global admins are designated", items: [
+        { label: "Between 2 and 4 global admins designated", status: "manual" },
+      ]},
+      { id: "1.6", title: "1.6 Highly privileged accounts shall be cloud-only", items: [
+        { label: "All Global Admins are cloud-only accounts", status: "manual" },
+      ]},
+      { id: "1.7", title: "1.7 Non-admin users shall be prevented from providing consent to 3rd party applications", items: [
+        { label: "Only Admins shall be allowed to register 3rd party applications", status: "manual" },
+        { label: "Non-admin users prevented from providing consent to 3rd party applications", status: "manual" },
+      ]},
+      { id: "1.8", title: "1.8 Guest users have limited access to properties and memberships of directory objects", items: [
+        { label: "Guest user access restricted to limited directory properties", status: "manual" },
+      ]},
+      { id: "1.9", title: "1.9 Passwords shall not expire", items: [
+        { label: "Password expiration policy is disabled (passwords do not expire)", status: "manual" },
+      ]},
+      { id: "1.10", title: "1.10 MFA shall be required to enrol devices to Azure AD", items: [
+        { label: "MFA required for device enrollment", status: "manual" },
+      ]},
+      { id: "1.11", title: "1.11 Local Administrator settings are configured for device joins", items: [
+        { label: "Local administrator settings configured for device joins", status: "manual" },
+      ]},
+      { id: "1.12", title: "1.12 Dormant Accounts are disabled with 45 days of inactivity", items: [
+        { label: "Accounts without sign-in for 45+ days are disabled",
+          status: neverSignedIn === 0 ? "pass" : "warning",
+          detail: neverSignedIn === 0 ? "No stale accounts detected" : `${neverSignedIn} account${neverSignedIn !== 1 ? "s" : ""} never signed in` },
+      ]},
+      { id: "1.13", title: "1.13 Browser Sessions are limited for Privileged Users", items: [
+        { label: "Browser session persistence limited for privileged users",
+          status: hasBrowserSessionPolicy ? "warning" : "manual",
+          detail: hasBrowserSessionPolicy ? "Report Only – not yet enforced" : "Manual Check Required" },
+      ]},
+      { id: "1.14", title: "1.14 Devices shall be deleted that haven't checked in for over 30 days", items: [
+        { label: "Stale devices automatically removed or flagged after 30 days", status: "manual" },
+      ]},
+      { id: "1.15", title: "1.15 All corporate approved applications are catalogued and periodically reviewed", items: [
+        { label: "Enterprise applications catalogued and periodically reviewed", status: "manual" },
+      ]},
+      { id: "1.16", title: "1.16 Dynamic Groups are leveraged for automated group management", items: [
+        { label: "Dynamic groups configured for automated user assignment", status: "manual" },
+      ]},
+      { id: "1.17", title: "1.17 MFA shall be required for Intune Enrolment", items: [
+        { label: "MFA required for Intune device enrollment", status: "manual" },
+      ]},
+      { id: "1.18", title: "1.18 Require Managed Devices for Sign in", items: [
+        { label: "Managed device required for sign-in",
+          status: hasCompliantDevicePolicy ? "warning" : "manual",
+          detail: hasCompliantDevicePolicy ? "Report Only – not yet enforced" : "Manual Check Required" },
+      ]},
+      { id: "1.19", title: "1.19 Device Compliance is required for access to resources", items: [
+        { label: "Device compliance required for resource access",
+          status: hasCompliantDevicePolicy ? "warning" : "manual",
+          detail: hasCompliantDevicePolicy ? "Report Only – not yet enforced" : "Manual Check Required" },
+      ]},
+      { id: "1.20", title: "1.20 Require Phishing Resistant MFA for Admins", items: [
+        { label: "Phishing-resistant MFA required for admins",
+          status: hasPhishingResistantAdmin ? "pass" : "fail",
+          detail: hasPhishingResistantAdmin ? "Enforced" : "Not Configured" },
+      ]},
+      { id: "1.21", title: "1.21 High risk users and signins are blocked", items: [
+        { label: "High risk sign-ins blocked by Conditional Access",
+          status: hasHighRiskBlock ? "warning" : "manual",
+          detail: hasHighRiskBlock ? "Report Only – not yet enforced" : "Manual Check Required" },
+      ]},
+      { id: "1.22", title: "1.22 Privileged Identity Management (PIM) is configured for JIT access", items: [
+        { label: "PIM used to manage privileged roles", status: "manual" },
+        { label: "Approval required for Global Administrator activation", status: "manual" },
+      ]},
+      { id: "1.23", title: "1.23 Microsoft Sentinel is configured to ingest logs from Entra and Defender", items: [
+        { label: "Microsoft Sentinel ingesting logs from Entra ID and Microsoft Defender", status: "manual" },
+      ]},
+    ];
+  }, [sec, data]);
 
   return (
     <div className="space-y-4">
@@ -746,6 +870,9 @@ export function UsersTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* SECTION 1 — ENTRA ID SECURITY CHECKLIST */}
+      <ChecklistTable sectionTitle="Entra ID" groups={section1Groups} loading={loading} />
 
     </div>
   );

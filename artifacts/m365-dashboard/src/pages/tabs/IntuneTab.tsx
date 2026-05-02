@@ -1,5 +1,6 @@
 import React from "react";
 import { useGetM365Intune } from "@workspace/api-client-react";
+import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -302,6 +303,53 @@ export function IntuneTab() {
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
+
+  // ── Section 4: Intune security checklist ────────────────────────────────────
+  const intuneChecklist: ChecklistGroup[] = [
+    { id: "4.1", title: "4.1 Automated patching is performed on all devices", items: [
+      { label: "Windows Update Rings / patching policies configured",
+        status: (data?.totalConfigProfiles ?? 0) > 0 ? "pass" : "fail",
+        detail: (data?.totalConfigProfiles ?? 0) > 0 ? `${data?.totalConfigProfiles} config profiles` : "Not Configured" },
+      { label: "Apple device update policies configured", status: "manual" },
+    ]},
+    { id: "4.2", title: "4.2 Managed devices are enrolled in MDM", items: [
+      { label: "Devices enrolled in Microsoft Intune",
+        status: (data?.totalDevices ?? 0) > 0 ? "pass" : "fail",
+        detail: (data?.totalDevices ?? 0) > 0 ? `${data?.totalDevices} devices enrolled` : "No devices enrolled" },
+    ]},
+    { id: "4.3", title: "4.3 Personal Devices should be restricted from enrolling into the MDM solution", items: [
+      { label: "Personal device enrollment restricted", status: "manual" },
+    ]},
+    { id: "4.4", title: "4.4 Security Baselines should be configured for Windows Devices", items: [
+      { label: "Windows security baselines configured",
+        status: (data?.totalConfigProfiles ?? 0) > 0 ? "warning" : "fail",
+        detail: (data?.totalConfigProfiles ?? 0) > 0 ? `${data?.totalConfigProfiles} config profiles (verify baselines included)` : "Not Configured" },
+    ]},
+    { id: "4.5", title: "4.5 Device compliance policies shall be configured for every supported device platform", items: [
+      { label: "Compliance policies configured for each device platform",
+        status: (data?.totalCompliancePolicies ?? 0) > 0 ? "pass" : "fail",
+        detail: (data?.totalCompliancePolicies ?? 0) > 0 ? `${data?.totalCompliancePolicies} policies configured` : "Not Configured" },
+    ]},
+    { id: "4.6", title: "4.6 All devices have drive encryption applied", items: [
+      { label: "Drive encryption applied to all enrolled devices",
+        status: (data?.encryptedDevices ?? 0) === (data?.totalDevices ?? -1) ? "pass" : (data?.encryptionPercent ?? 0) >= 80 ? "warning" : "fail",
+        detail: `${data?.encryptedDevices ?? 0} of ${data?.totalDevices ?? 0} devices encrypted (${data?.encryptionPercent ?? 0}%)` },
+    ]},
+    { id: "4.7", title: "4.7 Lockout screen and password settings shall be configured for each device", items: [
+      { label: "Lockout and password policies deployed to all device platforms", status: "manual" },
+    ]},
+    { id: "4.8", title: "4.8 App Protection policies should be created for mobile devices", items: [
+      { label: "App protection policies configured for mobile devices",
+        status: (data?.totalAppProtectionPolicies ?? 0) > 0 ? "pass" : "fail",
+        detail: (data?.totalAppProtectionPolicies ?? 0) > 0 ? `${data?.totalAppProtectionPolicies} policies configured` : "Not Configured" },
+    ]},
+    { id: "4.9", title: "4.9 Approved 3rd party applications are deployed and patched", items: [
+      { label: "Approved 3rd party applications managed and patched via Intune", status: "manual" },
+    ]},
+    { id: "4.10", title: "4.10 Local Administrators passwords are managed with LAPS", items: [
+      { label: "LAPS configured for local administrator password management", status: "manual" },
+    ]},
+  ];
 
   // ── derived chart data ──
   const enrolledByOSChart = useMemo(
@@ -919,6 +967,9 @@ export function IntuneTab() {
           </div>
         )}
       </div>
+
+      {/* SECTION 4 — INTUNE SECURITY CHECKLIST */}
+      <ChecklistTable sectionTitle="Intune" groups={intuneChecklist} loading={loading} />
 
     </div>
   );

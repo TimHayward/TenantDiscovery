@@ -32,7 +32,14 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Preview path**: `/m365-dashboard/`
 - **Purpose**: Comprehensive Microsoft 365 tenant health dashboard pulling live data from Microsoft Graph API using an Azure app registration
 - **Tech**: React + Vite + Recharts + TanStack Table + shadcn/ui
-- **Tabs**: Overview, Users & Identity, Licenses, Security, Exchange Online, Teams & SharePoint, Compliance & Health
+- **Tabs**: Overview, Users & Identity, Licenses, Security, Exchange Online, Teams & SharePoint, Compliance & Health, Intune
+- **Security Checklist**: Every tab has a `ChecklistTable` appended at the bottom (`src/components/ChecklistTable.tsx`) mapping to spec sections 1–7:
+  - Users & Identity → Section 1 (1.1–1.23, live status from CA policies + MFA data)
+  - Exchange Online → Section 2 (2.1–2.8, manual — API doesn't expose policy config)
+  - Teams & SharePoint → Sections 3 + 5 (live for external/guest access; rest manual)
+  - Intune → Section 4 (4.1–4.10, live from device/compliance/config profile counts)
+  - Security → Section 6 (6.1–6.9, Secure Score live; MCAS/high-risk from CA policies)
+  - Compliance → Section 7 (7.1–7.5, live audit/DLP/retention/label data)
 - **Data source**: Microsoft Graph API (app registration via client credentials)
 - **Auth secrets**: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
 - **Graph client**: `artifacts/api-server/src/lib/graphClient.ts` (uses `@azure/identity` + `@microsoft/microsoft-graph-client`)

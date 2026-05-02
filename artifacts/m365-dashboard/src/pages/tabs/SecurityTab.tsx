@@ -1,4 +1,5 @@
 import { useGetM365Security } from "@workspace/api-client-react";
+import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -221,6 +222,51 @@ export function SecurityTab() {
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
+
+  // ── Section 6: Defender / Security checklist ────────────────────────────────
+  const caps: Array<{ displayName?: string; state?: string }> =
+    (data as { caPolicies?: Array<{ displayName?: string; state?: string }> })?.caPolicies ?? [];
+  const hasMCASpolicies = caps.some(p => p.displayName?.toLowerCase().includes("mcas") || p.displayName?.toLowerCase().includes("cloud app"));
+  const hasHighRiskBlock = caps.some(p => p.displayName?.toLowerCase().includes("high sign-in risk") || p.displayName?.toLowerCase().includes("high user risk"));
+  const secureScorePercent = data?.secureScorePercent ?? 0;
+  const securityChecklist: ChecklistGroup[] = [
+    { id: "6.1", title: "6.1 Security awareness training is provided to all users", items: [
+      { label: "Attack Simulation Training configured and active", status: "manual" },
+      { label: "Phishing simulation campaigns running", status: "manual" },
+    ]},
+    { id: "6.2", title: "6.2 Antivirus is deployed to all endpoints", items: [
+      { label: "Microsoft Defender Antivirus deployed to all Windows devices", status: "manual" },
+      { label: "Antivirus signatures are kept up to date", status: "manual" },
+    ]},
+    { id: "6.3", title: "6.3 Endpoint Detection and Response (EDR) is deployed", items: [
+      { label: "Microsoft Defender for Endpoint EDR configured", status: "manual" },
+    ]},
+    { id: "6.4", title: "6.4 Microsoft Secure Score is monitored and improvement actions addressed", items: [
+      { label: "Secure Score is actively monitored",
+        status: secureScorePercent >= 70 ? "pass" : secureScorePercent >= 40 ? "warning" : "fail",
+        detail: secureScorePercent > 0 ? `${secureScorePercent}% Secure Score` : "Manual Check Required" },
+    ]},
+    { id: "6.5", title: "6.5 Microsoft Defender XDR is configured", items: [
+      { label: "Microsoft Defender XDR (formerly M365 Defender) is enabled and configured", status: "manual" },
+    ]},
+    { id: "6.6", title: "6.6 Vulnerability Management is configured", items: [
+      { label: "Defender Vulnerability Management scanning enabled", status: "manual" },
+    ]},
+    { id: "6.7", title: "6.7 Email and collaboration protection is enabled", items: [
+      { label: "Defender for Office 365 Plan 1 or Plan 2 enabled", status: "manual" },
+      { label: "Safe Links and Safe Attachments policies are active", status: "manual" },
+    ]},
+    { id: "6.8", title: "6.8 High risk sign-ins are blocked", items: [
+      { label: "High risk sign-in risk policy configured",
+        status: hasHighRiskBlock ? "warning" : "fail",
+        detail: hasHighRiskBlock ? "Report Only – not yet enforced" : "Not Configured" },
+    ]},
+    { id: "6.9", title: "6.9 Microsoft Defender for Cloud Apps (MCAS) is configured", items: [
+      { label: "Cloud App Security / MCAS policies are active",
+        status: hasMCASpolicies ? "warning" : "manual",
+        detail: hasMCASpolicies ? "Report Only policies detected" : "Manual Check Required" },
+    ]},
+  ];
 
   // ── derived chart data ──
   const mfaDonutData = data
@@ -822,6 +868,9 @@ export function SecurityTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* SECTION 6 — MICROSOFT DEFENDER / SECURITY CHECKLIST */}
+      <ChecklistTable sectionTitle="Microsoft Defender" groups={securityChecklist} loading={loading} />
 
     </div>
   );

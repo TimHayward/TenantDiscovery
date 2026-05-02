@@ -1,4 +1,5 @@
 import { useGetM365Teams, useGetM365SharePoint } from "@workspace/api-client-react";
+import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -83,6 +84,40 @@ export function TeamsSharePointTab() {
 
   const teamsLoading = isTeamsLoading || isTeamsFetching;
   const spLoading = isSpLoading || isSpFetching;
+
+  const externalAccessEnabled = teamsData?.externalAccessEnabled ?? null;
+  const guestAccessEnabled = teamsData?.guestAccessEnabled ?? null;
+
+  const teamsChecklist: ChecklistGroup[] = [
+    { id: "3.1", title: "3.1 External User Access SHALL Be Restricted", items: [
+      { label: "External domains restricted in Teams admin centre", status: externalAccessEnabled === null ? "manual" : externalAccessEnabled ? "fail" : "pass", detail: externalAccessEnabled === null ? "Manual Check Required" : externalAccessEnabled ? "Not Restricted" : "Restricted" },
+    ]},
+    { id: "3.2", title: "3.2 External Participants SHOULD NOT be Enabled to Request Control of Shared Desktops", items: [
+      { label: "External participants cannot request desktop control", status: "manual" },
+    ]},
+    { id: "3.3", title: "3.3 Anonymous Users SHALL NOT be Enabled to Start Meetings", items: [
+      { label: "Anonymous users cannot start meetings", status: "manual" },
+    ]},
+    { id: "3.4", title: "3.4 Automatic Admittance to Meeting SHOULD Be Restricted", items: [
+      { label: "Only internal users bypass lobby (external users wait)", status: "manual" },
+    ]},
+    { id: "3.5", title: "3.5 Unmanaged users SHALL NOT be enabled to initiate contact with internal users", items: [
+      { label: "Unmanaged users cannot initiate contact with internal users", status: "manual" },
+    ]},
+    { id: "3.6", title: "3.6 Contact with Skype Users SHALL be Blocked", items: [
+      { label: "Communication with Skype (consumer) users is blocked", status: "manual" },
+    ]},
+    { id: "3.7", title: "3.7 File Sharing and File Storage Options shall be blocked", items: [
+      { label: "Third-party file sharing restricted in Teams", status: "manual" },
+    ]},
+    { id: "5.1", title: "5.1 Default sharing settings are set for New and Existing Guest", items: [
+      { label: "External sharing managed via whitelist/blacklist", status: "manual" },
+      { label: "Link sharing restricted to specific people or organisation", status: "manual" },
+    ]},
+    { id: "5.2", title: "5.2 Expiration Dates are set for Anyone links", items: [
+      { label: "Expiration date is set for anonymous sharing links", status: "manual" },
+    ]},
+  ];
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
@@ -263,6 +298,10 @@ export function TeamsSharePointTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* SECTIONS 3 + 5 — TEAMS & SHAREPOINT SECURITY CHECKLIST */}
+      <ChecklistTable sectionTitle="Teams & SharePoint" groups={teamsChecklist} loading={teamsLoading || spLoading} />
+
     </div>
   );
 }

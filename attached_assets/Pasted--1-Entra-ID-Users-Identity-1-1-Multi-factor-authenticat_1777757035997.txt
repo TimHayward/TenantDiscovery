@@ -1,0 +1,135 @@
+## **1 – Entra ID (Users & Identity)
+
+- **1.1 Multi-factor authentication is enforced for all users**
+    - MFA is enforced for all users
+    - MFA is enforced for Azure Management
+    - Users are enrolled in MFA and covered by a policy
+- **1.2 MFA is required for all Admins**
+    - MFA is enforced on accounts with highly privileged roles
+- **1.3 Legacy Authentication is blocked**
+    - Legacy Authentication shall be blocked
+- **1.4 Break Glass users are created for emergency access**
+    - Break Glass users are created for emergency access
+- **1.5 Ensure that between two and four global admins are designated**
+    - 4 global admin were detected
+- **1.6 Highly privileged accounts shall be cloud-only**
+    - All Global Admins are cloud-only
+- **1.7 Non-admin users shall be prevented from providing consent to 3rd party applications**
+    - Only Admins shall be allowed to register 3rd party applications
+    - Non-admin users shall be prevented from providing consent to 3rd party applications
+- **1.8 Guest users have limited access to properties and memberships of directory objects**
+- **1.9 Passwords shall not expire**
+- **1.10 MFA shall be required to enrol devices to Azure AD**
+- **1.11 Local Administrator settings are configured for device joins**
+- **1.12 Dormant Accounts are disabled with 45 days of inactivity**
+    - 99 accounts were found active that have not signed in for over 45 days
+- **1.13 Browser Sessions are limited for Privileged Users**
+- **1.14 Devices shall be deleted that haven’t checked in for over 30 days**
+    - 137 devices have not checked in for 45+ days
+- **1.15 All corporate approved applications are catalogued and periodically reviewed**
+    - 172 Enterprise applications were detected
+- **1.16 Dynamic Groups are leveraged for automated group management**
+- **1.17 MFA shall be required for Intune Enrolment**
+- **1.18 Require Managed Devices for Sign in**
+- **1.19 Device Compliance is required for access to resources**
+- **1.20 Require Phishing Resistant MFA for Admins**
+- **1.21 High risk users and signins are blocked**
+- **1.22 Privileged Identity Management (PIM) is configured for JIT access**
+    - Ensure PIM is used to manage roles
+    - Ensure approval is required for Global Administrator role activation
+- **1.23 Microsoft Sentinel is configured to ingest logs from Entra and Defender**
+
+---
+
+## **2 – Exchange (Exchange Online)**
+
+- **2.1 SPF, DKIM and DMARC records are set up for every domain**
+    - Ensure SPF records are published for all Exchange domains
+    - Ensure DMARC records are published
+    - Ensure DKIM is enabled for Exchange Online domains
+- **2.2 Anti-spam policies are configured**
+    - Inbound Anti-Spam Protections SHALL be Enabled
+- **2.3 Anti-phishing policies are configured**
+    - Ensure anti-phishing policy exists
+- **2.4 Anti-malware policies are configured**
+    - Zero-hour auto purge (ZAP) enabled
+    - Common Attachment Type Filter enabled
+- **2.5 Automatic forwarding to external domains SHALL be disabled**
+- **2.6 Mailbox Auditing SHALL be Enabled**
+    - Mailbox Logging Enabled
+- **2.7 Calendar and Contact Sharing Shall Be Restricted**
+    - External sharing of calendars restricted
+- **2.8 External Sender Warnings are implemented**
+    - Email from external senders is identified
+
+---
+
+## **3 – Teams (Teams & SharePoint)**
+
+- **3.1 External User Access SHALL Be Restricted**
+    - External domains restricted in Teams admin centre
+- **3.2 External Participants SHOULD NOT be Enabled to Request Control of Shared Desktops**
+- **3.3 Anonymous Users SHALL NOT be Enabled to Start Meetings**
+- **3.4 Automatic Admittance to Meeting SHOULD Be Restricted**
+    - Only internal users bypass lobby
+- **3.5 Unmanaged users SHALL NOT be enabled to initiate contact with internal users**
+- **3.6 Contact with Skype Users SHALL be Blocked**
+- **3.7 File Sharing and File Storage Options shall be blocked**
+    - Third-party file sharing restricted
+
+---
+
+## **4 – Intune (Intune)**
+
+- **4.1 Automated patching is performed on all devices**
+    - Windows Update Rings configured
+    - Update policies configured for Apple devices
+- **4.2 Managed devices are enrolled in MDM**
+- **4.3 Personal Devices should be restricted from enrolling into the MDM solution**
+- **4.4 Security Baselines should be configured for Windows Devices**
+- **4.5 Device compliance policies shall be configured for every supported device platform**
+- **4.6 All devices have drive encryption applied**
+    - 8 devices not encrypted
+- **4.7 Lockout screen and password settings shall be configured for each device**
+- **4.8 App Protection policies should be created for mobile devices**
+- **4.9 Approved 3rd party applications are deployed and patched**
+- **4.10 Local Administrators passwords are managed with LAPS**
+
+---
+
+## **5 – SharePoint and OneDrive (Teams & SharePoint)**
+
+- **5.1 Default sharing settings are set for New and Existing Guest**
+    - External sharing managed via whitelist/blacklist
+    - Link sharing restricted
+- **5.2 Expiration Dates are set for Anyone links**
+    - Expiration date should be set for Anyone links
+
+---
+
+## **6 – Defender (Security)**
+
+- **6.1 Security Awareness training is conducted at least once per year**
+    - Attack simulation conducted periodically
+- **6.2 Anti-virus protections are applied to all devices**
+    - Defender Antivirus deployed via Intune
+- **6.3 Endpoint detection and response software is running on all devices**
+    - Devices enrolled for Defender for Business or Endpoint
+- **6.4 Firewall protections configured on devices**
+- **6.5 Safe Links policies are configured**
+- **6.6 Safe Attachment policies are configured**
+- **6.7 Tamper Protection is configured**
+- **6.8 Attack Surface reduction rules are configured**
+- **6.9 Defender for Cloud Apps is configured to monitor applications**
+
+---
+
+## **7 – Purview (Compliance & Health)**
+
+- **7.1 Periodic backups are performed for email, files, and servers**
+    - Maintain 3rd party backups of Microsoft 365 data
+- **7.2 Audit Logging SHALL Be Enabled**
+- **7.3 Retention Policies are configured**
+- **7.4 Sensitivity Labels are configured**
+    - Information Protection Labels shall be configured
+- **7.5 Data Loss Prevention Policies are configured**

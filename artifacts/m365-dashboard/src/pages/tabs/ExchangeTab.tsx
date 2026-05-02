@@ -1,4 +1,5 @@
 import { useGetM365Exchange } from "@workspace/api-client-react";
+import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +24,36 @@ export function ExchangeTab() {
   const isDark = theme === "dark";
 
   const loading = isLoading || isFetching;
+
+  const exchangeChecklist: ChecklistGroup[] = [
+    { id: "2.1", title: "2.1 SPF, DKIM and DMARC records are set up for every domain", items: [
+      { label: "Ensure SPF records are published for all Exchange domains", status: "manual" },
+      { label: "Ensure DMARC records are published", status: "manual" },
+      { label: "Ensure DKIM is enabled for Exchange Online domains", status: "manual" },
+    ]},
+    { id: "2.2", title: "2.2 Anti-spam policies are configured", items: [
+      { label: "Inbound anti-spam protections are enabled", status: "manual" },
+    ]},
+    { id: "2.3", title: "2.3 Anti-phishing policies are configured", items: [
+      { label: "Anti-phishing policy exists and is active", status: "manual" },
+    ]},
+    { id: "2.4", title: "2.4 Anti-malware policies are configured", items: [
+      { label: "Zero-hour auto purge (ZAP) enabled", status: "manual" },
+      { label: "Common Attachment Type Filter enabled", status: "manual" },
+    ]},
+    { id: "2.5", title: "2.5 Automatic forwarding to external domains SHALL be disabled", items: [
+      { label: "Automatic forwarding to external domains is blocked", status: "manual" },
+    ]},
+    { id: "2.6", title: "2.6 Mailbox Auditing SHALL be Enabled", items: [
+      { label: "Mailbox logging is enabled", status: "manual" },
+    ]},
+    { id: "2.7", title: "2.7 Calendar and Contact Sharing Shall Be Restricted", items: [
+      { label: "External sharing of calendars is restricted", status: "manual" },
+    ]},
+    { id: "2.8", title: "2.8 External Sender Warnings are implemented", items: [
+      { label: "Email from external senders is visually identified", status: "manual" },
+    ]},
+  ];
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
@@ -127,6 +158,10 @@ export function ExchangeTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* SECTION 2 — EXCHANGE ONLINE SECURITY CHECKLIST */}
+      <ChecklistTable sectionTitle="Exchange Online" groups={exchangeChecklist} loading={loading} />
+
     </div>
   );
 }
