@@ -3,79 +3,159 @@ import { getCached } from "../lib/graphClient.js";
 
 const router = Router();
 
-async function fetchWithToken(url: string): Promise<any> {
+const PERMISSION_ERROR_CODES = new Set([403, 401]);
+
+async function getToken(): Promise<string> {
   const { ClientSecretCredential } = await import("@azure/identity");
   const cred = new ClientSecretCredential(
     process.env.AZURE_TENANT_ID!,
     process.env.AZURE_CLIENT_ID!,
-    process.env.AZURE_CLIENT_SECRET!
+    process.env.AZURE_CLIENT_SECRET!,
+    { tokenCachePersistenceOptions: { enabled: false } }
   );
   const token = await cred.getToken("https://graph.microsoft.com/.default");
-  const resp = await fetch(url, {
-    headers: { Authorization: `Bearer ${token!.token}` },
-  });
-  if (!resp.ok) return null;
-  return resp.json();
+  return token!.token;
 }
 
-async function fetchAllPages(firstUrl: string): Promise<any[]> {
-  const results: any[] = [];
+async function fetchWithToken(url: string, bearerToken: string): Promise<{ data: any; status: number }> {
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${bearerToken}` },
+  });
+  if (!resp.ok) return { data: null, status: resp.status };
+  const data = await resp.json();
+  return { data, status: resp.status };
+}
+
+async function fetchAllPages(firstUrl: string, bearerToken: string): Promise<{ items: any[]; permissionDenied: boolean }> {
+  const items: any[] = [];
   let url: string | null = firstUrl;
   while (url) {
-    const page: any = await fetchWithToken(url);
-    if (!page || !page.value) break;
-    results.push(...page.value);
-    url = page["@odata.nextLink"] ?? null;
+    const { data, status } = await fetchWithToken(url, bearerToken);
+    if (PERMISSION_ERROR_CODES.has(status)) return { items: [], permissionDenied: true };
+    if (!data || !data.value) break;
+    items.push(...data.value);
+    url = data["@odata.nextLink"] ?? null;
   }
-  return results;
+  return { items, permissionDenied: false };
 }
 
 router.get("/m365/intune", async (req, res) => {
   try {
     const data = await getCached("m365-intune", async () => {
+      // ── single shared token ──────────────────────────────────────────────
+      const token = await getToken();
+
       // ── parallel fetch ───────────────────────────────────────────────────
       const [
-        devices,
-        compliancePolicies,
-        configProfiles,
-        enrollmentConfigs,
-        complianceSummary,
-        appProtectionPolicies,
+        devicesResult,
+        compliancePoliciesResult,
+        configProfilesResult,
+        enrollmentConfigsResult,
+        complianceSummaryResult,
+        appProtectionPoliciesResult,
       ] = await Promise.all([
         fetchAllPages(
           "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices" +
             "?$select=id,deviceName,operatingSystem,osVersion,complianceState,enrolledDateTime," +
             "lastSyncDateTime,userDisplayName,userPrincipalName,manufacturer,model,deviceType," +
-            "managementAgent,managementState,isEncrypted,isSupervised,jailBroken"
+            "managementAgent,managementState,isEncrypted,isSupervised,jailBroken",
+          token
         ),
         fetchAllPages(
           "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies" +
-            "?$select=id,displayName,description,createdDateTime,lastModifiedDateTime&$expand=assignments($select=id,target)"
+            "?$select=id,displayName,description,createdDateTime,lastModifiedDateTime" +
+            "&$expand=assignments($select=id,target)",
+          token
         ),
         fetchAllPages(
           "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations" +
-            "?$select=id,displayName,description,createdDateTime,lastModifiedDateTime&$expand=assignments($select=id,target)"
+            "?$select=id,displayName,description,createdDateTime,lastModifiedDateTime" +
+            "&$expand=assignments($select=id,target)",
+          token
         ),
         fetchAllPages(
           "https://graph.microsoft.com/v1.0/deviceManagement/deviceEnrollmentConfigurations" +
-            "?$select=id,displayName,description,enrollmentConfigurationType,createdDateTime,lastModifiedDateTime,priority"
+            "?$select=id,displayName,description,enrollmentConfigurationType,createdDateTime,lastModifiedDateTime,priority",
+          token
         ),
         fetchWithToken(
-          "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicyDeviceStateSummary"
+          "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicyDeviceStateSummary",
+          token
         ),
         fetchAllPages(
           "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies" +
-            "?$select=id,displayName,description,createdDateTime,lastModifiedDateTime"
+            "?$select=id,displayName,description,createdDateTime,lastModifiedDateTime,@odata.type",
+          token
         ),
       ]);
 
+      const devices = devicesResult.items;
+      const compliancePolicies = compliancePoliciesResult.items;
+      const configProfiles = configProfilesResult.items;
+      const enrollmentConfigs = enrollmentConfigsResult.items;
+      const complianceSummary = complianceSummaryResult.data;
+      const appProtectionPolicies = appProtectionPoliciesResult.items;
+
       // ── permission check ─────────────────────────────────────────────────
-      const permissionRequired = !devices || devices.length === 0;
+      // Only true when the devices endpoint explicitly returned 403/401
+      const permissionRequired = devicesResult.permissionDenied;
 
-      // ── KPIs ─────────────────────────────────────────────────────────────
-      const totalDevices = devices.length;
+      // ── build overallCompliance from API summary (available even if device list is denied) ──
+      const overallCompliance = complianceSummary
+        ? {
+            compliantDeviceCount: complianceSummary.compliantDeviceCount ?? 0,
+            noncompliantDeviceCount: complianceSummary.nonCompliantDeviceCount ?? 0,
+            remediatedDeviceCount: complianceSummary.remediatedDeviceCount ?? 0,
+            notApplicableDeviceCount: complianceSummary.notApplicableDeviceCount ?? 0,
+            notAssignedDeviceCount: complianceSummary.notAssignedDeviceCount ?? 0,
+            gracePeriodCount: complianceSummary.inGracePeriodCount ?? 0,
+            configManagerCount: complianceSummary.configManagerCount ?? 0,
+          }
+        : null;
 
-      // Enrolled by OS
+      // ── KPIs: prefer device list, fall back to summary ───────────────────
+      const hasDeviceList = devices.length > 0;
+
+      // Total devices: use summary when device list unavailable
+      const totalDevices = hasDeviceList
+        ? devices.length
+        : overallCompliance
+        ? (overallCompliance.compliantDeviceCount +
+           overallCompliance.noncompliantDeviceCount +
+           overallCompliance.remediatedDeviceCount +
+           overallCompliance.notApplicableDeviceCount +
+           overallCompliance.gracePeriodCount)
+        : 0;
+
+      // Compliance count: prefer device list, fall back to summary
+      const compliantCount = hasDeviceList
+        ? devices.filter((d: any) => d.complianceState === "compliant").length
+        : (overallCompliance?.compliantDeviceCount ?? 0);
+
+      const nonCompliantFromSummary = overallCompliance?.noncompliantDeviceCount ?? 0;
+
+      const overallCompliancePercent =
+        totalDevices > 0 ? Math.round((compliantCount / totalDevices) * 100) : 0;
+
+      // Compliance state breakdown (device-list only)
+      const compMap: Record<string, number> = {};
+      for (const d of devices) {
+        const state = d.complianceState || "unknown";
+        compMap[state] = (compMap[state] || 0) + 1;
+      }
+      // If device list unavailable, seed from summary
+      if (!hasDeviceList && overallCompliance) {
+        if (overallCompliance.compliantDeviceCount > 0) compMap["compliant"] = overallCompliance.compliantDeviceCount;
+        if (overallCompliance.noncompliantDeviceCount > 0) compMap["noncompliant"] = overallCompliance.noncompliantDeviceCount;
+        if (overallCompliance.gracePeriodCount > 0) compMap["inGracePeriod"] = overallCompliance.gracePeriodCount;
+        if (overallCompliance.notApplicableDeviceCount > 0) compMap["notApplicable"] = overallCompliance.notApplicableDeviceCount;
+        if (overallCompliance.notAssignedDeviceCount > 0) compMap["notAssigned"] = overallCompliance.notAssignedDeviceCount;
+      }
+      const complianceByState = Object.entries(compMap)
+        .map(([state, count]) => ({ state, count }))
+        .sort((a, b) => b.count - a.count);
+
+      // Enrolled by OS (device-list only)
       const byOS: Record<string, number> = {};
       for (const d of devices) {
         const os = d.operatingSystem || "Unknown";
@@ -85,7 +165,7 @@ router.get("/m365/intune", async (req, res) => {
         .map(([os, count]) => ({ os, count }))
         .sort((a, b) => b.count - a.count);
 
-      // OS version breakdown per platform
+      // OS version breakdown
       const osVersionMap: Record<string, Record<string, number>> = {};
       for (const d of devices) {
         const os = d.operatingSystem || "Unknown";
@@ -99,20 +179,6 @@ router.get("/m365/intune", async (req, res) => {
           .map(([version, count]) => ({ version, count }))
           .sort((a, b) => b.count - a.count),
       }));
-
-      // Compliance state breakdown
-      const compMap: Record<string, number> = {};
-      for (const d of devices) {
-        const state = d.complianceState || "unknown";
-        compMap[state] = (compMap[state] || 0) + 1;
-      }
-      const complianceByState = Object.entries(compMap)
-        .map(([state, count]) => ({ state, count }))
-        .sort((a, b) => b.count - a.count);
-
-      const compliantCount = compMap["compliant"] || 0;
-      const overallCompliancePercent =
-        totalDevices > 0 ? Math.round((compliantCount / totalDevices) * 100) : 0;
 
       // Compliance per OS
       const osCompMap: Record<string, { compliant: number; total: number }> = {};
@@ -132,7 +198,7 @@ router.get("/m365/intune", async (req, res) => {
         }))
         .sort((a, b) => b.total - a.total);
 
-      // Device list with enriched fields
+      // Device list
       const deviceList = devices.map((d: any) => ({
         id: d.id,
         deviceName: d.deviceName || "Unknown",
@@ -152,26 +218,6 @@ router.get("/m365/intune", async (req, res) => {
         isSupervised: d.isSupervised ?? null,
         jailBroken: d.jailBroken || "Unknown",
       }));
-
-      // Policy summary per OS
-      const policyByOS: Record<string, { totalPolicies: number; policyNames: string[] }> = {};
-      for (const d of deviceList) {
-        if (!policyByOS[d.operatingSystem]) {
-          policyByOS[d.operatingSystem] = { totalPolicies: 0, policyNames: [] };
-        }
-      }
-      for (const p of compliancePolicies) {
-        const type: string = (p["@odata.type"] || "").toLowerCase();
-        let platform = "Unknown";
-        if (type.includes("windows")) platform = "Windows";
-        else if (type.includes("ios")) platform = "iOS";
-        else if (type.includes("android")) platform = "Android";
-        else if (type.includes("macos")) platform = "macOS";
-        if (!policyByOS[platform]) policyByOS[platform] = { totalPolicies: 0, policyNames: [] };
-        policyByOS[platform].totalPolicies++;
-        policyByOS[platform].policyNames.push(p.displayName || "Unnamed");
-      }
-      const policySummaryByOS = Object.entries(policyByOS).map(([os, info]) => ({ os, ...info }));
 
       const getPlatform = (oDataType: string) => {
         const t = (oDataType || "").toLowerCase();
@@ -204,19 +250,6 @@ router.get("/m365/intune", async (req, res) => {
         lastModifiedDateTime: p.lastModifiedDateTime ?? null,
       }));
 
-      // Encryption summary
-      const encryptedCount = devices.filter((d: any) => d.isEncrypted === true).length;
-      const encryptionPercent =
-        totalDevices > 0 ? Math.round((encryptedCount / totalDevices) * 100) : 0;
-
-      // Jailbroken/rooted
-      const jailbrokenCount = devices.filter(
-        (d: any) =>
-          d.jailBroken &&
-          d.jailBroken !== "Unknown" &&
-          d.jailBroken !== "Not applicable"
-      ).length;
-
       // Enrollment configs
       const enrollmentConfigsList = enrollmentConfigs.map((e: any) => ({
         id: e.id,
@@ -238,20 +271,27 @@ router.get("/m365/intune", async (req, res) => {
         lastModifiedDateTime: p.lastModifiedDateTime ?? null,
       }));
 
-      // Overall compliance summary from API
-      const overallCompliance = complianceSummary
-        ? {
-            compliantDeviceCount: complianceSummary.compliantDeviceCount ?? compliantCount,
-            noncompliantDeviceCount:
-              complianceSummary.nonCompliantDeviceCount ?? (compMap["noncompliant"] || 0),
-            remediatedDeviceCount: complianceSummary.remediatedDeviceCount ?? 0,
-            notApplicableDeviceCount: complianceSummary.notApplicableDeviceCount ?? 0,
-            notAssignedDeviceCount:
-              complianceSummary.notAssignedDeviceCount ?? (compMap["unknown"] || 0),
-            gracePeriodCount: complianceSummary.inGracePeriodCount ?? 0,
-            configManagerCount: complianceSummary.configManagerCount ?? 0,
-          }
-        : null;
+      // Policy summary by OS
+      const policyByOS: Record<string, { totalPolicies: number; policyNames: string[] }> = {};
+      for (const p of compliancePolicies) {
+        const platform = getPlatform(p["@odata.type"]);
+        if (!policyByOS[platform]) policyByOS[platform] = { totalPolicies: 0, policyNames: [] };
+        policyByOS[platform].totalPolicies++;
+        policyByOS[platform].policyNames.push(p.displayName || "Unnamed");
+      }
+      const policySummaryByOS = Object.entries(policyByOS).map(([os, info]) => ({ os, ...info }));
+
+      // Encryption / jailbreak (device-list only)
+      const encryptedCount = devices.filter((d: any) => d.isEncrypted === true).length;
+      const encryptionPercent =
+        hasDeviceList ? Math.round((encryptedCount / totalDevices) * 100) : 0;
+      const jailbrokenCount = devices.filter(
+        (d: any) => d.jailBroken && d.jailBroken !== "Unknown" && d.jailBroken !== "Not applicable"
+      ).length;
+
+      const effectiveNonCompliant = hasDeviceList
+        ? (compMap["noncompliant"] || 0)
+        : nonCompliantFromSummary;
 
       // ── Section 4 assessment items ────────────────────────────────────────
       const assessmentItems = [
@@ -292,21 +332,20 @@ router.get("/m365/intune", async (req, res) => {
           area: "Compliance",
           item: `${c.os} Compliance`,
           value: `${c.compliancePercent}%`,
-          status:
-            c.compliancePercent >= 90 ? "Good" : c.compliancePercent >= 70 ? "Warning" : "Critical",
+          status: c.compliancePercent >= 90 ? "Good" : c.compliancePercent >= 70 ? "Warning" : "Critical",
           notes: `${c.compliant} compliant / ${c.nonCompliant} non-compliant out of ${c.total}`,
         })),
         {
           area: "Compliance",
           item: "Non-Compliant Devices",
-          value: String(compMap["noncompliant"] || 0),
-          status: (compMap["noncompliant"] || 0) === 0 ? "Good" : "Action Required",
+          value: String(effectiveNonCompliant),
+          status: effectiveNonCompliant === 0 ? "Good" : "Action Required",
           notes: "Devices failing one or more compliance policies",
         },
         {
           area: "Compliance",
           item: "Devices in Grace Period",
-          value: String(overallCompliance?.gracePeriodCount ?? compMap["inGracePeriod"] ?? 0),
+          value: String(overallCompliance?.gracePeriodCount ?? 0),
           status: (overallCompliance?.gracePeriodCount ?? 0) === 0 ? "Good" : "Monitor",
           notes: "Devices with compliance issues but within the grace period",
         },
@@ -343,24 +382,27 @@ router.get("/m365/intune", async (req, res) => {
           item: "Device Encryption",
           value: `${encryptionPercent}%`,
           status:
-            encryptionPercent >= 90
+            !hasDeviceList
+              ? "N/A — device list unavailable"
+              : encryptionPercent >= 90
               ? "Good"
               : encryptionPercent >= 70
               ? "Warning"
-              : totalDevices === 0
-              ? "N/A"
               : "Critical",
-          notes: `${encryptedCount} of ${totalDevices} devices reporting encryption enabled`,
+          notes: hasDeviceList
+            ? `${encryptedCount} of ${totalDevices} devices reporting encryption enabled`
+            : "Encryption data requires DeviceManagementManagedDevices.Read.All",
         },
         {
           area: "Security",
           item: "Jailbroken / Rooted Devices",
-          value: String(jailbrokenCount),
-          status: jailbrokenCount === 0 ? "Good" : "Critical",
-          notes:
-            jailbrokenCount === 0
+          value: hasDeviceList ? String(jailbrokenCount) : "N/A",
+          status: !hasDeviceList ? "N/A" : jailbrokenCount === 0 ? "Good" : "Critical",
+          notes: hasDeviceList
+            ? jailbrokenCount === 0
               ? "No jailbroken or rooted devices detected"
-              : `${jailbrokenCount} device(s) detected as jailbroken or rooted`,
+              : `${jailbrokenCount} device(s) detected as jailbroken or rooted`
+            : "Jailbreak data requires DeviceManagementManagedDevices.Read.All",
         },
       ];
 
@@ -368,7 +410,7 @@ router.get("/m365/intune", async (req, res) => {
         totalDevices,
         overallCompliancePercent,
         compliantDevices: compliantCount,
-        nonCompliantDevices: compMap["noncompliant"] || 0,
+        nonCompliantDevices: effectiveNonCompliant,
         totalCompliancePolicies: compliancePolicies.length,
         totalConfigProfiles: configProfiles.length,
         totalAppProtectionPolicies: appProtectionPolicies.length,
@@ -387,6 +429,7 @@ router.get("/m365/intune", async (req, res) => {
         encryptionPercent,
         jailbrokenCount,
         permissionRequired,
+        deviceListAvailable: hasDeviceList,
         policySummaryByOS,
       };
     });

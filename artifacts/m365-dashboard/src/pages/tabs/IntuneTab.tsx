@@ -1,3 +1,4 @@
+import React from "react";
 import { useGetM365Intune } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import {
 import { CSVLink } from "react-csv";
 import {
   Download, ShieldCheck, ShieldAlert, Monitor, Smartphone,
-  Apple, AlertTriangle, CheckCircle2, XCircle, Clock,
+  Apple, AlertTriangle, CheckCircle2, XCircle, Clock, Info,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatDate } from "@/lib/utils";
@@ -385,6 +386,19 @@ export function IntuneTab() {
   return (
     <div className="space-y-4">
 
+      {/* ── Device list unavailable notice ──────────────────────────────────── */}
+      {!loading && data && !data.deviceListAvailable && (
+        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800 px-4 py-3">
+          <Info className="w-4 h-4 mt-0.5 text-blue-500 flex-shrink-0" />
+          <div className="text-sm text-blue-700 dark:text-blue-300">
+            <span className="font-semibold">Partial data — per-device details unavailable.</span>{" "}
+            Compliance summaries, policies, and profiles are loaded from available permissions. To enable the full device list, grant{" "}
+            <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded text-xs">DeviceManagementManagedDevices.Read.All</code>{" "}
+            on your Azure app registration and refresh.
+          </div>
+        </div>
+      )}
+
       {/* ── KPIs ────────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KPICard title="Total Devices"       value={data?.totalDevices}               loading={loading} />
@@ -403,7 +417,13 @@ export function IntuneTab() {
             <ExportBtn filename="enrolled-by-os.csv" csvData={data?.enrolledByOS ?? []} />
           </CardHeader>
           <CardContent>
-            {loading ? <Skeleton className="w-full h-[240px]" /> : (
+            {loading ? <Skeleton className="w-full h-[240px]" /> : enrolledByOSChart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[220px] gap-2 text-center">
+                <Info className="w-8 h-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">Per-device OS breakdown unavailable</p>
+                <p className="text-xs text-muted-foreground/70">Requires <code className="bg-muted px-1 rounded">DeviceManagementManagedDevices.Read.All</code></p>
+              </div>
+            ) : (
               <div className="flex flex-col items-center">
                 <ResponsiveContainer width="100%" height={220} debounce={0}>
                   <PieChart>
@@ -690,12 +710,15 @@ export function IntuneTab() {
               <Skeleton className="h-9 w-80" />
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
-          ) : (data?.totalDevices ?? 0) === 0 ? (
+          ) : !data?.deviceListAvailable ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-              <ShieldAlert className="w-10 h-10 text-muted-foreground" />
-              <p className="font-medium">No enrolled devices found</p>
+              <Info className="w-10 h-10 text-blue-400" />
+              <p className="font-medium">Per-device list requires additional permissions</p>
               <p className="text-sm text-muted-foreground max-w-sm">
-                Ensure the <code className="bg-muted px-1 rounded">DeviceManagementManagedDevices.Read.All</code> permission is granted.
+                {(data?.totalDevices ?? 0) > 0
+                  ? `${data!.totalDevices} devices detected via compliance summary (${data!.compliantDevices} compliant / ${data!.nonCompliantDevices} non-compliant).`
+                  : ""}{" "}
+                Grant <code className="bg-muted px-1 rounded">DeviceManagementManagedDevices.Read.All</code> to see individual device details.
               </p>
             </div>
           ) : (
@@ -826,9 +849,9 @@ export function IntuneTab() {
                         : null;
                       const showAreaDivider = prevArea !== null && prevArea !== row.original.area;
                       return (
-                        <>
+                        <React.Fragment key={row.id}>
                           {showAreaDivider && (
-                            <TableRow key={`divider-${idx}`} className="bg-muted/30 hover:bg-muted/30">
+                            <TableRow className="bg-muted/30 hover:bg-muted/30">
                               <TableCell colSpan={5} className="py-1 px-6">
                                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                   {row.original.area}
@@ -836,14 +859,14 @@ export function IntuneTab() {
                               </TableCell>
                             </TableRow>
                           )}
-                          <TableRow key={row.id}>
+                          <TableRow>
                             {row.getVisibleCells().map((cell) => (
                               <TableCell key={cell.id} className="py-2.5 align-top first:pl-6 last:pr-6">
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                               </TableCell>
                             ))}
                           </TableRow>
-                        </>
+                        </React.Fragment>
                       );
                     })}
                   </TableBody>

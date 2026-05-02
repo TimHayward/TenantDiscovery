@@ -996,6 +996,8 @@ components:
           type: integer
         permissionRequired:
           type: boolean
+        deviceListAvailable:
+          type: boolean
         enrolledByOS:
           type: array
           items:
@@ -1056,6 +1058,7 @@ components:
         - encryptionPercent
         - jailbrokenCount
         - permissionRequired
+        - deviceListAvailable
         - enrolledByOS
         - osVersionBreakdown
         - complianceByState

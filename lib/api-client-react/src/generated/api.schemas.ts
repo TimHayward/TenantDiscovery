@@ -356,6 +356,7 @@ export interface M365IntuneData {
   encryptionPercent: number;
   jailbrokenCount: number;
   permissionRequired: boolean;
+  deviceListAvailable: boolean;
   enrolledByOS: IntuneEnrolledByOS[];
   osVersionBreakdown: IntuneOSVersionBreakdown[];
   complianceByState: IntuneComplianceByState[];

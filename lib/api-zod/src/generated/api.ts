@@ -316,6 +316,7 @@ export const GetM365IntuneResponse = zod.object({
   encryptionPercent: zod.number(),
   jailbrokenCount: zod.number(),
   permissionRequired: zod.boolean(),
+  deviceListAvailable: zod.boolean(),
   enrolledByOS: zod.array(
     zod.object({
       os: zod.string(),
