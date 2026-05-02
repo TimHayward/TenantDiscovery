@@ -2,113 +2,281 @@ import { useGetM365Users } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { CSVLink } from "react-csv";
-import { Download } from "lucide-react";
-import { useTheme } from "next-themes";
-import { useState } from "react";
 import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
+  BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
+import { CSVLink } from "react-csv";
+import {
+  Download, AlertTriangle, Clock, UserX, ShieldOff,
+  ClipboardList, ChevronDown, ChevronUp,
+} from "lucide-react";
+import { useTheme } from "next-themes";
+import { useState, useMemo } from "react";
+import {
+  useReactTable, getCoreRowModel, getSortedRowModel,
+  getFilteredRowModel, getPaginationRowModel, flexRender,
+  type ColumnDef, type SortingState,
 } from "@tanstack/react-table";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import type { UserItem } from "@workspace/api-client-react/src/generated/api.schemas";
 
-const CHART_COLORS = {
-  blue: "#0079F2",
-  purple: "#795EFF",
-  green: "#009118",
-  red: "#A60808",
-  pink: "#ec4899",
-};
-const CHART_COLOR_LIST = [CHART_COLORS.blue, CHART_COLORS.purple, CHART_COLORS.green, CHART_COLORS.red, CHART_COLORS.pink];
+// ── palette ───────────────────────────────────────────────────────────────────
 
-const columns: ColumnDef<UserItem>[] = [
+const C = {
+  blue:   "#0079F2",
+  purple: "#795EFF",
+  green:  "#009118",
+  red:    "#A60808",
+  pink:   "#ec4899",
+  yellow: "#eab308",
+  orange: "#f97316",
+};
+const PALETTE = [C.blue, C.purple, C.green, C.red, C.pink];
+
+// ── staleness helpers ─────────────────────────────────────────────────────────
+
+const NOW = Date.now();
+
+function daysSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const ms = NOW - new Date(iso).getTime();
+  return Math.floor(ms / (1000 * 60 * 60 * 24));
+}
+
+type StaleBucket = "30-60" | "60-90" | "90+" | "never";
+
+function staleBucket(days: number | null): StaleBucket | null {
+  if (days === null) return "never";
+  if (days < 30)   return null;        // active
+  if (days < 60)   return "30-60";
+  if (days < 90)   return "60-90";
+  return "90+";
+}
+
+const BUCKET_META: Record<StaleBucket, { label: string; color: string; severity: string; bg: string }> = {
+  "30-60": { label: "30–60 days",  color: C.yellow, severity: "At Risk",      bg: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  "60-90": { label: "60–90 days",  color: C.orange, severity: "Stale",        bg: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
+  "90+":   { label: "90+ days",    color: C.red,    severity: "Very Stale",   bg: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" },
+  "never": { label: "Never",       color: C.purple, severity: "Never Signed In", bg: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400" },
+};
+
+// Remediation suggestions per bucket
+const REMEDIATION: Record<StaleBucket, { icon: React.ComponentType<{ className?: string }>; action: string; detail: string }[]> = {
+  "30-60": [
+    { icon: Clock,       action: "Send reminder",       detail: "Notify the user and their manager to sign in and verify account access." },
+    { icon: ClipboardList, action: "Review account",    detail: "Confirm the account is still needed — check with HR for active employment." },
+  ],
+  "60-90": [
+    { icon: ShieldOff,   action: "Disable sign-in",     detail: "Block sign-in to prevent unauthorised access while retaining mailbox data." },
+    { icon: ClipboardList, action: "Remove licenses",   detail: "Reclaim assigned M365 licenses to reduce cost." },
+    { icon: AlertTriangle, action: "Notify manager",    detail: "Escalate to the user's manager for confirmation of employment status." },
+  ],
+  "90+": [
+    { icon: UserX,       action: "Disable account",     detail: "Immediately disable sign-in; schedule deletion after a 30-day hold period." },
+    { icon: ClipboardList, action: "Remove all licenses", detail: "Remove all assigned licenses to avoid unnecessary spend." },
+    { icon: ShieldOff,   action: "Revoke sessions",     detail: "Revoke all active tokens and sessions to prevent residual access." },
+    { icon: AlertTriangle, action: "Audit group memberships", detail: "Review and remove from security groups, teams, and distribution lists." },
+  ],
+  "never": [
+    { icon: Clock,       action: "Verify provisioning", detail: "Confirm the account was intentionally created — could be an orphaned or test account." },
+    { icon: UserX,       action: "Delete if unused",    detail: "If the account has no mailbox data or group memberships, delete it." },
+    { icon: ClipboardList, action: "Remove licenses",   detail: "Reclaim licenses if the user never onboarded." },
+  ],
+};
+
+// ── stale user table columns ──────────────────────────────────────────────────
+
+type StaleUser = UserItem & { daysInactive: number | null; bucket: StaleBucket };
+
+const staleColumns: ColumnDef<StaleUser>[] = [
   {
     accessorKey: "displayName",
-    header: "Display Name",
-    cell: ({ row }) => <span className="font-medium">{row.original.displayName}</span>,
-  },
-  {
-    accessorKey: "userPrincipalName",
-    header: "UPN",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.original.userPrincipalName}</span>,
-  },
-  {
-    accessorKey: "userType",
-    header: "Type",
-    cell: ({ row }) => <span>{row.original.userType}</span>,
-  },
-  {
-    accessorKey: "mfaEnabled",
-    header: "MFA",
+    header: "User",
     cell: ({ row }) => (
-      row.original.mfaEnabled ? 
-        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 font-normal">Enabled</Badge> : 
-        <Badge variant="outline" className="text-muted-foreground font-normal">Disabled</Badge>
+      <div>
+        <p className="font-medium text-sm">{row.original.displayName}</p>
+        <p className="text-xs text-muted-foreground">{row.original.userPrincipalName}</p>
+      </div>
     ),
   },
   {
-    accessorKey: "assignedLicenses",
-    header: "Licenses",
-    cell: ({ row }) => <span>{row.original.assignedLicenses}</span>,
+    accessorKey: "bucket",
+    header: "Staleness",
+    cell: ({ row }) => {
+      const meta = BUCKET_META[row.original.bucket];
+      return <Badge className={`${meta.bg} font-normal text-xs border-0`}>{meta.severity}</Badge>;
+    },
   },
   {
-    accessorKey: "department",
-    header: "Department",
-    cell: ({ row }) => <span>{row.original.department || "—"}</span>,
+    accessorKey: "daysInactive",
+    header: "Days Inactive",
+    cell: ({ row }) => {
+      const d = row.original.daysInactive;
+      if (d === null) return <span className="text-muted-foreground text-sm">Never</span>;
+      return <span className="font-semibold text-sm">{d}</span>;
+    },
   },
   {
     accessorKey: "lastSignIn",
     header: "Last Sign-In",
-    cell: ({ row }) => <span>{formatDate(row.original.lastSignIn)}</span>,
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">{formatDate(row.original.lastSignIn) || "Never"}</span>
+    ),
   },
   {
     accessorKey: "accountEnabled",
     header: "Status",
-    cell: ({ row }) => (
-      row.original.accountEnabled ? 
-        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 font-normal">Active</Badge> : 
-        <Badge variant="destructive" className="font-normal">Disabled</Badge>
-    ),
+    cell: ({ row }) =>
+      row.original.accountEnabled
+        ? <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 font-normal text-xs border-0">Active</Badge>
+        : <Badge variant="outline" className="text-muted-foreground font-normal text-xs">Disabled</Badge>,
+  },
+  {
+    accessorKey: "userType",
+    header: "Type",
+    cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.userType}</span>,
+  },
+  {
+    accessorKey: "assignedLicenses",
+    header: "Licenses",
+    cell: ({ row }) => <span className="text-sm">{row.original.assignedLicenses}</span>,
+  },
+  {
+    accessorKey: "department",
+    header: "Department",
+    cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.department || "—"}</span>,
   },
 ];
+
+// ── all-users table columns ───────────────────────────────────────────────────
+
+const allColumns: ColumnDef<UserItem>[] = [
+  {
+    accessorKey: "displayName",
+    header: "Display Name",
+    cell: ({ row }) => <span className="font-medium text-sm">{row.original.displayName}</span>,
+  },
+  {
+    accessorKey: "userPrincipalName",
+    header: "UPN",
+    cell: ({ row }) => <span className="text-muted-foreground text-sm">{row.original.userPrincipalName}</span>,
+  },
+  {
+    accessorKey: "userType",
+    header: "Type",
+    cell: ({ row }) => <span className="text-sm">{row.original.userType}</span>,
+  },
+  {
+    accessorKey: "mfaEnabled",
+    header: "MFA",
+    cell: ({ row }) =>
+      row.original.mfaEnabled
+        ? <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 font-normal text-xs border-0">Enabled</Badge>
+        : <Badge variant="outline" className="text-muted-foreground font-normal text-xs">Disabled</Badge>,
+  },
+  {
+    accessorKey: "assignedLicenses",
+    header: "Licenses",
+    cell: ({ row }) => <span className="text-sm">{row.original.assignedLicenses}</span>,
+  },
+  {
+    accessorKey: "department",
+    header: "Department",
+    cell: ({ row }) => <span className="text-sm">{row.original.department || "—"}</span>,
+  },
+  {
+    accessorKey: "lastSignIn",
+    header: "Last Sign-In",
+    cell: ({ row }) => <span className="text-sm">{formatDate(row.original.lastSignIn) || "Never"}</span>,
+  },
+  {
+    accessorKey: "accountEnabled",
+    header: "Status",
+    cell: ({ row }) =>
+      row.original.accountEnabled
+        ? <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 font-normal text-xs border-0">Active</Badge>
+        : <Badge variant="destructive" className="font-normal text-xs">Disabled</Badge>,
+  },
+];
+
+// ── component ─────────────────────────────────────────────────────────────────
 
 export function UsersTab() {
   const { data, isLoading, isFetching } = useGetM365Users();
   const { theme } = useTheme();
   const isDark = theme === "dark";
-
   const loading = isLoading || isFetching;
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
 
-  const donutData = data ? [
-    { name: "Members", value: data.memberUsers },
-    { name: "Guests", value: data.guestUsers },
-    { name: "Disabled", value: data.disabledUsers },
-  ].filter(d => d.value > 0) : [];
+  // ── stale account computation ──────────────────────────────────────────────
+  const staleUsers = useMemo<StaleUser[]>(() => {
+    if (!data?.users) return [];
+    return data.users
+      .map((u) => {
+        const d = daysSince(u.lastSignIn);
+        const bucket = staleBucket(d);
+        if (!bucket) return null;
+        return { ...u, daysInactive: d, bucket } as StaleUser;
+      })
+      .filter((u): u is StaleUser => u !== null)
+      .sort((a, b) => (b.daysInactive ?? Infinity) - (a.daysInactive ?? Infinity));
+  }, [data]);
 
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const staleCounts = useMemo(() => ({
+    "30-60": staleUsers.filter((u) => u.bucket === "30-60").length,
+    "60-90": staleUsers.filter((u) => u.bucket === "60-90").length,
+    "90+":   staleUsers.filter((u) => u.bucket === "90+").length,
+    "never": staleUsers.filter((u) => u.bucket === "never").length,
+  }), [staleUsers]);
 
-  const table = useReactTable({
-    data: data?.users || [],
-    columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+  const staleChartData = useMemo(() => (
+    (["30-60", "60-90", "90+", "never"] as StaleBucket[])
+      .map((b) => ({ name: BUCKET_META[b].label, count: staleCounts[b], color: BUCKET_META[b].color }))
+      .filter((d) => d.count > 0)
+  ), [staleCounts]);
+
+  // ── stale table state ──────────────────────────────────────────────────────
+  const [staleBucketFilter, setStaleBucketFilter] = useState<StaleBucket | "all">("all");
+  const [staleFilter, setStaleFilter] = useState("");
+  const [staleSorting, setStaleSorting] = useState<SortingState>([{ id: "daysInactive", desc: true }]);
+  const [selectedStaleUser, setSelectedStaleUser] = useState<StaleUser | null>(null);
+
+  const filteredStaleUsers = useMemo(() => (
+    staleBucketFilter === "all" ? staleUsers : staleUsers.filter((u) => u.bucket === staleBucketFilter)
+  ), [staleUsers, staleBucketFilter]);
+
+  const staleTable = useReactTable({
+    data: filteredStaleUsers,
+    columns: staleColumns,
+    state: { sorting: staleSorting, globalFilter: staleFilter },
+    onSortingChange: setStaleSorting,
+    onGlobalFilterChange: setStaleFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 15 } },
+  });
+
+  // ── all-users table state ──────────────────────────────────────────────────
+  const [allSorting, setAllSorting] = useState<SortingState>([]);
+  const [allFilter, setAllFilter] = useState("");
+
+  const allTable = useReactTable({
+    data: data?.users ?? [],
+    columns: allColumns,
+    state: { sorting: allSorting, globalFilter: allFilter },
+    onSortingChange: setAllSorting,
+    onGlobalFilterChange: setAllFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -116,43 +284,61 @@ export function UsersTab() {
     initialState: { pagination: { pageSize: 10 } },
   });
 
+  // ── donuts ─────────────────────────────────────────────────────────────────
+  const typeDonut = data
+    ? [
+        { name: "Members",  value: data.memberUsers },
+        { name: "Guests",   value: data.guestUsers },
+        { name: "Disabled", value: data.disabledUsers },
+      ].filter((d) => d.value > 0)
+    : [];
+
+  const exportBtn = (filename: string, csvData: object[]) =>
+    !loading && csvData.length > 0 ? (
+      <CSVLink
+        data={csvData} filename={filename}
+        className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80"
+        style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
+        aria-label="Export CSV"
+      >
+        <Download className="w-3.5 h-3.5" />
+      </CSVLink>
+    ) : null;
+
   return (
     <div className="space-y-4">
+
+      {/* ── KPIs ────────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <KPICard title="Total Users" value={data?.totalUsers} loading={loading} />
-        <KPICard title="Active Users" value={data?.activeUsers} loading={loading} />
+        <KPICard title="Total Users"    value={data?.totalUsers}   loading={loading} />
+        <KPICard title="Active Users"   value={data?.activeUsers}  loading={loading} />
         <KPICard title="Disabled Users" value={data?.disabledUsers} loading={loading} />
-        <KPICard title="Guest Users" value={data?.guestUsers} loading={loading} />
-        <KPICard title="MFA Enabled" value={data ? `${Math.round((data.mfaEnabled / (data.totalUsers || 1)) * 100)}%` : undefined} loading={loading} />
+        <KPICard title="Guest Users"    value={data?.guestUsers}   loading={loading} />
+        <KPICard title="MFA Enabled"    value={data ? `${Math.round((data.mfaEnabled / (data.totalUsers || 1)) * 100)}%` : undefined} loading={loading} />
       </div>
 
+      {/* ── Type donut + Dept bar ────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-1">
           <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">User Types</CardTitle>
-            {!loading && donutData.length > 0 && (
-              <CSVLink data={donutData} filename="user-types.csv" className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }} aria-label="Export chart data as CSV">
-                <Download className="w-3.5 h-3.5" />
-              </CSVLink>
-            )}
+            {exportBtn("user-types.csv", typeDonut)}
           </CardHeader>
           <CardContent>
             {loading ? <Skeleton className="w-full h-[250px]" /> : (
               <div className="flex flex-col items-center">
                 <ResponsiveContainer width="100%" height={250} debounce={0}>
                   <PieChart>
-                    <Pie data={donutData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} cornerRadius={2} paddingAngle={2} isAnimationActive={false} stroke="none">
-                      {donutData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLOR_LIST[index % CHART_COLOR_LIST.length]} />
-                      ))}
+                    <Pie data={typeDonut} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} cornerRadius={2} paddingAngle={2} isAnimationActive={false} stroke="none">
+                      {typeDonut.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
                     </Pie>
-                    <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)', stroke: 'none' }} isAnimationActive={false} />
+                    <Tooltip isAnimationActive={false} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-wrap justify-center gap-4 mt-2">
-                  {donutData.map((entry, index) => (
+                  {typeDonut.map((entry, i) => (
                     <div key={entry.name} className="flex items-center gap-2 text-sm">
-                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: CHART_COLOR_LIST[index % CHART_COLOR_LIST.length] }} />
+                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
                       <span className="text-muted-foreground">{entry.name}</span>
                       <span className="font-medium">{entry.value}</span>
                     </div>
@@ -166,21 +352,17 @@ export function UsersTab() {
         <Card className="lg:col-span-2">
           <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Users by Department</CardTitle>
-            {!loading && data?.usersByDepartment && data.usersByDepartment.length > 0 && (
-              <CSVLink data={data.usersByDepartment} filename="users-by-department.csv" className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }} aria-label="Export chart data as CSV">
-                <Download className="w-3.5 h-3.5" />
-              </CSVLink>
-            )}
+            {exportBtn("users-by-department.csv", data?.usersByDepartment ?? [])}
           </CardHeader>
           <CardContent>
             {loading ? <Skeleton className="w-full h-[280px]" /> : (
               <ResponsiveContainer width="100%" height={280} debounce={0}>
-                <BarChart data={data?.usersByDepartment || []} layout="vertical" margin={{ left: 40, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke={gridColor} />
+                <BarChart data={data?.usersByDepartment ?? []} layout="vertical" margin={{ left: 40, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal vertical={false} stroke={gridColor} />
                   <XAxis type="number" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
                   <YAxis type="category" dataKey="department" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} width={100} />
                   <Tooltip isAnimationActive={false} cursor={false} />
-                  <Bar dataKey="count" name="Users" fill={CHART_COLORS.blue} fillOpacity={0.8} activeBar={{ fillOpacity: 1 }} isAnimationActive={false} radius={[0, 2, 2, 0]} />
+                  <Bar dataKey="count" name="Users" fill={C.blue} fillOpacity={0.8} isAnimationActive={false} radius={[0, 2, 2, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -188,78 +370,383 @@ export function UsersTab() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2">
-          <CardTitle className="text-base">All Users</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <Input
-                placeholder="Search users..."
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                className="max-w-sm"
-              />
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* STALE ACCOUNTS SECTION                                               */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      <div className="space-y-4 pt-2">
+        <div className="border-b pb-2">
+          <h2 className="text-xl font-semibold">Stale Accounts</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Accounts with no sign-in activity — potential security and licensing risk
+          </p>
+        </div>
 
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none">
-                            <div className="flex items-center gap-2">
-                              {flexRender(header.column.columnDef.header, header.getContext())}
-                              {{ asc: " 🔼", desc: " 🔽" }[header.column.getIsSorted() as string] ?? null}
+        {/* Stale KPI cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {(["30-60", "60-90", "90+", "never"] as StaleBucket[]).map((b) => {
+            const meta = BUCKET_META[b];
+            return (
+              <button
+                key={b}
+                onClick={() => setStaleBucketFilter((prev) => prev === b ? "all" : b)}
+                className={`text-left rounded-lg border p-4 transition-all hover:shadow-sm ${staleBucketFilter === b ? "ring-2 ring-offset-1" : ""}`}
+                style={{ ringColor: meta.color }}
+              >
+                {loading ? (
+                  <Skeleton className="h-10 w-16" />
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground font-medium mb-1">{meta.label} inactive</p>
+                    <p className="text-3xl font-bold" style={{ color: meta.color }}>{staleCounts[b]}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{meta.severity}</p>
+                  </>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Stale chart + remediation guidance */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Bar chart */}
+          <Card className="lg:col-span-1">
+            <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Stale by Category</CardTitle>
+              {exportBtn("stale-by-category.csv", staleChartData)}
+            </CardHeader>
+            <CardContent>
+              {loading ? <Skeleton className="w-full h-[200px]" /> : staleChartData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[200px] gap-2 text-center">
+                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <span className="text-green-600 dark:text-green-400 text-xl">✓</span>
+                  </div>
+                  <p className="text-sm font-medium text-green-600 dark:text-green-400">All accounts are active</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={200} debounce={0}>
+                  <BarChart data={staleChartData} margin={{ left: -20, right: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
+                    <Tooltip isAnimationActive={false} />
+                    <Bar dataKey="count" name="Users" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                      {staleChartData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} fillOpacity={0.85} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Remediation guidance */}
+          <Card className="lg:col-span-2">
+            <CardHeader className="px-4 pt-4 pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-muted-foreground" />
+                Remediation Guidance
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {selectedStaleUser
+                  ? `Actions for ${selectedStaleUser.displayName} (${BUCKET_META[selectedStaleUser.bucket].label} inactive)`
+                  : "Click a user in the table below to see specific recommendations, or review general guidance by category"}
+              </p>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Show guidance for selected user's bucket, or all buckets if none selected */}
+                  {(selectedStaleUser
+                    ? [[selectedStaleUser.bucket, REMEDIATION[selectedStaleUser.bucket]] as [StaleBucket, typeof REMEDIATION[StaleBucket]]]
+                    : (["90+", "60-90", "30-60", "never"] as StaleBucket[])
+                        .filter((b) => staleCounts[b] > 0)
+                        .map((b) => [b, REMEDIATION[b]] as [StaleBucket, typeof REMEDIATION[StaleBucket]])
+                  ).map(([bucket, actions]) => (
+                    <div key={bucket}>
+                      {!selectedStaleUser && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: BUCKET_META[bucket].color }} />
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            {BUCKET_META[bucket].label} — {BUCKET_META[bucket].severity} ({staleCounts[bucket]})
+                          </span>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        {actions.map(({ icon: Icon, action, detail }) => (
+                          <div key={action} className="flex items-start gap-3 p-2.5 rounded-md border bg-muted/30">
+                            <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+                              style={{ backgroundColor: `${BUCKET_META[bucket].color}20` }}>
+                              <Icon className="w-3.5 h-3.5" style={{ color: BUCKET_META[bucket].color }} />
                             </div>
-                          </TableHead>
+                            <div>
+                              <p className="text-sm font-medium leading-none mb-0.5">{action}</p>
+                              <p className="text-xs text-muted-foreground leading-snug">{detail}</p>
+                            </div>
+                          </div>
                         ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows.length > 0 ? (
-                      table.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
+                      </div>
+                      {!selectedStaleUser && <div className="mt-3 border-t" />}
+                    </div>
+                  ))}
+
+                  {!loading && staleUsers.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                      <p className="text-sm font-medium text-green-600 dark:text-green-400">No stale accounts found — great hygiene!</p>
+                    </div>
+                  )}
+
+                  {selectedStaleUser && (
+                    <button
+                      onClick={() => setSelectedStaleUser(null)}
+                      className="text-xs text-muted-foreground underline hover:text-foreground transition-colors mt-1"
+                    >
+                      ← Back to all recommendations
+                    </button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Stale accounts table */}
+        <Card>
+          <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                Stale Account Details
+                {!loading && (
+                  <Badge variant="outline" className="font-normal text-xs ml-1">{staleUsers.length} accounts</Badge>
+                )}
+              </CardTitle>
+              {!loading && staleBucketFilter !== "all" && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Filtered: {BUCKET_META[staleBucketFilter].label} inactive ({filteredStaleUsers.length} users) ·{" "}
+                  <button onClick={() => setStaleBucketFilter("all")} className="underline hover:text-foreground transition-colors">
+                    Show all
+                  </button>
+                </p>
+              )}
+            </div>
+            {exportBtn("stale-accounts.csv", filteredStaleUsers.map((u) => ({
+              Name: u.displayName,
+              UPN: u.userPrincipalName,
+              Staleness: BUCKET_META[u.bucket].severity,
+              "Days Inactive": u.daysInactive ?? "Never",
+              "Last Sign-In": u.lastSignIn ?? "Never",
+              "Account Enabled": u.accountEnabled,
+              Type: u.userType,
+              Licenses: u.assignedLicenses,
+              Department: u.department ?? "",
+            })))}
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-9 w-64" />
+                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+              </div>
+            ) : staleUsers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+                <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-2">
+                  <span className="text-green-600 dark:text-green-400 text-2xl">✓</span>
+                </div>
+                <p className="font-medium">No stale accounts found</p>
+                <p className="text-sm text-muted-foreground">All users have signed in within the last 30 days.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Filter row */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Input
+                    placeholder="Search stale accounts…"
+                    value={staleFilter}
+                    onChange={(e) => setStaleFilter(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  {/* Bucket filter chips */}
+                  <div className="flex gap-2 flex-wrap">
+                    {(["all", "30-60", "60-90", "90+", "never"] as const).map((b) => {
+                      const active = staleBucketFilter === b;
+                      const meta = b !== "all" ? BUCKET_META[b] : null;
+                      return (
+                        <button
+                          key={b}
+                          onClick={() => setStaleBucketFilter(b)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? "text-white border-transparent" : "bg-background hover:bg-muted border-border text-muted-foreground"}`}
+                          style={active && meta ? { backgroundColor: meta.color, borderColor: meta.color } : active ? { backgroundColor: "#6b7280" } : {}}
+                        >
+                          {b === "all" ? `All (${staleUsers.length})` : `${BUCKET_META[b].label} (${staleCounts[b]})`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      {staleTable.getHeaderGroups().map((hg) => (
+                        <TableRow key={hg.id}>
+                          {hg.headers.map((header) => (
+                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
+                              <div className="flex items-center gap-1">
+                                {flexRender(header.column.columnDef.header, header.getContext())}
+                                {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                              </div>
+                            </TableHead>
                           ))}
                         </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                          No results found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                      ))}
+                    </TableHeader>
+                    <TableBody>
+                      {staleTable.getRowModel().rows.length > 0 ? (
+                        staleTable.getRowModel().rows.map((row) => {
+                          const isSelected = selectedStaleUser?.id === row.original.id;
+                          const rowColor = BUCKET_META[row.original.bucket].color;
+                          return (
+                            <TableRow
+                              key={row.id}
+                              onClick={() => setSelectedStaleUser(isSelected ? null : row.original)}
+                              className="cursor-pointer transition-colors"
+                              style={isSelected ? { backgroundColor: `${rowColor}15` } : {}}
+                            >
+                              {row.getVisibleCells().map((cell) => (
+                                <TableCell key={cell.id} className="py-2 align-top">
+                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          );
+                        })
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={staleColumns.length} className="h-16 text-center text-muted-foreground">
+                            No accounts match the filter.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
 
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + (table.getFilteredRowModel().rows.length > 0 ? 1 : 0)} to{" "}
-                  {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length)}{" "}
-                  of {table.getFilteredRowModel().rows.length} results
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing{" "}
+                    {staleTable.getState().pagination.pageIndex * staleTable.getState().pagination.pageSize + (staleTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)}{" "}
+                    –{" "}
+                    {Math.min(
+                      (staleTable.getState().pagination.pageIndex + 1) * staleTable.getState().pagination.pageSize,
+                      staleTable.getFilteredRowModel().rows.length
+                    )}{" "}
+                    of {staleTable.getFilteredRowModel().rows.length}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => staleTable.previousPage()} disabled={!staleTable.getCanPreviousPage()}>Previous</Button>
+                    <Button variant="outline" size="sm" onClick={() => staleTable.nextPage()} disabled={!staleTable.getCanNextPage()}>Next</Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
-                  <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
+
+                {!selectedStaleUser && staleUsers.length > 0 && (
+                  <p className="text-xs text-muted-foreground text-center pt-1">
+                    Click any row to see targeted remediation recommendations
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── All Users table ──────────────────────────────────────────────────── */}
+      <div className="space-y-2 pt-2">
+        <h2 className="text-xl font-semibold border-b pb-2">All Users</h2>
+        <Card>
+          <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Directory ({data?.totalUsers ?? "…"} users)</CardTitle>
+            {exportBtn("all-users.csv", (data?.users ?? []).map((u) => ({
+              Name: u.displayName, UPN: u.userPrincipalName, Type: u.userType,
+              MFA: u.mfaEnabled, Licenses: u.assignedLicenses, Department: u.department ?? "",
+              "Last Sign-In": u.lastSignIn ?? "Never", Enabled: u.accountEnabled,
+            })))}
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Input
+                  placeholder="Search users…"
+                  value={allFilter}
+                  onChange={(e) => setAllFilter(e.target.value)}
+                  className="max-w-sm"
+                />
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      {allTable.getHeaderGroups().map((hg) => (
+                        <TableRow key={hg.id}>
+                          {hg.headers.map((header) => (
+                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                {flexRender(header.column.columnDef.header, header.getContext())}
+                                {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                              </div>
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableHeader>
+                    <TableBody>
+                      {allTable.getRowModel().rows.length > 0 ? (
+                        allTable.getRowModel().rows.map((row) => (
+                          <TableRow key={row.id}>
+                            {row.getVisibleCells().map((cell) => (
+                              <TableCell key={cell.id}>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={allColumns.length} className="h-24 text-center text-muted-foreground">
+                            No results found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing{" "}
+                    {allTable.getState().pagination.pageIndex * allTable.getState().pagination.pageSize + (allTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)}{" "}
+                    –{" "}
+                    {Math.min(
+                      (allTable.getState().pagination.pageIndex + 1) * allTable.getState().pagination.pageSize,
+                      allTable.getFilteredRowModel().rows.length
+                    )}{" "}
+                    of {allTable.getFilteredRowModel().rows.length}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => allTable.previousPage()} disabled={!allTable.getCanPreviousPage()}>Previous</Button>
+                    <Button variant="outline" size="sm" onClick={() => allTable.nextPage()} disabled={!allTable.getCanNextPage()}>Next</Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
     </div>
   );
 }
