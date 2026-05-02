@@ -1,18 +1,51 @@
 import { Router } from "express";
-import { graphClient, getCached } from "../lib/graphClient.js";
+import { getCached } from "../lib/graphClient.js";
 
 const router = Router();
+
+async function fetchReportCsv(url: string): Promise<string> {
+  const { ClientSecretCredential } = await import("@azure/identity");
+  const cred = new ClientSecretCredential(
+    process.env.AZURE_TENANT_ID!,
+    process.env.AZURE_CLIENT_ID!,
+    process.env.AZURE_CLIENT_SECRET!
+  );
+  const token = await cred.getToken("https://graph.microsoft.com/.default");
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token!.token}` },
+  });
+  if (!resp.ok) return "";
+  return resp.text();
+}
+
+function parseCsv(csv: string): Record<string, string>[] {
+  const lines = csv.trim().split("\n").filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map((h) => h.trim().replace(/\r/g, ""));
+  return lines.slice(1).map((line) => {
+    const vals = line.split(",").map((v) => v.trim().replace(/\r/g, ""));
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => {
+      obj[h] = vals[i] ?? "";
+    });
+    return obj;
+  });
+}
 
 router.get("/m365/exchange", async (req, res): Promise<void> => {
   try {
     const data = await getCached("m365-exchange", async () => {
-      const [mailboxRes, activityRes] = await Promise.allSettled([
-        graphClient.api("/reports/getMailboxUsageDetail(period='D30')").header("Accept", "application/json").get(),
-        graphClient.api("/reports/getEmailActivityCounts(period='D30')").header("Accept", "application/json").get(),
+      const [mailboxCsv, activityCsv] = await Promise.all([
+        fetchReportCsv(
+          "https://graph.microsoft.com/v1.0/reports/getMailboxUsageDetail(period='D30')"
+        ),
+        fetchReportCsv(
+          "https://graph.microsoft.com/v1.0/reports/getEmailActivityCounts(period='D30')"
+        ),
       ]);
 
-      const mailboxes = mailboxRes.status === "fulfilled" ? mailboxRes.value?.value ?? [] : [];
-      const activityRows = activityRes.status === "fulfilled" ? activityRes.value?.value ?? [] : [];
+      const mailboxes = parseCsv(mailboxCsv);
+      const activityRows = parseCsv(activityCsv);
 
       let totalMailboxes = 0;
       let activeMailboxes = 0;
@@ -32,14 +65,13 @@ router.get("/m365/exchange", async (req, res): Promise<void> => {
       const sizeCounts = new Array(sizeRanges.length).fill(0);
 
       for (const m of mailboxes) {
+        if (m["Is Deleted"] === "True") continue;
         totalMailboxes++;
-        if (m.isDeleted === false && m.hasAnyActivity) activeMailboxes++;
-        const mbType = (m.recipientType ?? "").toLowerCase();
-        if (mbType.includes("shared")) sharedMailboxes++;
-        if (mbType.includes("room") || mbType.includes("equipment")) roomMailboxes++;
+        if (m["Last Activity Date"]) activeMailboxes++;
 
-        const usedBytes = m.storageUsedInBytes ?? 0;
-        const allocBytes = m.prohibitSendReceiveQuotaInBytes ?? 0;
+        const usedBytes = parseInt(m["Storage Used (Byte)"] ?? "0", 10) || 0;
+        const allocBytes =
+          parseInt(m["Prohibit Send/Receive Quota (Byte)"] ?? "0", 10) || 0;
         totalStorageUsedBytes += usedBytes;
         totalStorageAllocatedBytes += allocBytes;
 
@@ -56,9 +88,9 @@ router.get("/m365/exchange", async (req, res): Promise<void> => {
       let totalReceived = 0;
       let totalRead = 0;
       for (const row of activityRows) {
-        totalSent += row.send ?? 0;
-        totalReceived += row.receive ?? 0;
-        totalRead += row.read ?? 0;
+        totalSent += parseInt(row["Send"] ?? "0", 10) || 0;
+        totalReceived += parseInt(row["Receive"] ?? "0", 10) || 0;
+        totalRead += parseInt(row["Read"] ?? "0", 10) || 0;
       }
 
       return {
@@ -67,11 +99,18 @@ router.get("/m365/exchange", async (req, res): Promise<void> => {
         sharedMailboxes,
         roomMailboxes,
         totalStorageUsedGB: Math.round((totalStorageUsedBytes / 1e9) * 10) / 10,
-        totalStorageAllocatedGB: Math.round((totalStorageAllocatedBytes / 1e9) * 10) / 10,
-        storageUtilizationPercent: totalStorageAllocatedBytes > 0
-          ? Math.round((totalStorageUsedBytes / totalStorageAllocatedBytes) * 100)
-          : 0,
-        mailboxSizeDistribution: sizeRanges.map((r, i) => ({ range: r.label, count: sizeCounts[i] })),
+        totalStorageAllocatedGB:
+          Math.round((totalStorageAllocatedBytes / 1e9) * 10) / 10,
+        storageUtilizationPercent:
+          totalStorageAllocatedBytes > 0
+            ? Math.round(
+                (totalStorageUsedBytes / totalStorageAllocatedBytes) * 100
+              )
+            : 0,
+        mailboxSizeDistribution: sizeRanges.map((r, i) => ({
+          range: r.label,
+          count: sizeCounts[i],
+        })),
         emailActivityLast30Days: {
           sent: totalSent,
           received: totalReceived,

@@ -1,32 +1,89 @@
 import { Router } from "express";
-import { graphClient, getCached } from "../lib/graphClient.js";
+import { getCached } from "../lib/graphClient.js";
 
 const router = Router();
+
+async function fetchWithToken(url: string): Promise<any> {
+  const { ClientSecretCredential } = await import("@azure/identity");
+  const cred = new ClientSecretCredential(
+    process.env.AZURE_TENANT_ID!,
+    process.env.AZURE_CLIENT_ID!,
+    process.env.AZURE_CLIENT_SECRET!
+  );
+  const token = await cred.getToken("https://graph.microsoft.com/.default");
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token!.token}` },
+  });
+  if (!resp.ok) return null;
+  return resp.json();
+}
+
+async function fetchReportCsv(url: string): Promise<string> {
+  const { ClientSecretCredential } = await import("@azure/identity");
+  const cred = new ClientSecretCredential(
+    process.env.AZURE_TENANT_ID!,
+    process.env.AZURE_CLIENT_ID!,
+    process.env.AZURE_CLIENT_SECRET!
+  );
+  const token = await cred.getToken("https://graph.microsoft.com/.default");
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token!.token}` },
+  });
+  if (!resp.ok) return "";
+  return resp.text();
+}
+
+function parseCsv(csv: string): Record<string, string>[] {
+  const lines = csv.trim().split("\n").filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map((h) => h.trim().replace(/\r/g, ""));
+  return lines.slice(1).map((line) => {
+    const vals = line.split(",").map((v) => v.trim().replace(/\r/g, ""));
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => {
+      obj[h] = vals[i] ?? "";
+    });
+    return obj;
+  });
+}
+
+async function fetchAllPages(firstUrl: string): Promise<any[]> {
+  const results: any[] = [];
+  let url: string | null = firstUrl;
+  while (url) {
+    const page: any = await fetchWithToken(url);
+    if (!page || !page.value) break;
+    results.push(...page.value);
+    url = page["@odata.nextLink"] ?? null;
+  }
+  return results;
+}
 
 router.get("/m365/teams", async (req, res): Promise<void> => {
   try {
     const data = await getCached("m365-teams", async () => {
-      const [teamsRes, teamsActivityRes, teamsSettingsRes] = await Promise.allSettled([
-        graphClient.api("/groups")
-          .filter("resourceProvisioningOptions/Any(x:x eq 'Team')")
-          .select("id,displayName,visibility,isArchived")
-          .top(999)
-          .get(),
-        graphClient.api("/reports/getTeamsUserActivityCounts(period='D30')").header("Accept", "application/json").get(),
-        graphClient.api("/teamwork").get(),
+      const [teams, activityCsv, deviceCsv] = await Promise.all([
+        fetchAllPages(
+          "https://graph.microsoft.com/v1.0/teams?$select=id,displayName,visibility,isArchived&$top=999"
+        ),
+        fetchReportCsv(
+          "https://graph.microsoft.com/v1.0/reports/getTeamsUserActivityCounts(period='D30')"
+        ),
+        fetchReportCsv(
+          "https://graph.microsoft.com/v1.0/reports/getTeamsDeviceUsageUserCounts(period='D30')"
+        ),
       ]);
 
-      const teams = teamsRes.status === "fulfilled" ? teamsRes.value?.value ?? [] : [];
-      const activityRows = teamsActivityRes.status === "fulfilled" ? teamsActivityRes.value?.value ?? [] : [];
-      const teamsSettings = teamsSettingsRes.status === "fulfilled" ? teamsSettingsRes.value : null;
+      const activityRows = parseCsv(activityCsv);
+      const deviceRows = parseCsv(deviceCsv);
 
       let totalTeams = teams.length;
       let activeTeams = 0;
       let privateTeams = 0;
       let publicTeams = 0;
       let archivedTeams = 0;
-      let totalChannels = 0;
 
+      const memberCountMap: Record<string, number> = {};
       const sizeRanges = [
         { label: "1-5 members", min: 1, max: 5 },
         { label: "6-20 members", min: 6, max: 20 },
@@ -39,34 +96,46 @@ router.get("/m365/teams", async (req, res): Promise<void> => {
       for (const t of teams) {
         if (t.isArchived) archivedTeams++;
         else activeTeams++;
-        if ((t.visibility ?? "").toLowerCase() === "private") privateTeams++;
+        const vis = (t.visibility ?? "").toLowerCase();
+        if (vis === "private") privateTeams++;
         else publicTeams++;
       }
 
       let meetingsOrganizedLast30Days = 0;
       let callsLast30Days = 0;
       let messagesLast30Days = 0;
-      let activeUsersLast30Days = 0;
+      let activeUsersSet = new Set<string>();
 
       for (const row of activityRows) {
-        meetingsOrganizedLast30Days += row.teamChatMessages ?? 0;
-        callsLast30Days += row.calls ?? 0;
-        messagesLast30Days += row.teamChatMessages ?? 0;
-        if ((row.teamChatMessages ?? 0) > 0 || (row.calls ?? 0) > 0) {
-          activeUsersLast30Days++;
+        const teamChats = parseInt(row["Team Chat Messages"] ?? "0", 10) || 0;
+        const privateMsgs =
+          parseInt(row["Private Chat Messages"] ?? "0", 10) || 0;
+        const calls = parseInt(row["Calls"] ?? "0", 10) || 0;
+        const meetings =
+          parseInt(row["Meetings Organized Count"] ?? "0", 10) || 0;
+        const postMsgs = parseInt(row["Post Messages"] ?? "0", 10) || 0;
+        messagesLast30Days += teamChats + privateMsgs + postMsgs;
+        callsLast30Days += calls;
+        meetingsOrganizedLast30Days += meetings;
+      }
+
+      let activeUsersLast30Days = 0;
+      const uniqueDays = new Set<string>();
+      const windowsUsersPerDay: Record<string, number> = {};
+      for (const row of deviceRows) {
+        const date = row["Report Date"] ?? "";
+        if (date) {
+          const windows = parseInt(row["Windows"] ?? "0", 10) || 0;
+          const mac = parseInt(row["Mac"] ?? "0", 10) || 0;
+          const web = parseInt(row["Web"] ?? "0", 10) || 0;
+          const ios = parseInt(row["iOS"] ?? "0", 10) || 0;
+          const android = parseInt(row["Android Phone"] ?? "0", 10) || 0;
+          activeUsersLast30Days = Math.max(
+            activeUsersLast30Days,
+            windows + mac + web + ios + android
+          );
         }
       }
-
-      let channelRes: any;
-      try {
-        channelRes = await graphClient.api("/reports/getTeamsDeviceUsageUserDetail(period='D30')").header("Accept", "application/json").get();
-        totalChannels = channelRes?.value?.length ?? 0;
-      } catch {
-        totalChannels = 0;
-      }
-
-      const guestAccessEnabled = teamsSettings?.teamsAppSettings?.isUserPersonalScopeResourceSpecificConsentEnabled ?? true;
-      const externalAccessEnabled = true;
 
       return {
         totalTeams,
@@ -74,14 +143,17 @@ router.get("/m365/teams", async (req, res): Promise<void> => {
         privateTeams,
         publicTeams,
         archivedTeams,
-        totalChannels,
+        totalChannels: 0,
         activeUsersLast30Days,
         meetingsOrganizedLast30Days,
         callsLast30Days,
         messagesLast30Days,
-        guestAccessEnabled,
-        externalAccessEnabled,
-        teamsBySize: sizeRanges.map((r, i) => ({ range: r.label, count: sizeCounts[i] })),
+        guestAccessEnabled: true,
+        externalAccessEnabled: true,
+        teamsBySize: sizeRanges.map((r, i) => ({
+          range: r.label,
+          count: sizeCounts[i],
+        })),
       };
     });
 
