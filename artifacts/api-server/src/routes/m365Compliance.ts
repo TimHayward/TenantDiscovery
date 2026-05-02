@@ -1,127 +1,112 @@
 import { Router } from "express";
+import { ClientSecretCredential } from "@azure/identity";
 import { getCached } from "../lib/graphClient.js";
 
 const router = Router();
 
-async function fetchWithToken(url: string, useBeta = false): Promise<any> {
-  const { ClientSecretCredential } = await import("@azure/identity");
+const PERMISSION_ERROR_CODES = new Set([401, 403]);
+
+async function getToken(): Promise<string> {
   const cred = new ClientSecretCredential(
     process.env.AZURE_TENANT_ID!,
     process.env.AZURE_CLIENT_ID!,
     process.env.AZURE_CLIENT_SECRET!
   );
-  const token = await cred.getToken("https://graph.microsoft.com/.default");
-  const base = useBeta
-    ? "https://graph.microsoft.com/beta"
-    : "https://graph.microsoft.com/v1.0";
-  const fullUrl = url.startsWith("http") ? url : `${base}${url}`;
-  const resp = await fetch(fullUrl, {
-    headers: { Authorization: `Bearer ${token!.token}` },
-  });
-  if (!resp.ok) return null;
-  return resp.json();
+  const result = await cred.getToken("https://graph.microsoft.com/.default");
+  return result!.token;
 }
 
-async function fetchAllPages(firstUrl: string, useBeta = false): Promise<any[]> {
-  const results: any[] = [];
-  let url: string | null = firstUrl.startsWith("http")
-    ? firstUrl
-    : `${useBeta ? "https://graph.microsoft.com/beta" : "https://graph.microsoft.com/v1.0"}${firstUrl}`;
+async function fetchWithToken(
+  url: string,
+  token: string
+): Promise<{ data: any; status: number }> {
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!resp.ok) return { data: null, status: resp.status };
+  return { data: await resp.json(), status: resp.status };
+}
+
+async function fetchAllPages(
+  firstUrl: string,
+  token: string
+): Promise<{ items: any[]; permissionDenied: boolean }> {
+  const items: any[] = [];
+  let url: string | null = firstUrl;
   while (url) {
-    const page: any = await fetchWithToken(url);
-    if (!page || !page.value) break;
-    results.push(...page.value);
-    url = page["@odata.nextLink"] ?? null;
+    const { data, status } = await fetchWithToken(url, token);
+    if (PERMISSION_ERROR_CODES.has(status)) return { items: [], permissionDenied: true };
+    if (!data || !data.value) break;
+    items.push(...data.value);
+    url = data["@odata.nextLink"] ?? null;
   }
-  return results;
+  return { items, permissionDenied: false };
 }
 
 router.get("/m365/compliance", async (req, res): Promise<void> => {
   try {
     const data = await getCached("m365-compliance", async () => {
-      const [secScoreData, eDiscoveryCasesData] = await Promise.all([
-        fetchWithToken("/security/secureScores?$top=1"),
-        fetchWithToken("/security/cases/ediscoveryCases?$top=1").catch(() => null),
-      ]);
+      const token = await getToken();
 
-      const secScore = secScoreData?.value?.[0] ?? null;
+      const [secScoreResult, eDiscoveryResult, dlpResult, labelsResult] =
+        await Promise.all([
+          fetchWithToken(
+            "https://graph.microsoft.com/v1.0/security/secureScores?$top=1",
+            token
+          ),
+          fetchWithToken(
+            "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases?$top=1",
+            token
+          ).catch(() => ({ data: null, status: 500 })),
+          fetchAllPages(
+            "https://graph.microsoft.com/v1.0/security/informationProtection/policies/dlp/policies?$top=999",
+            token
+          ).catch(() => ({ items: [], permissionDenied: false })),
+          fetchAllPages(
+            "https://graph.microsoft.com/beta/security/informationProtection/sensitivityLabels",
+            token
+          ),
+        ]);
+
+      // Secure Score
+      const secScore = secScoreResult.data?.value?.[0] ?? null;
       const complianceScore = secScore?.currentScore ?? 0;
       const complianceScoreMax = secScore?.maxScore ?? 100;
-      const eDiscoveryCases = eDiscoveryCasesData?.value?.length ?? 0;
 
-      // Try to fetch DLP policies via security endpoint
-      let dlpPolicies = 0;
-      let activeDlpPolicies = 0;
-      try {
-        const dlpRes = await fetchWithToken(
-          "/security/informationProtection/policies/dlp/policies?$top=999"
-        );
-        const dlpList = dlpRes?.value ?? [];
-        dlpPolicies = dlpList.length;
-        activeDlpPolicies = dlpList.filter(
-          (p: any) => p.mode === "Enable" || p.mode === "enable"
-        ).length;
-      } catch {
-        dlpPolicies = 0;
-        activeDlpPolicies = 0;
-      }
+      // eDiscovery
+      const eDiscoveryCases = eDiscoveryResult.data?.value?.length ?? 0;
 
-      // Try sensitivity labels - requires InformationProtection.ReadWrite.All (application permission)
-      let sensitivityLabelsList: any[] = [];
-      let sensitivityLabelsPermissionRequired = false;
-      try {
-        // Try v1.0 first (typically needs license + permission)
-        const labelsRes = await fetchWithToken(
-          "https://graph.microsoft.com/beta/informationProtection/sensitivityLabels"
-        );
-        if (labelsRes && labelsRes.value) {
-          sensitivityLabelsList = labelsRes.value.map((l: any) => ({
-            id: l.id,
-            name: l.name ?? l.displayName ?? "Unknown",
-            description: l.description ?? l.tooltip ?? "",
-            color: l.color ?? "",
-            sensitivity: l.sensitivity ?? 0,
-            isActive: l.isActive ?? true,
-            parent: l.parent?.id ?? null,
-          }));
-        } else {
-          sensitivityLabelsPermissionRequired = true;
-        }
-      } catch {
-        sensitivityLabelsPermissionRequired = true;
-      }
+      // DLP policies
+      const dlpList = dlpResult.items;
+      const dlpPolicies = dlpList.length;
+      const activeDlpPolicies = dlpList.filter(
+        (p: any) => p.mode === "Enable" || p.mode === "enable"
+      ).length;
 
-      // Also try v1.0 security labels endpoint
-      if (sensitivityLabelsList.length === 0) {
-        try {
-          const labelsV1 = await fetchWithToken(
-            "/security/informationProtection/sensitivityLabels?$top=999"
-          );
-          if (labelsV1?.value?.length > 0) {
-            sensitivityLabelsList = labelsV1.value.map((l: any) => ({
-              id: l.id,
-              name: l.name ?? l.displayName ?? "Unknown",
-              description: l.description ?? "",
-              color: l.color ?? "",
-              sensitivity: l.sensitivity ?? 0,
-              isActive: true,
-              parent: null,
-            }));
-            sensitivityLabelsPermissionRequired = false;
-          }
-        } catch {
-          // keep permission required flag
-        }
-      }
+      // Sensitivity labels
+      const sensitivityLabelsPermissionRequired = labelsResult.permissionDenied;
+      const sensitivityLabelsList = labelsResult.items.map((l: any) => ({
+        id: l.id,
+        name: l.name ?? "Unknown",
+        description: l.description ?? "",
+        tooltip: l.tooltip ?? "",
+        color: l.color ?? "",
+        sensitivity: l.sensitivity ?? 0,
+        isActive: l.isActive ?? true,
+        isAppliable: l.isAppliable ?? true,
+        hasProtection: l.hasProtection ?? false,
+        contentFormats: l.contentFormats ?? [],
+        parent: l.parent?.id ?? null,
+      }));
 
-      // Try retention policies count via compliance portal
+      // Retention policies — use Intune app protection policies as a proxy count
       let retentionPolicies = 0;
       try {
-        const retRes = await fetchWithToken(
-          "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies?$top=1"
+        const { data: retData } = await fetchWithToken(
+          "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies?$top=999",
+          token
         );
-        // Just check if endpoint works
-        retentionPolicies = retRes?.value?.length ?? 0;
+        retentionPolicies = retData?.value?.length ?? 0;
       } catch {
         retentionPolicies = 0;
       }

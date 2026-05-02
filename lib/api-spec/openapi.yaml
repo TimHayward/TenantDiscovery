@@ -414,16 +414,26 @@ components:
           type: string
         description:
           type: string
+        tooltip:
+          type: string
         color:
           type: string
         sensitivity:
           type: integer
         isActive:
           type: boolean
+        isAppliable:
+          type: boolean
+        hasProtection:
+          type: boolean
+        contentFormats:
+          type: array
+          items:
+            type: string
         parent:
           type: string
           nullable: true
-      required: [id, name, description, color, sensitivity, isActive, parent]
+      required: [id, name, description, tooltip, color, sensitivity, isActive, isAppliable, hasProtection, contentFormats, parent]
 
     M365SecurityData:
       type: object

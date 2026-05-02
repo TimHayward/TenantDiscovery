@@ -110,9 +110,13 @@ export interface SensitivityLabelItem {
   id: string;
   name: string;
   description: string;
+  tooltip: string;
   color: string;
   sensitivity: number;
   isActive: boolean;
+  isAppliable: boolean;
+  hasProtection: boolean;
+  contentFormats: string[];
   parent: string | null;
 }
 

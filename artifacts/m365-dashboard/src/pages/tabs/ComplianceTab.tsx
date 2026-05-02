@@ -38,54 +38,71 @@ const labelColumns: ColumnDef<SensitivityLabelItem>[] = [
   {
     accessorKey: "name",
     header: "Label Name",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        {row.original.color ? (
-          <span
-            className="inline-block w-3 h-3 rounded-sm flex-shrink-0"
-            style={{ backgroundColor: row.original.color }}
-          />
-        ) : (
-          <Tag className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-        )}
-        <span className="font-medium">{row.original.name}</span>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "description",
-    header: "Description",
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">
-        {row.original.description || "—"}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const { color, name, tooltip, parent } = row.original;
+      return (
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="flex items-center gap-2">
+            {color ? (
+              <span
+                className="inline-block w-3 h-3 rounded-sm flex-shrink-0 border border-black/10"
+                style={{ backgroundColor: color }}
+              />
+            ) : (
+              <Tag className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+            )}
+            <span className="font-medium truncate">{name}</span>
+            {parent && (
+              <Badge variant="outline" className="text-[10px] px-1 py-0 font-normal text-muted-foreground">sub-label</Badge>
+            )}
+          </div>
+          {tooltip && (
+            <p className="text-xs text-muted-foreground pl-5 leading-tight truncate max-w-[260px]">{tooltip}</p>
+          )}
+        </div>
+      );
+    },
   },
   {
     accessorKey: "sensitivity",
-    header: "Sensitivity",
+    header: "Order",
     cell: ({ row }) => (
-      <span className="font-mono text-sm">{row.original.sensitivity}</span>
+      <span className="font-mono text-sm tabular-nums">{row.original.sensitivity}</span>
     ),
   },
   {
-    accessorKey: "parent",
-    header: "Parent",
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">
-        {row.original.parent ? "Sub-label" : "Top-level"}
-      </span>
-    ),
+    accessorKey: "contentFormats",
+    header: "Applies To",
+    cell: ({ row }) => {
+      const formats = row.original.contentFormats ?? [];
+      return (
+        <div className="flex flex-wrap gap-1">
+          {formats.length > 0 ? formats.map((f: string) => (
+            <Badge key={f} variant="outline" className="text-[10px] px-1.5 py-0 capitalize font-normal">{f}</Badge>
+          )) : <span className="text-muted-foreground text-sm">—</span>}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "hasProtection",
+    header: "Protection",
+    cell: ({ row }) =>
+      row.original.hasProtection ? (
+        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 font-normal text-xs">Encrypted</Badge>
+      ) : (
+        <span className="text-muted-foreground text-sm">None</span>
+      ),
   },
   {
     accessorKey: "isActive",
     header: "Status",
-    cell: ({ row }) =>
-      row.original.isActive ? (
-        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 font-normal text-xs">Active</Badge>
-      ) : (
-        <Badge variant="outline" className="text-muted-foreground font-normal text-xs">Inactive</Badge>
-      ),
+    cell: ({ row }) => {
+      const { isActive, isAppliable } = row.original;
+      if (!isActive) return <Badge variant="outline" className="text-muted-foreground font-normal text-xs">Inactive</Badge>;
+      if (!isAppliable) return <Badge variant="outline" className="font-normal text-xs">View only</Badge>;
+      return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 font-normal text-xs">Active</Badge>;
+    },
   },
 ];
 
@@ -259,10 +276,13 @@ export function ComplianceTab() {
                 <CSVLink
                   data={compliance.sensitivityLabelsList.map(l => ({
                     Name: l.name,
-                    Description: l.description,
-                    Sensitivity: l.sensitivity,
+                    Tooltip: l.tooltip,
+                    SensitivityOrder: l.sensitivity,
                     Color: l.color,
+                    HasProtection: l.hasProtection,
+                    ContentFormats: (l.contentFormats ?? []).join(", "),
                     Active: l.isActive,
+                    Appliable: l.isAppliable,
                     Type: l.parent ? "Sub-label" : "Top-level",
                   }))}
                   filename="sensitivity-labels.csv"
