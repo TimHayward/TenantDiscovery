@@ -232,7 +232,7 @@ export function ComplianceTab() {
                 <Lock className="w-10 h-10 text-muted-foreground" />
                 <p className="font-medium">Additional permission required</p>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  To display sensitivity labels, add the <code className="bg-muted px-1 rounded text-xs">InformationProtection.Read.All</code> application permission to your Azure app registration and grant admin consent.
+                  To display sensitivity labels, add the <code className="bg-muted px-1 rounded text-xs">InformationProtection.ReadWrite.All</code> application permission to your Azure app registration and grant admin consent.
                 </p>
               </div>
             </CardContent>

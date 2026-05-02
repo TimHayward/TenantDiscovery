@@ -66,7 +66,7 @@ router.get("/m365/compliance", async (req, res): Promise<void> => {
         activeDlpPolicies = 0;
       }
 
-      // Try sensitivity labels - requires InformationProtection.Read.All
+      // Try sensitivity labels - requires InformationProtection.ReadWrite.All (application permission)
       let sensitivityLabelsList: any[] = [];
       let sensitivityLabelsPermissionRequired = false;
       try {

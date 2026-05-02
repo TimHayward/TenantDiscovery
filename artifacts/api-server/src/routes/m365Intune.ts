@@ -57,7 +57,7 @@ router.get("/m365/intune", async (req, res) => {
         fetchAllPages(
           "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices" +
             "?$select=id,deviceName,operatingSystem,osVersion,complianceState,enrolledDateTime," +
-            "lastSyncDateTime,userDisplayName,userPrincipalName,manufacturer,model,deviceType," +
+            "lastSyncDateTime,userDisplayName,userPrincipalName,manufacturer,model," +
             "managementAgent,managementState,isEncrypted,isSupervised,jailBroken",
           token
         ),
