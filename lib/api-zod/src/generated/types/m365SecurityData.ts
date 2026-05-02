@@ -8,6 +8,8 @@
 import type { ConditionalAccessPolicyItem } from "./conditionalAccessPolicyItem";
 import type { M365SecurityDataControlCategoriesItem } from "./m365SecurityDataControlCategoriesItem";
 import type { M365SecurityDataSecureScoreHistoryItem } from "./m365SecurityDataSecureScoreHistoryItem";
+import type { MfaMethodStrengthItem } from "./mfaMethodStrengthItem";
+import type { MfaUserItem } from "./mfaUserItem";
 
 export interface M365SecurityData {
   secureScore: number;
@@ -25,4 +27,6 @@ export interface M365SecurityData {
   caPolicies: ConditionalAccessPolicyItem[];
   riskyUsers: number;
   adminsWithoutMfa: number;
+  mfaUsersList: MfaUserItem[];
+  mfaMethodsBreakdown: MfaMethodStrengthItem[];
 }

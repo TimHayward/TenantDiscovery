@@ -130,6 +130,29 @@ export const GetM365SecurityResponse = zod.object({
   ),
   riskyUsers: zod.number(),
   adminsWithoutMfa: zod.number(),
+  mfaUsersList: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      userPrincipalName: zod.string(),
+      isMfaRegistered: zod.boolean(),
+      isPasswordlessCapable: zod.boolean(),
+      isSsprRegistered: zod.boolean(),
+      methodsRegistered: zod.array(zod.string()),
+      accountEnabled: zod.boolean(),
+      userType: zod.string(),
+    }),
+  ),
+  mfaMethodsBreakdown: zod.array(
+    zod.object({
+      method: zod.string(),
+      displayName: zod.string(),
+      strength: zod.string(),
+      strengthLevel: zod.number(),
+      count: zod.number(),
+      percentOfUsers: zod.number(),
+    }),
+  ),
 });
 
 /**

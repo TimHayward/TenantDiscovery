@@ -330,6 +330,48 @@ components:
         - utilizationPercent
         - licenses
 
+    MfaUserItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        userPrincipalName:
+          type: string
+        isMfaRegistered:
+          type: boolean
+        isPasswordlessCapable:
+          type: boolean
+        isSsprRegistered:
+          type: boolean
+        methodsRegistered:
+          type: array
+          items:
+            type: string
+        accountEnabled:
+          type: boolean
+        userType:
+          type: string
+      required: [id, displayName, userPrincipalName, isMfaRegistered, isPasswordlessCapable, isSsprRegistered, methodsRegistered, accountEnabled, userType]
+
+    MfaMethodStrengthItem:
+      type: object
+      properties:
+        method:
+          type: string
+        displayName:
+          type: string
+        strength:
+          type: string
+        strengthLevel:
+          type: integer
+        count:
+          type: integer
+        percentOfUsers:
+          type: number
+      required: [method, displayName, strength, strengthLevel, count, percentOfUsers]
+
     ConditionalAccessPolicyItem:
       type: object
       properties:
@@ -425,6 +467,14 @@ components:
           type: integer
         adminsWithoutMfa:
           type: integer
+        mfaUsersList:
+          type: array
+          items:
+            $ref: "#/components/schemas/MfaUserItem"
+        mfaMethodsBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/MfaMethodStrengthItem"
       required:
         - secureScore
         - secureScoreMax
@@ -441,6 +491,8 @@ components:
         - caPolicies
         - riskyUsers
         - adminsWithoutMfa
+        - mfaUsersList
+        - mfaMethodsBreakdown
 
     M365ExchangeData:
       type: object

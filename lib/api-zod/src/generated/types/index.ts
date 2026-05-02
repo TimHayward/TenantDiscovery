@@ -24,6 +24,8 @@ export * from "./m365TeamsData";
 export * from "./m365TeamsDataTeamsBySizeItem";
 export * from "./m365UsersData";
 export * from "./m365UsersDataUsersByDepartmentItem";
+export * from "./mfaMethodStrengthItem";
+export * from "./mfaUserItem";
 export * from "./sensitivityLabelItem";
 export * from "./serviceHealthItem";
 export * from "./sharePointSiteItem";

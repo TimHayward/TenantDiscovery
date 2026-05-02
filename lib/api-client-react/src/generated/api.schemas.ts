@@ -75,6 +75,27 @@ export interface M365LicensesData {
   licenses: LicenseItem[];
 }
 
+export interface MfaUserItem {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+  isMfaRegistered: boolean;
+  isPasswordlessCapable: boolean;
+  isSsprRegistered: boolean;
+  methodsRegistered: string[];
+  accountEnabled: boolean;
+  userType: string;
+}
+
+export interface MfaMethodStrengthItem {
+  method: string;
+  displayName: string;
+  strength: string;
+  strengthLevel: number;
+  count: number;
+  percentOfUsers: number;
+}
+
 export interface ConditionalAccessPolicyItem {
   id: string;
   displayName: string;
@@ -123,6 +144,8 @@ export interface M365SecurityData {
   caPolicies: ConditionalAccessPolicyItem[];
   riskyUsers: number;
   adminsWithoutMfa: number;
+  mfaUsersList: MfaUserItem[];
+  mfaMethodsBreakdown: MfaMethodStrengthItem[];
 }
 
 export type M365ExchangeDataMailboxSizeDistributionItem = {
