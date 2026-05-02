@@ -12,6 +12,7 @@ import { SecurityTab } from "./tabs/SecurityTab";
 import { ExchangeTab } from "./tabs/ExchangeTab";
 import { TeamsSharePointTab } from "./tabs/TeamsSharePointTab";
 import { ComplianceTab } from "./tabs/ComplianceTab";
+import { IntuneTab } from "./tabs/IntuneTab";
 
 const DATA_SOURCES: string[] = ["Microsoft Graph API"];
 
@@ -187,6 +188,7 @@ export default function Dashboard() {
               <TabsTrigger value="exchange">Exchange Online</TabsTrigger>
               <TabsTrigger value="teams-sp">Teams & SharePoint</TabsTrigger>
               <TabsTrigger value="compliance">Compliance & Health</TabsTrigger>
+              <TabsTrigger value="intune">Intune</TabsTrigger>
             </TabsList>
           </div>
 
@@ -210,6 +212,9 @@ export default function Dashboard() {
           </TabsContent>
           <TabsContent value="compliance" className="focus-visible:outline-none">
             <ComplianceTab />
+          </TabsContent>
+          <TabsContent value="intune" className="focus-visible:outline-none">
+            <IntuneTab />
           </TabsContent>
         </Tabs>
 

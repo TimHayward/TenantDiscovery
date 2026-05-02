@@ -17,6 +17,7 @@ import type {
   HealthStatus,
   M365ComplianceData,
   M365ExchangeData,
+  M365IntuneData,
   M365LicensesData,
   M365Overview,
   M365SecurityData,
@@ -777,6 +778,81 @@ export function useGetM365ServiceHealth<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetM365ServiceHealthQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Intune device management and compliance
+ */
+export const getGetM365IntuneUrl = () => {
+  return `/api/m365/intune`;
+};
+
+export const getM365Intune = async (
+  options?: RequestInit,
+): Promise<M365IntuneData> => {
+  return customFetch<M365IntuneData>(getGetM365IntuneUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365IntuneQueryKey = () => {
+  return [`/api/m365/intune`] as const;
+};
+
+export const getGetM365IntuneQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365Intune>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Intune>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365IntuneQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Intune>>> = ({
+    signal,
+  }) => getM365Intune({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Intune>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365IntuneQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365Intune>>
+>;
+export type GetM365IntuneQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Intune device management and compliance
+ */
+
+export function useGetM365Intune<
+  TData = Awaited<ReturnType<typeof getM365Intune>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Intune>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365IntuneQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

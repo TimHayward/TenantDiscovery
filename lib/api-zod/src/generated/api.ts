@@ -300,3 +300,143 @@ export const GetM365ServiceHealthResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary Intune device management and compliance
+ */
+export const GetM365IntuneResponse = zod.object({
+  totalDevices: zod.number(),
+  overallCompliancePercent: zod.number(),
+  compliantDevices: zod.number(),
+  nonCompliantDevices: zod.number(),
+  totalCompliancePolicies: zod.number(),
+  totalConfigProfiles: zod.number(),
+  totalAppProtectionPolicies: zod.number(),
+  encryptedDevices: zod.number(),
+  encryptionPercent: zod.number(),
+  jailbrokenCount: zod.number(),
+  permissionRequired: zod.boolean(),
+  enrolledByOS: zod.array(
+    zod.object({
+      os: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  osVersionBreakdown: zod.array(
+    zod.object({
+      os: zod.string(),
+      versions: zod.array(
+        zod.object({
+          version: zod.string(),
+          count: zod.number(),
+        }),
+      ),
+    }),
+  ),
+  complianceByState: zod.array(
+    zod.object({
+      state: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  complianceByOS: zod.array(
+    zod.object({
+      os: zod.string(),
+      compliant: zod.number(),
+      nonCompliant: zod.number(),
+      total: zod.number(),
+      compliancePercent: zod.number(),
+    }),
+  ),
+  deviceList: zod.array(
+    zod.object({
+      id: zod.string(),
+      deviceName: zod.string(),
+      operatingSystem: zod.string(),
+      osVersion: zod.string(),
+      complianceState: zod.string(),
+      enrolledDateTime: zod.string().nullish(),
+      lastSyncDateTime: zod.string().nullish(),
+      userDisplayName: zod.string(),
+      userPrincipalName: zod.string(),
+      manufacturer: zod.string(),
+      model: zod.string(),
+      deviceType: zod.string(),
+      managementAgent: zod.string(),
+      managementState: zod.string(),
+      isEncrypted: zod.boolean().nullish(),
+      isSupervised: zod.boolean().nullish(),
+      jailBroken: zod.string(),
+    }),
+  ),
+  compliancePoliciesList: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      description: zod.string(),
+      platform: zod.string(),
+      assignedGroups: zod.number(),
+      createdDateTime: zod.string().nullish(),
+      lastModifiedDateTime: zod.string().nullish(),
+    }),
+  ),
+  configProfilesList: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      description: zod.string(),
+      platform: zod.string(),
+      assignedGroups: zod.number(),
+      createdDateTime: zod.string().nullish(),
+      lastModifiedDateTime: zod.string().nullish(),
+    }),
+  ),
+  enrollmentConfigsList: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      type: zod.string(),
+      priority: zod.number(),
+      createdDateTime: zod.string().nullish(),
+      lastModifiedDateTime: zod.string().nullish(),
+    }),
+  ),
+  appProtectionList: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      description: zod.string(),
+      platform: zod.string(),
+      assignedGroups: zod.number(),
+      createdDateTime: zod.string().nullish(),
+      lastModifiedDateTime: zod.string().nullish(),
+    }),
+  ),
+  overallCompliance: zod
+    .object({
+      compliantDeviceCount: zod.number(),
+      noncompliantDeviceCount: zod.number(),
+      remediatedDeviceCount: zod.number(),
+      notApplicableDeviceCount: zod.number(),
+      notAssignedDeviceCount: zod.number(),
+      gracePeriodCount: zod.number(),
+      configManagerCount: zod.number(),
+    })
+    .nullish(),
+  policySummaryByOS: zod.array(
+    zod.object({
+      os: zod.string(),
+      totalPolicies: zod.number(),
+      policyNames: zod.array(zod.string()),
+    }),
+  ),
+  assessmentItems: zod.array(
+    zod.object({
+      area: zod.string(),
+      item: zod.string(),
+      value: zod.string(),
+      status: zod.string(),
+      notes: zod.string(),
+    }),
+  ),
+});

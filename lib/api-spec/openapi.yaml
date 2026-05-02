@@ -143,6 +143,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365ServiceHealthData"
 
+  /m365/intune:
+    get:
+      operationId: getM365Intune
+      tags: [m365]
+      summary: Intune device management and compliance
+      responses:
+        "200":
+          description: Intune data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365IntuneData"
+
 components:
   schemas:
     HealthStatus:
@@ -749,6 +762,311 @@ components:
         - eDiscoveryCases
         - sensitivityLabelsList
         - sensitivityLabelsPermissionRequired
+
+    IntuneDeviceItem:
+      type: object
+      properties:
+        id:
+          type: string
+        deviceName:
+          type: string
+        operatingSystem:
+          type: string
+        osVersion:
+          type: string
+        complianceState:
+          type: string
+        enrolledDateTime:
+          type: string
+          nullable: true
+        lastSyncDateTime:
+          type: string
+          nullable: true
+        userDisplayName:
+          type: string
+        userPrincipalName:
+          type: string
+        manufacturer:
+          type: string
+        model:
+          type: string
+        deviceType:
+          type: string
+        managementAgent:
+          type: string
+        managementState:
+          type: string
+        isEncrypted:
+          type: boolean
+          nullable: true
+        isSupervised:
+          type: boolean
+          nullable: true
+        jailBroken:
+          type: string
+      required:
+        - id
+        - deviceName
+        - operatingSystem
+        - osVersion
+        - complianceState
+        - userDisplayName
+        - userPrincipalName
+        - manufacturer
+        - model
+        - deviceType
+        - managementAgent
+        - managementState
+        - jailBroken
+
+    IntunePolicyItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        platform:
+          type: string
+        assignedGroups:
+          type: integer
+        createdDateTime:
+          type: string
+          nullable: true
+        lastModifiedDateTime:
+          type: string
+          nullable: true
+      required:
+        - id
+        - displayName
+        - description
+        - platform
+        - assignedGroups
+
+    IntuneEnrolledByOS:
+      type: object
+      properties:
+        os:
+          type: string
+        count:
+          type: integer
+      required: [os, count]
+
+    IntuneOSVersionEntry:
+      type: object
+      properties:
+        version:
+          type: string
+        count:
+          type: integer
+      required: [version, count]
+
+    IntuneOSVersionBreakdown:
+      type: object
+      properties:
+        os:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneOSVersionEntry"
+      required: [os, versions]
+
+    IntuneComplianceByState:
+      type: object
+      properties:
+        state:
+          type: string
+        count:
+          type: integer
+      required: [state, count]
+
+    IntuneComplianceByOS:
+      type: object
+      properties:
+        os:
+          type: string
+        compliant:
+          type: integer
+        nonCompliant:
+          type: integer
+        total:
+          type: integer
+        compliancePercent:
+          type: integer
+      required: [os, compliant, nonCompliant, total, compliancePercent]
+
+    IntunePolicySummaryByOS:
+      type: object
+      properties:
+        os:
+          type: string
+        totalPolicies:
+          type: integer
+        policyNames:
+          type: array
+          items:
+            type: string
+      required: [os, totalPolicies, policyNames]
+
+    IntuneEnrollmentConfig:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        type:
+          type: string
+        priority:
+          type: integer
+        createdDateTime:
+          type: string
+          nullable: true
+        lastModifiedDateTime:
+          type: string
+          nullable: true
+      required: [id, displayName, type, priority]
+
+    IntuneOverallCompliance:
+      type: object
+      properties:
+        compliantDeviceCount:
+          type: integer
+        noncompliantDeviceCount:
+          type: integer
+        remediatedDeviceCount:
+          type: integer
+        notApplicableDeviceCount:
+          type: integer
+        notAssignedDeviceCount:
+          type: integer
+        gracePeriodCount:
+          type: integer
+        configManagerCount:
+          type: integer
+      required:
+        - compliantDeviceCount
+        - noncompliantDeviceCount
+        - remediatedDeviceCount
+        - notApplicableDeviceCount
+        - notAssignedDeviceCount
+        - gracePeriodCount
+        - configManagerCount
+
+    IntuneAssessmentItem:
+      type: object
+      properties:
+        area:
+          type: string
+        item:
+          type: string
+        value:
+          type: string
+        status:
+          type: string
+        notes:
+          type: string
+      required: [area, item, value, status, notes]
+
+    M365IntuneData:
+      type: object
+      properties:
+        totalDevices:
+          type: integer
+        overallCompliancePercent:
+          type: integer
+        compliantDevices:
+          type: integer
+        nonCompliantDevices:
+          type: integer
+        totalCompliancePolicies:
+          type: integer
+        totalConfigProfiles:
+          type: integer
+        totalAppProtectionPolicies:
+          type: integer
+        encryptedDevices:
+          type: integer
+        encryptionPercent:
+          type: integer
+        jailbrokenCount:
+          type: integer
+        permissionRequired:
+          type: boolean
+        enrolledByOS:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneEnrolledByOS"
+        osVersionBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneOSVersionBreakdown"
+        complianceByState:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneComplianceByState"
+        complianceByOS:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneComplianceByOS"
+        deviceList:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneDeviceItem"
+        compliancePoliciesList:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntunePolicyItem"
+        configProfilesList:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntunePolicyItem"
+        enrollmentConfigsList:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneEnrollmentConfig"
+        appProtectionList:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntunePolicyItem"
+        overallCompliance:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/IntuneOverallCompliance"
+        policySummaryByOS:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntunePolicySummaryByOS"
+        assessmentItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneAssessmentItem"
+      required:
+        - totalDevices
+        - overallCompliancePercent
+        - compliantDevices
+        - nonCompliantDevices
+        - totalCompliancePolicies
+        - totalConfigProfiles
+        - totalAppProtectionPolicies
+        - encryptedDevices
+        - encryptionPercent
+        - jailbrokenCount
+        - permissionRequired
+        - enrolledByOS
+        - osVersionBreakdown
+        - complianceByState
+        - complianceByOS
+        - deviceList
+        - compliancePoliciesList
+        - configProfilesList
+        - enrollmentConfigsList
+        - appProtectionList
+        - policySummaryByOS
+        - assessmentItems
 
     ServiceHealthItem:
       type: object

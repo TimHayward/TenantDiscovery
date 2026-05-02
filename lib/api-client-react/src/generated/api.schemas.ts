@@ -253,6 +253,123 @@ export interface M365ComplianceData {
   sensitivityLabelsPermissionRequired: boolean;
 }
 
+export interface IntuneDeviceItem {
+  id: string;
+  deviceName: string;
+  operatingSystem: string;
+  osVersion: string;
+  complianceState: string;
+  enrolledDateTime?: string | null;
+  lastSyncDateTime?: string | null;
+  userDisplayName: string;
+  userPrincipalName: string;
+  manufacturer: string;
+  model: string;
+  deviceType: string;
+  managementAgent: string;
+  managementState: string;
+  isEncrypted?: boolean | null;
+  isSupervised?: boolean | null;
+  jailBroken: string;
+}
+
+export interface IntunePolicyItem {
+  id: string;
+  displayName: string;
+  description: string;
+  platform: string;
+  assignedGroups: number;
+  createdDateTime?: string | null;
+  lastModifiedDateTime?: string | null;
+}
+
+export interface IntuneEnrolledByOS {
+  os: string;
+  count: number;
+}
+
+export interface IntuneOSVersionEntry {
+  version: string;
+  count: number;
+}
+
+export interface IntuneOSVersionBreakdown {
+  os: string;
+  versions: IntuneOSVersionEntry[];
+}
+
+export interface IntuneComplianceByState {
+  state: string;
+  count: number;
+}
+
+export interface IntuneComplianceByOS {
+  os: string;
+  compliant: number;
+  nonCompliant: number;
+  total: number;
+  compliancePercent: number;
+}
+
+export interface IntunePolicySummaryByOS {
+  os: string;
+  totalPolicies: number;
+  policyNames: string[];
+}
+
+export interface IntuneEnrollmentConfig {
+  id: string;
+  displayName: string;
+  type: string;
+  priority: number;
+  createdDateTime?: string | null;
+  lastModifiedDateTime?: string | null;
+}
+
+export interface IntuneOverallCompliance {
+  compliantDeviceCount: number;
+  noncompliantDeviceCount: number;
+  remediatedDeviceCount: number;
+  notApplicableDeviceCount: number;
+  notAssignedDeviceCount: number;
+  gracePeriodCount: number;
+  configManagerCount: number;
+}
+
+export interface IntuneAssessmentItem {
+  area: string;
+  item: string;
+  value: string;
+  status: string;
+  notes: string;
+}
+
+export interface M365IntuneData {
+  totalDevices: number;
+  overallCompliancePercent: number;
+  compliantDevices: number;
+  nonCompliantDevices: number;
+  totalCompliancePolicies: number;
+  totalConfigProfiles: number;
+  totalAppProtectionPolicies: number;
+  encryptedDevices: number;
+  encryptionPercent: number;
+  jailbrokenCount: number;
+  permissionRequired: boolean;
+  enrolledByOS: IntuneEnrolledByOS[];
+  osVersionBreakdown: IntuneOSVersionBreakdown[];
+  complianceByState: IntuneComplianceByState[];
+  complianceByOS: IntuneComplianceByOS[];
+  deviceList: IntuneDeviceItem[];
+  compliancePoliciesList: IntunePolicyItem[];
+  configProfilesList: IntunePolicyItem[];
+  enrollmentConfigsList: IntuneEnrollmentConfig[];
+  appProtectionList: IntunePolicyItem[];
+  overallCompliance?: IntuneOverallCompliance | null;
+  policySummaryByOS: IntunePolicySummaryByOS[];
+  assessmentItems: IntuneAssessmentItem[];
+}
+
 export interface ServiceHealthItem {
   service: string;
   status: string;
