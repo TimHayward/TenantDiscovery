@@ -392,3 +392,85 @@ export interface M365ServiceHealthData {
   activeAdvisories: number;
   services: ServiceHealthItem[];
 }
+
+export interface AppOwner {
+  id: string;
+  displayName: string;
+  accountEnabled?: boolean | null;
+}
+
+export type AppCredentialType =
+  (typeof AppCredentialType)[keyof typeof AppCredentialType];
+
+export const AppCredentialType = {
+  secret: "secret",
+  certificate: "certificate",
+} as const;
+
+export interface AppCredential {
+  keyId: string;
+  displayName?: string | null;
+  startDateTime?: string | null;
+  endDateTime?: string | null;
+  type: AppCredentialType;
+  hint?: string | null;
+}
+
+export type AppPermissionType =
+  (typeof AppPermissionType)[keyof typeof AppPermissionType];
+
+export const AppPermissionType = {
+  Scope: "Scope",
+  Role: "Role",
+} as const;
+
+export interface AppPermission {
+  resourceAppId: string;
+  resourceName: string;
+  scopes: string[];
+  type: AppPermissionType;
+  isHighRisk: boolean;
+}
+
+export type AppRegistrationRiskLevel =
+  (typeof AppRegistrationRiskLevel)[keyof typeof AppRegistrationRiskLevel];
+
+export const AppRegistrationRiskLevel = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export interface AppRegistration {
+  id: string;
+  appId: string;
+  displayName: string;
+  createdDateTime?: string | null;
+  signInAudience: string;
+  owners: AppOwner[];
+  credentials: AppCredential[];
+  hasExpiredCredentials: boolean;
+  hasLongLivedSecrets: boolean;
+  permissions: AppPermission[];
+  hasHighRiskPermissions: boolean;
+  highRiskScopes: string[];
+  redirectUris: string[];
+  hasWildcardRedirectUris: boolean;
+  hasTenantWideAdminConsent: boolean;
+  grantedScopes: string[];
+  riskScore: number;
+  riskLevel: AppRegistrationRiskLevel;
+  riskFactors: string[];
+}
+
+export interface M365AppsData {
+  totalApps: number;
+  appsWithNoOwner: number;
+  appsWithHighRisk: number;
+  appsWithExpiredCredentials: number;
+  appsWithLongLivedSecrets: number;
+  multiTenantApps: number;
+  usersCanRegisterApps: boolean;
+  permissionError: boolean;
+  apps: AppRegistration[];
+}

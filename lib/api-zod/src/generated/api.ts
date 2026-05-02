@@ -445,3 +445,63 @@ export const GetM365IntuneResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary Enterprise application registrations with security assessment
+ */
+export const GetM365AppsResponse = zod.object({
+  totalApps: zod.number(),
+  appsWithNoOwner: zod.number(),
+  appsWithHighRisk: zod.number(),
+  appsWithExpiredCredentials: zod.number(),
+  appsWithLongLivedSecrets: zod.number(),
+  multiTenantApps: zod.number(),
+  usersCanRegisterApps: zod.boolean(),
+  permissionError: zod.boolean(),
+  apps: zod.array(
+    zod.object({
+      id: zod.string(),
+      appId: zod.string(),
+      displayName: zod.string(),
+      createdDateTime: zod.string().nullish(),
+      signInAudience: zod.string(),
+      owners: zod.array(
+        zod.object({
+          id: zod.string(),
+          displayName: zod.string(),
+          accountEnabled: zod.boolean().nullish(),
+        }),
+      ),
+      credentials: zod.array(
+        zod.object({
+          keyId: zod.string(),
+          displayName: zod.string().nullish(),
+          startDateTime: zod.string().nullish(),
+          endDateTime: zod.string().nullish(),
+          type: zod.enum(["secret", "certificate"]),
+          hint: zod.string().nullish(),
+        }),
+      ),
+      hasExpiredCredentials: zod.boolean(),
+      hasLongLivedSecrets: zod.boolean(),
+      permissions: zod.array(
+        zod.object({
+          resourceAppId: zod.string(),
+          resourceName: zod.string(),
+          scopes: zod.array(zod.string()),
+          type: zod.enum(["Scope", "Role"]),
+          isHighRisk: zod.boolean(),
+        }),
+      ),
+      hasHighRiskPermissions: zod.boolean(),
+      highRiskScopes: zod.array(zod.string()),
+      redirectUris: zod.array(zod.string()),
+      hasWildcardRedirectUris: zod.boolean(),
+      hasTenantWideAdminConsent: zod.boolean(),
+      grantedScopes: zod.array(zod.string()),
+      riskScore: zod.number(),
+      riskLevel: zod.enum(["high", "medium", "low"]),
+      riskFactors: zod.array(zod.string()),
+    }),
+  ),
+});

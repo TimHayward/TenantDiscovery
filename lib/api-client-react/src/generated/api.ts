@@ -15,6 +15,7 @@ import type {
 
 import type {
   HealthStatus,
+  M365AppsData,
   M365ComplianceData,
   M365ExchangeData,
   M365IntuneData,
@@ -853,6 +854,81 @@ export function useGetM365Intune<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetM365IntuneQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Enterprise application registrations with security assessment
+ */
+export const getGetM365AppsUrl = () => {
+  return `/api/m365/apps`;
+};
+
+export const getM365Apps = async (
+  options?: RequestInit,
+): Promise<M365AppsData> => {
+  return customFetch<M365AppsData>(getGetM365AppsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365AppsQueryKey = () => {
+  return [`/api/m365/apps`] as const;
+};
+
+export const getGetM365AppsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365Apps>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Apps>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365AppsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Apps>>> = ({
+    signal,
+  }) => getM365Apps({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Apps>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365AppsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365Apps>>
+>;
+export type GetM365AppsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Enterprise application registrations with security assessment
+ */
+
+export function useGetM365Apps<
+  TData = Awaited<ReturnType<typeof getM365Apps>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Apps>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365AppsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

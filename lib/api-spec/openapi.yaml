@@ -156,6 +156,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365IntuneData"
 
+  /m365/apps:
+    get:
+      operationId: getM365Apps
+      tags: [m365]
+      summary: Enterprise application registrations with security assessment
+      responses:
+        "200":
+          description: App registrations and security posture
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365AppsData"
+
 components:
   schemas:
     HealthStatus:
@@ -1128,3 +1141,166 @@ components:
         - activeIncidents
         - activeAdvisories
         - services
+
+    AppOwner:
+      type: object
+      required: [id, displayName]
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        accountEnabled:
+          type: boolean
+          nullable: true
+
+    AppCredential:
+      type: object
+      required: [keyId, type]
+      properties:
+        keyId:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+        startDateTime:
+          type: string
+          nullable: true
+        endDateTime:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [secret, certificate]
+        hint:
+          type: string
+          nullable: true
+
+    AppPermission:
+      type: object
+      required: [resourceAppId, resourceName, scopes, type, isHighRisk]
+      properties:
+        resourceAppId:
+          type: string
+        resourceName:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        type:
+          type: string
+          enum: [Scope, Role]
+        isHighRisk:
+          type: boolean
+
+    AppRegistration:
+      type: object
+      required:
+        - id
+        - appId
+        - displayName
+        - signInAudience
+        - owners
+        - credentials
+        - hasExpiredCredentials
+        - hasLongLivedSecrets
+        - permissions
+        - hasHighRiskPermissions
+        - highRiskScopes
+        - redirectUris
+        - hasWildcardRedirectUris
+        - hasTenantWideAdminConsent
+        - grantedScopes
+        - riskScore
+        - riskLevel
+        - riskFactors
+      properties:
+        id:
+          type: string
+        appId:
+          type: string
+        displayName:
+          type: string
+        createdDateTime:
+          type: string
+          nullable: true
+        signInAudience:
+          type: string
+        owners:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppOwner"
+        credentials:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppCredential"
+        hasExpiredCredentials:
+          type: boolean
+        hasLongLivedSecrets:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppPermission"
+        hasHighRiskPermissions:
+          type: boolean
+        highRiskScopes:
+          type: array
+          items:
+            type: string
+        redirectUris:
+          type: array
+          items:
+            type: string
+        hasWildcardRedirectUris:
+          type: boolean
+        hasTenantWideAdminConsent:
+          type: boolean
+        grantedScopes:
+          type: array
+          items:
+            type: string
+        riskScore:
+          type: integer
+        riskLevel:
+          type: string
+          enum: [high, medium, low]
+        riskFactors:
+          type: array
+          items:
+            type: string
+
+    M365AppsData:
+      type: object
+      required:
+        - totalApps
+        - appsWithNoOwner
+        - appsWithHighRisk
+        - appsWithExpiredCredentials
+        - appsWithLongLivedSecrets
+        - multiTenantApps
+        - usersCanRegisterApps
+        - permissionError
+        - apps
+      properties:
+        totalApps:
+          type: integer
+        appsWithNoOwner:
+          type: integer
+        appsWithHighRisk:
+          type: integer
+        appsWithExpiredCredentials:
+          type: integer
+        appsWithLongLivedSecrets:
+          type: integer
+        multiTenantApps:
+          type: integer
+        usersCanRegisterApps:
+          type: boolean
+        permissionError:
+          type: boolean
+        apps:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppRegistration"

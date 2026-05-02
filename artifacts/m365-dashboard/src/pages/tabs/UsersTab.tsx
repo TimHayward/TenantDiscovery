@@ -1,4 +1,5 @@
 import { useGetM365Users, useGetM365Security } from "@workspace/api-client-react";
+import { EnterpriseAppsSection } from "@/components/EnterpriseAppsSection";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -870,6 +871,9 @@ export function UsersTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── ENTERPRISE APPLICATIONS ─────────────────────────────────────────── */}
+      <EnterpriseAppsSection />
 
       {/* SECTION 1 — ENTRA ID SECURITY CHECKLIST */}
       <ChecklistTable sectionTitle="Entra ID" groups={section1Groups} loading={loading} />

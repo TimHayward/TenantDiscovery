@@ -1,0 +1,127 @@
+In the Users and Identity tab, add a section after users for Enterprise applications.
+Provide visuals and details on application registrations, for each application registration present detail on the following:
+
+1. Permission Model Hardening
+Best practice
+Enforce least privilege for both delegated and application permissions
+Avoid high-risk scopes such as Directory.ReadWrite.All unless explicitly justified
+Regularly remove unused permissions
+Microsoft explicitly recommends requesting only the minimum permissions required for functionality.
+
+Graph surfaces
+GET /applications/{id} → requiredResourceAccess
+GET /servicePrincipals/{id}/appRoleAssignedTo
+GET /oauth2PermissionGrants
+What to assess
+Over-privileged apps (broad directory scopes)
+Application permissions where delegated would suffice
+Stale or unused permissions (no recent sign-in activity)
+2. Consent and Governance Controls
+Best practice
+Restrict user consent for high-risk permissions
+Require admin consent workflows
+Periodically review granted consents
+Poorly governed consent is a common attack vector, especially where apps bypass formal review processes.
+
+Graph surfaces
+GET /oauth2PermissionGrants
+GET /servicePrincipals (consent state)
+GET /policies/authorizationPolicy
+What to assess
+Apps with tenant-wide admin consent
+User-consented apps with sensitive scopes
+Absence of consent governance policies
+3. Credential Hygiene (Secrets and Certificates)
+Best practice
+Prefer certificates or federated credentials over client secrets
+Enforce short-lived credentials
+Rotate secrets regularly
+Eliminate expired credentials
+Graph surfaces
+GET /applications/{id} → passwordCredentials, keyCredentials
+What to assess
+Long-lived secrets (e.g. >12 months)
+Expired but still present credentials
+Excessive active credentials per app
+Use of secrets instead of workload identity federation
+4. Ownership and Accountability
+Best practice
+Every app registration must have at least one owner
+Prefer multiple owners for resilience
+Avoid orphaned applications
+There is no native enforcement at creation time, so monitoring is required.
+
+Graph surfaces
+GET /applications/{id}/owners
+What to assess
+Apps with zero owners
+Apps owned by disabled users or service accounts
+Lack of clear business ownership
+5. App Exposure and Audience Configuration
+Best practice
+Restrict signInAudience to single tenant unless required
+Limit redirect URIs and validate domains
+Avoid unnecessary multi-tenant exposure
+Graph surfaces
+GET /applications/{id} → signInAudience, web.redirectUris, spa.redirectUris
+What to assess
+Multi-tenant apps without justification
+Wildcard or insecure redirect URIs
+Excessive reply URLs
+6. Service Principal and RBAC Alignment
+Best practice
+Use least privileged Entra roles
+Avoid assigning Global Administrator or equivalent roles to apps
+Separate application permissions from RBAC assignments
+Graph surfaces
+GET /servicePrincipals/{id}/appRoleAssignments
+GET /roleManagement/directory/roleAssignments
+What to assess
+Apps with directory roles assigned
+Misalignment between Graph permissions and RBAC roles
+Privilege escalation paths
+7. App Lifecycle and Usage Monitoring
+Best practice
+Remove unused or inactive applications
+Monitor sign-in and token usage
+Align permissions with actual usage
+Graph surfaces
+GET /auditLogs/signIns
+GET /reports (usage where available)
+GET /servicePrincipals (last activity indicators via sign-ins)
+What to assess
+Apps with no sign-in activity
+Legacy or test apps in production
+Drift between intended and actual usage
+8. App Registration Creation Controls
+Best practice
+Restrict who can create app registrations
+Delegate via least privilege roles
+Monitor continuously
+Graph surfaces
+GET /policies/authorizationPolicy
+Role assignments for app creation permissions
+What to assess
+Broad ability for all users to register apps
+Lack of approval or onboarding workflow
+9. Token and Authentication Security
+Best practice
+Use modern OAuth flows only
+Avoid legacy endpoints such as Azure AD Graph
+Enforce Conditional Access where applicable
+Recent vulnerabilities have demonstrated the risk of legacy authentication paths and token misuse.
+
+Graph surfaces
+Indirect via sign-in logs and app configuration
+What to assess
+Legacy API usage
+Non-compliant authentication flows
+Absence of Conditional Access targeting service principals
+10. Architectural Pattern Alignment
+Best practice
+Prefer managed identities or workload identity federation
+Avoid long-lived shared secrets
+Align app design to Zero Trust principles
+Graph surfaces
+federatedIdentityCredentials (via beta Graph endpoints)
+Credential types in application object

@@ -6,6 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./appCredential";
+export * from "./appCredentialType";
+export * from "./appOwner";
+export * from "./appPermission";
+export * from "./appPermissionType";
+export * from "./appRegistration";
+export * from "./appRegistrationRiskLevel";
 export * from "./conditionalAccessPolicyItem";
 export * from "./healthStatus";
 export * from "./intuneAssessmentItem";
@@ -20,6 +27,7 @@ export * from "./intuneOverallCompliance";
 export * from "./intunePolicyItem";
 export * from "./intunePolicySummaryByOS";
 export * from "./licenseItem";
+export * from "./m365AppsData";
 export * from "./m365ComplianceData";
 export * from "./m365ExchangeData";
 export * from "./m365ExchangeDataEmailActivityLast30Days";
