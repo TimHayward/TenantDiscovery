@@ -285,8 +285,9 @@ router.get("/m365/intune", async (req, res) => {
       const encryptedCount = devices.filter((d: any) => d.isEncrypted === true).length;
       const encryptionPercent =
         hasDeviceList ? Math.round((encryptedCount / totalDevices) * 100) : 0;
+      // Graph returns "Unknown" for non-mobile OSes, "False"/"false" for safe mobile, "True"/"true" for compromised
       const jailbrokenCount = devices.filter(
-        (d: any) => d.jailBroken && d.jailBroken !== "Unknown" && d.jailBroken !== "Not applicable"
+        (d: any) => typeof d.jailBroken === "string" && d.jailBroken.toLowerCase() === "true"
       ).length;
 
       const effectiveNonCompliant = hasDeviceList

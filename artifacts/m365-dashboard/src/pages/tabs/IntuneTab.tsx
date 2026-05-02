@@ -197,6 +197,31 @@ const deviceColumns: ColumnDef<IntuneDeviceItem>[] = [
     ),
   },
   {
+    accessorKey: "jailBroken",
+    header: "Jailbroken",
+    cell: ({ row }) => {
+      const val = row.original.jailBroken ?? "Unknown";
+      const lower = val.toLowerCase();
+      if (lower === "true") {
+        return (
+          <div className="flex items-center gap-1">
+            <XCircle className="w-4 h-4 text-red-500" />
+            <span className="text-xs font-medium text-red-600 dark:text-red-400">Yes</span>
+          </div>
+        );
+      }
+      if (lower === "false") {
+        return (
+          <div className="flex items-center gap-1">
+            <CheckCircle2 className="w-4 h-4 text-green-500" />
+            <span className="text-xs font-medium text-green-600 dark:text-green-400">No</span>
+          </div>
+        );
+      }
+      return <span className="text-xs text-muted-foreground">N/A</span>;
+    },
+  },
+  {
     accessorKey: "managementAgent",
     header: "Agent",
     cell: ({ row }) => <span className="text-xs text-muted-foreground capitalize">{row.original.managementAgent}</span>,
