@@ -8,9 +8,230 @@
 import * as zod from "zod";
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
+});
+
+/**
+ * @summary M365 tenant overview KPIs
+ */
+export const GetM365OverviewResponse = zod.object({
+  tenantName: zod.string(),
+  tenantId: zod.string(),
+  totalUsers: zod.number(),
+  activeUsers: zod.number(),
+  totalLicenses: zod.number(),
+  assignedLicenses: zod.number(),
+  mfaEnabledPercent: zod.number(),
+  secureScore: zod.number(),
+  secureScoreMax: zod.number(),
+  guestUsers: zod.number(),
+  disabledUsers: zod.number(),
+  activeServices: zod.number(),
+  totalServices: zod.number(),
+});
+
+/**
+ * @summary User accounts summary and list
+ */
+export const GetM365UsersResponse = zod.object({
+  totalUsers: zod.number(),
+  activeUsers: zod.number(),
+  disabledUsers: zod.number(),
+  guestUsers: zod.number(),
+  memberUsers: zod.number(),
+  mfaEnabled: zod.number(),
+  mfaDisabled: zod.number(),
+  neverSignedIn: zod.number(),
+  usersByDepartment: zod.array(
+    zod.object({
+      department: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  users: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      userPrincipalName: zod.string(),
+      accountEnabled: zod.boolean(),
+      userType: zod.string(),
+      mfaEnabled: zod.boolean(),
+      lastSignIn: zod.string().nullable(),
+      assignedLicenses: zod.number(),
+      department: zod.string().nullable(),
+      jobTitle: zod.string().nullable(),
+    }),
+  ),
+});
+
+/**
+ * @summary License allocation and usage
+ */
+export const GetM365LicensesResponse = zod.object({
+  totalLicenses: zod.number(),
+  assignedLicenses: zod.number(),
+  availableLicenses: zod.number(),
+  utilizationPercent: zod.number(),
+  licenses: zod.array(
+    zod.object({
+      skuId: zod.string(),
+      skuPartNumber: zod.string(),
+      displayName: zod.string(),
+      total: zod.number(),
+      assigned: zod.number(),
+      available: zod.number(),
+      suspended: zod.number(),
+      warning: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Security scores and MFA status
+ */
+export const GetM365SecurityResponse = zod.object({
+  secureScore: zod.number(),
+  secureScoreMax: zod.number(),
+  secureScorePercent: zod.number(),
+  mfaEnabledUsers: zod.number(),
+  mfaDisabledUsers: zod.number(),
+  mfaEnabledPercent: zod.number(),
+  conditionalAccessPolicies: zod.number(),
+  enabledCAPs: zod.number(),
+  disabledCAPs: zod.number(),
+  reportOnlyCAPs: zod.number(),
+  secureScoreHistory: zod.array(
+    zod.object({
+      date: zod.string(),
+      score: zod.number(),
+      maxScore: zod.number(),
+    }),
+  ),
+  controlCategories: zod.array(
+    zod.object({
+      category: zod.string(),
+      score: zod.number(),
+      maxScore: zod.number(),
+    }),
+  ),
+  riskyUsers: zod.number(),
+  adminsWithoutMfa: zod.number(),
+});
+
+/**
+ * @summary Exchange Online mailbox and mail flow stats
+ */
+export const GetM365ExchangeResponse = zod.object({
+  totalMailboxes: zod.number(),
+  activeMailboxes: zod.number(),
+  sharedMailboxes: zod.number(),
+  roomMailboxes: zod.number(),
+  totalStorageUsedGB: zod.number(),
+  totalStorageAllocatedGB: zod.number(),
+  storageUtilizationPercent: zod.number(),
+  mailboxSizeDistribution: zod.array(
+    zod.object({
+      range: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  emailActivityLast30Days: zod.object({
+    sent: zod.number(),
+    received: zod.number(),
+    read: zod.number(),
+  }),
+  quarantinedMessages: zod.number(),
+  malwareDetected: zod.number(),
+  spamFiltered: zod.number(),
+});
+
+/**
+ * @summary Microsoft Teams usage and activity
+ */
+export const GetM365TeamsResponse = zod.object({
+  totalTeams: zod.number(),
+  activeTeams: zod.number(),
+  privateTeams: zod.number(),
+  publicTeams: zod.number(),
+  archivedTeams: zod.number(),
+  totalChannels: zod.number(),
+  activeUsersLast30Days: zod.number(),
+  meetingsOrganizedLast30Days: zod.number(),
+  callsLast30Days: zod.number(),
+  messagesLast30Days: zod.number(),
+  guestAccessEnabled: zod.boolean(),
+  externalAccessEnabled: zod.boolean(),
+  teamsBySize: zod.array(
+    zod.object({
+      range: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary SharePoint sites and storage
+ */
+export const GetM365SharePointResponse = zod.object({
+  totalSites: zod.number(),
+  activeSites: zod.number(),
+  totalStorageUsedGB: zod.number(),
+  totalStorageAllocatedGB: zod.number(),
+  storageUtilizationPercent: zod.number(),
+  totalFiles: zod.number(),
+  totalPageViews: zod.number(),
+  oneDriveTotalStorageGB: zod.number(),
+  oneDriveUsedStorageGB: zod.number(),
+  sites: zod.array(
+    zod.object({
+      name: zod.string(),
+      url: zod.string(),
+      storageUsedGB: zod.number(),
+      storageAllocatedGB: zod.number(),
+      lastActivityDate: zod.string().nullable(),
+      isActive: zod.boolean(),
+      pageViews: zod.number(),
+      filesCount: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Compliance and policy status
+ */
+export const GetM365ComplianceResponse = zod.object({
+  dlpPolicies: zod.number(),
+  activeDlpPolicies: zod.number(),
+  retentionPolicies: zod.number(),
+  sensitivityLabels: zod.number(),
+  dlpPolicyMatches: zod.number(),
+  complianceScore: zod.number(),
+  complianceScoreMax: zod.number(),
+  auditLogEnabled: zod.boolean(),
+  unifiedAuditLogEnabled: zod.boolean(),
+  eDiscoveryCases: zod.number(),
+});
+
+/**
+ * @summary Microsoft 365 service health status
+ */
+export const GetM365ServiceHealthResponse = zod.object({
+  overallStatus: zod.string(),
+  servicesHealthy: zod.number(),
+  servicesWithIssues: zod.number(),
+  totalServices: zod.number(),
+  activeIncidents: zod.number(),
+  activeAdvisories: zod.number(),
+  services: zod.array(
+    zod.object({
+      service: zod.string(),
+      status: zod.string(),
+      classification: zod.string(),
+      hasActiveIssues: zod.boolean(),
+      activeIncidents: zod.number(),
+    }),
+  ),
 });

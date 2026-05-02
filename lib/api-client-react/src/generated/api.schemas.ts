@@ -8,3 +8,200 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface M365Overview {
+  tenantName: string;
+  tenantId: string;
+  totalUsers: number;
+  activeUsers: number;
+  totalLicenses: number;
+  assignedLicenses: number;
+  mfaEnabledPercent: number;
+  secureScore: number;
+  secureScoreMax: number;
+  guestUsers: number;
+  disabledUsers: number;
+  activeServices: number;
+  totalServices: number;
+}
+
+export interface UserItem {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+  accountEnabled: boolean;
+  userType: string;
+  mfaEnabled: boolean;
+  lastSignIn: string | null;
+  assignedLicenses: number;
+  department: string | null;
+  jobTitle: string | null;
+}
+
+export type M365UsersDataUsersByDepartmentItem = {
+  department: string;
+  count: number;
+};
+
+export interface M365UsersData {
+  totalUsers: number;
+  activeUsers: number;
+  disabledUsers: number;
+  guestUsers: number;
+  memberUsers: number;
+  mfaEnabled: number;
+  mfaDisabled: number;
+  neverSignedIn: number;
+  usersByDepartment: M365UsersDataUsersByDepartmentItem[];
+  users: UserItem[];
+}
+
+export interface LicenseItem {
+  skuId: string;
+  skuPartNumber: string;
+  displayName: string;
+  total: number;
+  assigned: number;
+  available: number;
+  suspended: number;
+  warning: number;
+}
+
+export interface M365LicensesData {
+  totalLicenses: number;
+  assignedLicenses: number;
+  availableLicenses: number;
+  utilizationPercent: number;
+  licenses: LicenseItem[];
+}
+
+export type M365SecurityDataSecureScoreHistoryItem = {
+  date: string;
+  score: number;
+  maxScore: number;
+};
+
+export type M365SecurityDataControlCategoriesItem = {
+  category: string;
+  score: number;
+  maxScore: number;
+};
+
+export interface M365SecurityData {
+  secureScore: number;
+  secureScoreMax: number;
+  secureScorePercent: number;
+  mfaEnabledUsers: number;
+  mfaDisabledUsers: number;
+  mfaEnabledPercent: number;
+  conditionalAccessPolicies: number;
+  enabledCAPs: number;
+  disabledCAPs: number;
+  reportOnlyCAPs: number;
+  secureScoreHistory: M365SecurityDataSecureScoreHistoryItem[];
+  controlCategories: M365SecurityDataControlCategoriesItem[];
+  riskyUsers: number;
+  adminsWithoutMfa: number;
+}
+
+export type M365ExchangeDataMailboxSizeDistributionItem = {
+  range: string;
+  count: number;
+};
+
+export type M365ExchangeDataEmailActivityLast30Days = {
+  sent: number;
+  received: number;
+  read: number;
+};
+
+export interface M365ExchangeData {
+  totalMailboxes: number;
+  activeMailboxes: number;
+  sharedMailboxes: number;
+  roomMailboxes: number;
+  totalStorageUsedGB: number;
+  totalStorageAllocatedGB: number;
+  storageUtilizationPercent: number;
+  mailboxSizeDistribution: M365ExchangeDataMailboxSizeDistributionItem[];
+  emailActivityLast30Days: M365ExchangeDataEmailActivityLast30Days;
+  quarantinedMessages: number;
+  malwareDetected: number;
+  spamFiltered: number;
+}
+
+export type M365TeamsDataTeamsBySizeItem = {
+  range: string;
+  count: number;
+};
+
+export interface M365TeamsData {
+  totalTeams: number;
+  activeTeams: number;
+  privateTeams: number;
+  publicTeams: number;
+  archivedTeams: number;
+  totalChannels: number;
+  activeUsersLast30Days: number;
+  meetingsOrganizedLast30Days: number;
+  callsLast30Days: number;
+  messagesLast30Days: number;
+  guestAccessEnabled: boolean;
+  externalAccessEnabled: boolean;
+  teamsBySize: M365TeamsDataTeamsBySizeItem[];
+}
+
+export interface SharePointSiteItem {
+  name: string;
+  url: string;
+  storageUsedGB: number;
+  storageAllocatedGB: number;
+  lastActivityDate: string | null;
+  isActive: boolean;
+  pageViews: number;
+  filesCount: number;
+}
+
+export interface M365SharePointData {
+  totalSites: number;
+  activeSites: number;
+  totalStorageUsedGB: number;
+  totalStorageAllocatedGB: number;
+  storageUtilizationPercent: number;
+  totalFiles: number;
+  totalPageViews: number;
+  oneDriveTotalStorageGB: number;
+  oneDriveUsedStorageGB: number;
+  sites: SharePointSiteItem[];
+}
+
+export interface M365ComplianceData {
+  dlpPolicies: number;
+  activeDlpPolicies: number;
+  retentionPolicies: number;
+  sensitivityLabels: number;
+  dlpPolicyMatches: number;
+  complianceScore: number;
+  complianceScoreMax: number;
+  auditLogEnabled: boolean;
+  unifiedAuditLogEnabled: boolean;
+  eDiscoveryCases: number;
+}
+
+export interface ServiceHealthItem {
+  service: string;
+  status: string;
+  classification: string;
+  hasActiveIssues: boolean;
+  activeIncidents: number;
+}
+
+export interface M365ServiceHealthData {
+  overallStatus: string;
+  servicesHealthy: number;
+  servicesWithIssues: number;
+  totalServices: number;
+  activeIncidents: number;
+  activeAdvisories: number;
+  services: ServiceHealthItem[];
+}

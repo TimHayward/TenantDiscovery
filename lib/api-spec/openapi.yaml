@@ -10,13 +10,14 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: m365
+    description: Microsoft 365 health data
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +25,124 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /m365/overview:
+    get:
+      operationId: getM365Overview
+      tags: [m365]
+      summary: M365 tenant overview KPIs
+      responses:
+        "200":
+          description: Overview KPIs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365Overview"
+
+  /m365/users:
+    get:
+      operationId: getM365Users
+      tags: [m365]
+      summary: User accounts summary and list
+      responses:
+        "200":
+          description: User data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365UsersData"
+
+  /m365/licenses:
+    get:
+      operationId: getM365Licenses
+      tags: [m365]
+      summary: License allocation and usage
+      responses:
+        "200":
+          description: License data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365LicensesData"
+
+  /m365/security:
+    get:
+      operationId: getM365Security
+      tags: [m365]
+      summary: Security scores and MFA status
+      responses:
+        "200":
+          description: Security data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365SecurityData"
+
+  /m365/exchange:
+    get:
+      operationId: getM365Exchange
+      tags: [m365]
+      summary: Exchange Online mailbox and mail flow stats
+      responses:
+        "200":
+          description: Exchange data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365ExchangeData"
+
+  /m365/teams:
+    get:
+      operationId: getM365Teams
+      tags: [m365]
+      summary: Microsoft Teams usage and activity
+      responses:
+        "200":
+          description: Teams data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365TeamsData"
+
+  /m365/sharepoint:
+    get:
+      operationId: getM365SharePoint
+      tags: [m365]
+      summary: SharePoint sites and storage
+      responses:
+        "200":
+          description: SharePoint data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365SharePointData"
+
+  /m365/compliance:
+    get:
+      operationId: getM365Compliance
+      tags: [m365]
+      summary: Compliance and policy status
+      responses:
+        "200":
+          description: Compliance data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365ComplianceData"
+
+  /m365/service-health:
+    get:
+      operationId: getM365ServiceHealth
+      tags: [m365]
+      summary: Microsoft 365 service health status
+      responses:
+        "200":
+          description: Service health data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365ServiceHealthData"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +150,508 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    M365Overview:
+      type: object
+      properties:
+        tenantName:
+          type: string
+        tenantId:
+          type: string
+        totalUsers:
+          type: integer
+        activeUsers:
+          type: integer
+        totalLicenses:
+          type: integer
+        assignedLicenses:
+          type: integer
+        mfaEnabledPercent:
+          type: number
+        secureScore:
+          type: number
+        secureScoreMax:
+          type: number
+        guestUsers:
+          type: integer
+        disabledUsers:
+          type: integer
+        activeServices:
+          type: integer
+        totalServices:
+          type: integer
+      required:
+        - tenantName
+        - tenantId
+        - totalUsers
+        - activeUsers
+        - totalLicenses
+        - assignedLicenses
+        - mfaEnabledPercent
+        - secureScore
+        - secureScoreMax
+        - guestUsers
+        - disabledUsers
+        - activeServices
+        - totalServices
+
+    UserItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        userPrincipalName:
+          type: string
+        accountEnabled:
+          type: boolean
+        userType:
+          type: string
+        mfaEnabled:
+          type: boolean
+        lastSignIn:
+          type: string
+          nullable: true
+        assignedLicenses:
+          type: integer
+        department:
+          type: string
+          nullable: true
+        jobTitle:
+          type: string
+          nullable: true
+      required:
+        - id
+        - displayName
+        - userPrincipalName
+        - accountEnabled
+        - userType
+        - mfaEnabled
+        - lastSignIn
+        - assignedLicenses
+        - department
+        - jobTitle
+
+    M365UsersData:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        activeUsers:
+          type: integer
+        disabledUsers:
+          type: integer
+        guestUsers:
+          type: integer
+        memberUsers:
+          type: integer
+        mfaEnabled:
+          type: integer
+        mfaDisabled:
+          type: integer
+        neverSignedIn:
+          type: integer
+        usersByDepartment:
+          type: array
+          items:
+            type: object
+            properties:
+              department:
+                type: string
+              count:
+                type: integer
+            required: [department, count]
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserItem"
+      required:
+        - totalUsers
+        - activeUsers
+        - disabledUsers
+        - guestUsers
+        - memberUsers
+        - mfaEnabled
+        - mfaDisabled
+        - neverSignedIn
+        - usersByDepartment
+        - users
+
+    LicenseItem:
+      type: object
+      properties:
+        skuId:
+          type: string
+        skuPartNumber:
+          type: string
+        displayName:
+          type: string
+        total:
+          type: integer
+        assigned:
+          type: integer
+        available:
+          type: integer
+        suspended:
+          type: integer
+        warning:
+          type: integer
+      required:
+        - skuId
+        - skuPartNumber
+        - displayName
+        - total
+        - assigned
+        - available
+        - suspended
+        - warning
+
+    M365LicensesData:
+      type: object
+      properties:
+        totalLicenses:
+          type: integer
+        assignedLicenses:
+          type: integer
+        availableLicenses:
+          type: integer
+        utilizationPercent:
+          type: number
+        licenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/LicenseItem"
+      required:
+        - totalLicenses
+        - assignedLicenses
+        - availableLicenses
+        - utilizationPercent
+        - licenses
+
+    M365SecurityData:
+      type: object
+      properties:
+        secureScore:
+          type: number
+        secureScoreMax:
+          type: number
+        secureScorePercent:
+          type: number
+        mfaEnabledUsers:
+          type: integer
+        mfaDisabledUsers:
+          type: integer
+        mfaEnabledPercent:
+          type: number
+        conditionalAccessPolicies:
+          type: integer
+        enabledCAPs:
+          type: integer
+        disabledCAPs:
+          type: integer
+        reportOnlyCAPs:
+          type: integer
+        secureScoreHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              score:
+                type: number
+              maxScore:
+                type: number
+            required: [date, score, maxScore]
+        controlCategories:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              score:
+                type: number
+              maxScore:
+                type: number
+            required: [category, score, maxScore]
+        riskyUsers:
+          type: integer
+        adminsWithoutMfa:
+          type: integer
+      required:
+        - secureScore
+        - secureScoreMax
+        - secureScorePercent
+        - mfaEnabledUsers
+        - mfaDisabledUsers
+        - mfaEnabledPercent
+        - conditionalAccessPolicies
+        - enabledCAPs
+        - disabledCAPs
+        - reportOnlyCAPs
+        - secureScoreHistory
+        - controlCategories
+        - riskyUsers
+        - adminsWithoutMfa
+
+    M365ExchangeData:
+      type: object
+      properties:
+        totalMailboxes:
+          type: integer
+        activeMailboxes:
+          type: integer
+        sharedMailboxes:
+          type: integer
+        roomMailboxes:
+          type: integer
+        totalStorageUsedGB:
+          type: number
+        totalStorageAllocatedGB:
+          type: number
+        storageUtilizationPercent:
+          type: number
+        mailboxSizeDistribution:
+          type: array
+          items:
+            type: object
+            properties:
+              range:
+                type: string
+              count:
+                type: integer
+            required: [range, count]
+        emailActivityLast30Days:
+          type: object
+          properties:
+            sent:
+              type: integer
+            received:
+              type: integer
+            read:
+              type: integer
+          required: [sent, received, read]
+        quarantinedMessages:
+          type: integer
+        malwareDetected:
+          type: integer
+        spamFiltered:
+          type: integer
+      required:
+        - totalMailboxes
+        - activeMailboxes
+        - sharedMailboxes
+        - roomMailboxes
+        - totalStorageUsedGB
+        - totalStorageAllocatedGB
+        - storageUtilizationPercent
+        - mailboxSizeDistribution
+        - emailActivityLast30Days
+        - quarantinedMessages
+        - malwareDetected
+        - spamFiltered
+
+    M365TeamsData:
+      type: object
+      properties:
+        totalTeams:
+          type: integer
+        activeTeams:
+          type: integer
+        privateTeams:
+          type: integer
+        publicTeams:
+          type: integer
+        archivedTeams:
+          type: integer
+        totalChannels:
+          type: integer
+        activeUsersLast30Days:
+          type: integer
+        meetingsOrganizedLast30Days:
+          type: integer
+        callsLast30Days:
+          type: integer
+        messagesLast30Days:
+          type: integer
+        guestAccessEnabled:
+          type: boolean
+        externalAccessEnabled:
+          type: boolean
+        teamsBySize:
+          type: array
+          items:
+            type: object
+            properties:
+              range:
+                type: string
+              count:
+                type: integer
+            required: [range, count]
+      required:
+        - totalTeams
+        - activeTeams
+        - privateTeams
+        - publicTeams
+        - archivedTeams
+        - totalChannels
+        - activeUsersLast30Days
+        - meetingsOrganizedLast30Days
+        - callsLast30Days
+        - messagesLast30Days
+        - guestAccessEnabled
+        - externalAccessEnabled
+        - teamsBySize
+
+    SharePointSiteItem:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        storageUsedGB:
+          type: number
+        storageAllocatedGB:
+          type: number
+        lastActivityDate:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        pageViews:
+          type: integer
+        filesCount:
+          type: integer
+      required:
+        - name
+        - url
+        - storageUsedGB
+        - storageAllocatedGB
+        - lastActivityDate
+        - isActive
+        - pageViews
+        - filesCount
+
+    M365SharePointData:
+      type: object
+      properties:
+        totalSites:
+          type: integer
+        activeSites:
+          type: integer
+        totalStorageUsedGB:
+          type: number
+        totalStorageAllocatedGB:
+          type: number
+        storageUtilizationPercent:
+          type: number
+        totalFiles:
+          type: integer
+        totalPageViews:
+          type: integer
+        oneDriveTotalStorageGB:
+          type: number
+        oneDriveUsedStorageGB:
+          type: number
+        sites:
+          type: array
+          items:
+            $ref: "#/components/schemas/SharePointSiteItem"
+      required:
+        - totalSites
+        - activeSites
+        - totalStorageUsedGB
+        - totalStorageAllocatedGB
+        - storageUtilizationPercent
+        - totalFiles
+        - totalPageViews
+        - oneDriveTotalStorageGB
+        - oneDriveUsedStorageGB
+        - sites
+
+    M365ComplianceData:
+      type: object
+      properties:
+        dlpPolicies:
+          type: integer
+        activeDlpPolicies:
+          type: integer
+        retentionPolicies:
+          type: integer
+        sensitivityLabels:
+          type: integer
+        dlpPolicyMatches:
+          type: integer
+        complianceScore:
+          type: number
+        complianceScoreMax:
+          type: number
+        auditLogEnabled:
+          type: boolean
+        unifiedAuditLogEnabled:
+          type: boolean
+        eDiscoveryCases:
+          type: integer
+      required:
+        - dlpPolicies
+        - activeDlpPolicies
+        - retentionPolicies
+        - sensitivityLabels
+        - dlpPolicyMatches
+        - complianceScore
+        - complianceScoreMax
+        - auditLogEnabled
+        - unifiedAuditLogEnabled
+        - eDiscoveryCases
+
+    ServiceHealthItem:
+      type: object
+      properties:
+        service:
+          type: string
+        status:
+          type: string
+        classification:
+          type: string
+        hasActiveIssues:
+          type: boolean
+        activeIncidents:
+          type: integer
+      required:
+        - service
+        - status
+        - classification
+        - hasActiveIssues
+        - activeIncidents
+
+    M365ServiceHealthData:
+      type: object
+      properties:
+        overallStatus:
+          type: string
+        servicesHealthy:
+          type: integer
+        servicesWithIssues:
+          type: integer
+        totalServices:
+          type: integer
+        activeIncidents:
+          type: integer
+        activeAdvisories:
+          type: integer
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceHealthItem"
+      required:
+        - overallStatus
+        - servicesHealthy
+        - servicesWithIssues
+        - totalServices
+        - activeIncidents
+        - activeAdvisories
+        - services

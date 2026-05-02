@@ -13,7 +13,18 @@ import type {
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  HealthStatus,
+  M365ComplianceData,
+  M365ExchangeData,
+  M365LicensesData,
+  M365Overview,
+  M365SecurityData,
+  M365ServiceHealthData,
+  M365SharePointData,
+  M365TeamsData,
+  M365UsersData,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
 import type { ErrorType } from "../custom-fetch";
@@ -25,7 +36,6 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const getHealthCheckUrl = () => {
@@ -92,6 +102,681 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary M365 tenant overview KPIs
+ */
+export const getGetM365OverviewUrl = () => {
+  return `/api/m365/overview`;
+};
+
+export const getM365Overview = async (
+  options?: RequestInit,
+): Promise<M365Overview> => {
+  return customFetch<M365Overview>(getGetM365OverviewUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365OverviewQueryKey = () => {
+  return [`/api/m365/overview`] as const;
+};
+
+export const getGetM365OverviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365Overview>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Overview>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365OverviewQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Overview>>> = ({
+    signal,
+  }) => getM365Overview({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Overview>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365OverviewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365Overview>>
+>;
+export type GetM365OverviewQueryError = ErrorType<unknown>;
+
+/**
+ * @summary M365 tenant overview KPIs
+ */
+
+export function useGetM365Overview<
+  TData = Awaited<ReturnType<typeof getM365Overview>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Overview>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365OverviewQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary User accounts summary and list
+ */
+export const getGetM365UsersUrl = () => {
+  return `/api/m365/users`;
+};
+
+export const getM365Users = async (
+  options?: RequestInit,
+): Promise<M365UsersData> => {
+  return customFetch<M365UsersData>(getGetM365UsersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365UsersQueryKey = () => {
+  return [`/api/m365/users`] as const;
+};
+
+export const getGetM365UsersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365Users>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Users>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365UsersQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Users>>> = ({
+    signal,
+  }) => getM365Users({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Users>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365UsersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365Users>>
+>;
+export type GetM365UsersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary User accounts summary and list
+ */
+
+export function useGetM365Users<
+  TData = Awaited<ReturnType<typeof getM365Users>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Users>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365UsersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary License allocation and usage
+ */
+export const getGetM365LicensesUrl = () => {
+  return `/api/m365/licenses`;
+};
+
+export const getM365Licenses = async (
+  options?: RequestInit,
+): Promise<M365LicensesData> => {
+  return customFetch<M365LicensesData>(getGetM365LicensesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365LicensesQueryKey = () => {
+  return [`/api/m365/licenses`] as const;
+};
+
+export const getGetM365LicensesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365Licenses>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Licenses>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365LicensesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Licenses>>> = ({
+    signal,
+  }) => getM365Licenses({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Licenses>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365LicensesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365Licenses>>
+>;
+export type GetM365LicensesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary License allocation and usage
+ */
+
+export function useGetM365Licenses<
+  TData = Awaited<ReturnType<typeof getM365Licenses>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Licenses>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365LicensesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Security scores and MFA status
+ */
+export const getGetM365SecurityUrl = () => {
+  return `/api/m365/security`;
+};
+
+export const getM365Security = async (
+  options?: RequestInit,
+): Promise<M365SecurityData> => {
+  return customFetch<M365SecurityData>(getGetM365SecurityUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365SecurityQueryKey = () => {
+  return [`/api/m365/security`] as const;
+};
+
+export const getGetM365SecurityQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365Security>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Security>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365SecurityQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Security>>> = ({
+    signal,
+  }) => getM365Security({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Security>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365SecurityQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365Security>>
+>;
+export type GetM365SecurityQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Security scores and MFA status
+ */
+
+export function useGetM365Security<
+  TData = Awaited<ReturnType<typeof getM365Security>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Security>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365SecurityQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Exchange Online mailbox and mail flow stats
+ */
+export const getGetM365ExchangeUrl = () => {
+  return `/api/m365/exchange`;
+};
+
+export const getM365Exchange = async (
+  options?: RequestInit,
+): Promise<M365ExchangeData> => {
+  return customFetch<M365ExchangeData>(getGetM365ExchangeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365ExchangeQueryKey = () => {
+  return [`/api/m365/exchange`] as const;
+};
+
+export const getGetM365ExchangeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365Exchange>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Exchange>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365ExchangeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Exchange>>> = ({
+    signal,
+  }) => getM365Exchange({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Exchange>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365ExchangeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365Exchange>>
+>;
+export type GetM365ExchangeQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Exchange Online mailbox and mail flow stats
+ */
+
+export function useGetM365Exchange<
+  TData = Awaited<ReturnType<typeof getM365Exchange>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Exchange>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365ExchangeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Microsoft Teams usage and activity
+ */
+export const getGetM365TeamsUrl = () => {
+  return `/api/m365/teams`;
+};
+
+export const getM365Teams = async (
+  options?: RequestInit,
+): Promise<M365TeamsData> => {
+  return customFetch<M365TeamsData>(getGetM365TeamsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365TeamsQueryKey = () => {
+  return [`/api/m365/teams`] as const;
+};
+
+export const getGetM365TeamsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365Teams>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Teams>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365TeamsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Teams>>> = ({
+    signal,
+  }) => getM365Teams({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Teams>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365TeamsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365Teams>>
+>;
+export type GetM365TeamsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Microsoft Teams usage and activity
+ */
+
+export function useGetM365Teams<
+  TData = Awaited<ReturnType<typeof getM365Teams>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Teams>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365TeamsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary SharePoint sites and storage
+ */
+export const getGetM365SharePointUrl = () => {
+  return `/api/m365/sharepoint`;
+};
+
+export const getM365SharePoint = async (
+  options?: RequestInit,
+): Promise<M365SharePointData> => {
+  return customFetch<M365SharePointData>(getGetM365SharePointUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365SharePointQueryKey = () => {
+  return [`/api/m365/sharepoint`] as const;
+};
+
+export const getGetM365SharePointQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365SharePoint>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365SharePoint>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365SharePointQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getM365SharePoint>>
+  > = ({ signal }) => getM365SharePoint({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365SharePoint>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365SharePointQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365SharePoint>>
+>;
+export type GetM365SharePointQueryError = ErrorType<unknown>;
+
+/**
+ * @summary SharePoint sites and storage
+ */
+
+export function useGetM365SharePoint<
+  TData = Awaited<ReturnType<typeof getM365SharePoint>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365SharePoint>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365SharePointQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Compliance and policy status
+ */
+export const getGetM365ComplianceUrl = () => {
+  return `/api/m365/compliance`;
+};
+
+export const getM365Compliance = async (
+  options?: RequestInit,
+): Promise<M365ComplianceData> => {
+  return customFetch<M365ComplianceData>(getGetM365ComplianceUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365ComplianceQueryKey = () => {
+  return [`/api/m365/compliance`] as const;
+};
+
+export const getGetM365ComplianceQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365Compliance>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Compliance>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365ComplianceQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getM365Compliance>>
+  > = ({ signal }) => getM365Compliance({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Compliance>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365ComplianceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365Compliance>>
+>;
+export type GetM365ComplianceQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Compliance and policy status
+ */
+
+export function useGetM365Compliance<
+  TData = Awaited<ReturnType<typeof getM365Compliance>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365Compliance>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365ComplianceQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Microsoft 365 service health status
+ */
+export const getGetM365ServiceHealthUrl = () => {
+  return `/api/m365/service-health`;
+};
+
+export const getM365ServiceHealth = async (
+  options?: RequestInit,
+): Promise<M365ServiceHealthData> => {
+  return customFetch<M365ServiceHealthData>(getGetM365ServiceHealthUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365ServiceHealthQueryKey = () => {
+  return [`/api/m365/service-health`] as const;
+};
+
+export const getGetM365ServiceHealthQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365ServiceHealth>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365ServiceHealth>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365ServiceHealthQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getM365ServiceHealth>>
+  > = ({ signal }) => getM365ServiceHealth({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365ServiceHealth>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365ServiceHealthQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365ServiceHealth>>
+>;
+export type GetM365ServiceHealthQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Microsoft 365 service health status
+ */
+
+export function useGetM365ServiceHealth<
+  TData = Awaited<ReturnType<typeof getM365ServiceHealth>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365ServiceHealth>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365ServiceHealthQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -7,3 +7,22 @@
  */
 
 export * from "./healthStatus";
+export * from "./licenseItem";
+export * from "./m365ComplianceData";
+export * from "./m365ExchangeData";
+export * from "./m365ExchangeDataEmailActivityLast30Days";
+export * from "./m365ExchangeDataMailboxSizeDistributionItem";
+export * from "./m365LicensesData";
+export * from "./m365Overview";
+export * from "./m365SecurityData";
+export * from "./m365SecurityDataControlCategoriesItem";
+export * from "./m365SecurityDataSecureScoreHistoryItem";
+export * from "./m365ServiceHealthData";
+export * from "./m365SharePointData";
+export * from "./m365TeamsData";
+export * from "./m365TeamsDataTeamsBySizeItem";
+export * from "./m365UsersData";
+export * from "./m365UsersDataUsersByDepartmentItem";
+export * from "./serviceHealthItem";
+export * from "./sharePointSiteItem";
+export * from "./userItem";

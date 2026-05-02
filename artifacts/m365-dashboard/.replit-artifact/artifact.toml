@@ -1,0 +1,31 @@
+kind = "data-app"
+previewPath = "/m365-dashboard/"
+title = "M365 Health Dashboard"
+version = "1.0.0"
+id = "artifacts/m365-dashboard"
+router = "path"
+
+[[integratedSkills]]
+name = "data-visualization"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/m365-dashboard/" ]
+localPort = 24897
+
+[services.development]
+run = "pnpm --filter @workspace/m365-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/m365-dashboard", "run", "build" ]
+publicDir = "artifacts/m365-dashboard/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24897"
+BASE_PATH = "/m365-dashboard/"

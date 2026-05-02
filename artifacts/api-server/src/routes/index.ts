@@ -1,8 +1,26 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import m365OverviewRouter from "./m365Overview";
+import m365UsersRouter from "./m365Users";
+import m365LicensesRouter from "./m365Licenses";
+import m365SecurityRouter from "./m365Security";
+import m365ExchangeRouter from "./m365Exchange";
+import m365TeamsRouter from "./m365Teams";
+import m365SharePointRouter from "./m365SharePoint";
+import m365ComplianceRouter from "./m365Compliance";
+import m365ServiceHealthRouter from "./m365ServiceHealth";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(m365OverviewRouter);
+router.use(m365UsersRouter);
+router.use(m365LicensesRouter);
+router.use(m365SecurityRouter);
+router.use(m365ExchangeRouter);
+router.use(m365TeamsRouter);
+router.use(m365SharePointRouter);
+router.use(m365ComplianceRouter);
+router.use(m365ServiceHealthRouter);
 
 export default router;
