@@ -17,6 +17,8 @@ export * from "./m365LicensesData";
 export * from "./m365Overview";
 export * from "./m365SecurityData";
 export * from "./m365SecurityDataControlCategoriesItem";
+export * from "./m365SecurityDataRiskDetectionTimelineItem";
+export * from "./m365SecurityDataRiskyUsersDetailItem";
 export * from "./m365SecurityDataSecureScoreHistoryItem";
 export * from "./m365ServiceHealthData";
 export * from "./m365SharePointData";

@@ -128,6 +128,23 @@ export type M365SecurityDataControlCategoriesItem = {
   maxScore: number;
 };
 
+export type M365SecurityDataRiskDetectionTimelineItem = {
+  date: string;
+  high: number;
+  medium: number;
+  low: number;
+  total: number;
+};
+
+export type M365SecurityDataRiskyUsersDetailItem = {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+  riskLevel: string;
+  riskState: string;
+  riskLastUpdatedDateTime: string | null;
+};
+
 export interface M365SecurityData {
   secureScore: number;
   secureScoreMax: number;
@@ -146,6 +163,8 @@ export interface M365SecurityData {
   adminsWithoutMfa: number;
   mfaUsersList: MfaUserItem[];
   mfaMethodsBreakdown: MfaMethodStrengthItem[];
+  riskDetectionTimeline: M365SecurityDataRiskDetectionTimelineItem[];
+  riskyUsersDetail: M365SecurityDataRiskyUsersDetailItem[];
 }
 
 export type M365ExchangeDataMailboxSizeDistributionItem = {

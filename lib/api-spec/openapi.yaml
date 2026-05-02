@@ -475,6 +475,41 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MfaMethodStrengthItem"
+        riskDetectionTimeline:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              high:
+                type: integer
+              medium:
+                type: integer
+              low:
+                type: integer
+              total:
+                type: integer
+            required: [date, high, medium, low, total]
+        riskyUsersDetail:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              displayName:
+                type: string
+              userPrincipalName:
+                type: string
+              riskLevel:
+                type: string
+              riskState:
+                type: string
+              riskLastUpdatedDateTime:
+                type: string
+                nullable: true
+            required: [id, displayName, userPrincipalName, riskLevel, riskState, riskLastUpdatedDateTime]
       required:
         - secureScore
         - secureScoreMax
@@ -493,6 +528,8 @@ components:
         - adminsWithoutMfa
         - mfaUsersList
         - mfaMethodsBreakdown
+        - riskDetectionTimeline
+        - riskyUsersDetail
 
     M365ExchangeData:
       type: object

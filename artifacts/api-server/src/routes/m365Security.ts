@@ -98,7 +98,7 @@ const MFA_METHOD_META: Record<string, { displayName: string; strength: string; s
 router.get("/m365/security", async (req, res): Promise<void> => {
   try {
     const data = await getCached("m365-security", async () => {
-      const [secScoreData, secScoreHistoryData, caPoliciesData, mfaDetailData, usersData] =
+      const [secScoreData, secScoreHistoryData, caPoliciesData, mfaDetailData, usersData, riskDetectionsData, riskyUsersData] =
         await Promise.all([
           fetchWithToken("https://graph.microsoft.com/v1.0/security/secureScores?$top=1"),
           fetchWithToken("https://graph.microsoft.com/v1.0/security/secureScores?$top=30"),
@@ -109,9 +109,21 @@ router.get("/m365/security", async (req, res): Promise<void> => {
             "&$top=999"
           ),
           fetchAllPages(
-            "https://graph.microsoft.com/v1.0/users" +
-            "?$select=id,accountEnabled,userType&$top=999"
+            "https://graph.microsoft.com/v1.0/users?$select=id,accountEnabled,userType&$top=999"
           ),
+          // Risk detections – last 90 days, up to 999 events
+          fetchAllPages(
+            "https://graph.microsoft.com/v1.0/identityProtection/riskDetections" +
+            "?$select=id,activityDateTime,riskLevel,riskDetail,detectionTimingType&$top=999" +
+            "&$orderby=activityDateTime desc"
+          ).catch(() => []),
+          // Risky users currently at risk
+          fetchAllPages(
+            "https://graph.microsoft.com/v1.0/identityProtection/riskyUsers" +
+            "?$select=id,displayName,userPrincipalName,riskLevel,riskState,riskLastUpdatedDateTime" +
+            "&$filter=riskState eq 'atRisk' or riskState eq 'confirmedCompromised'" +
+            "&$top=999"
+          ).catch(() => []),
         ]);
 
       const latestScore = secScoreData?.value?.[0] ?? null;
@@ -119,6 +131,8 @@ router.get("/m365/security", async (req, res): Promise<void> => {
       const caps: any[] = caPoliciesData ?? [];
       const mfaDetails: any[] = mfaDetailData ?? [];
       const rawUsers: any[] = usersData ?? [];
+      const riskDetections: any[] = riskDetectionsData ?? [];
+      const riskyUsersRaw: any[] = riskyUsersData ?? [];
 
       // Build user lookup for accountEnabled/userType
       const userMap = new Map<string, { accountEnabled: boolean; userType: string }>();
@@ -172,6 +186,34 @@ router.get("/m365/security", async (req, res): Promise<void> => {
         })
         .sort((a, b) => b.strengthLevel - a.strengthLevel || b.count - a.count);
 
+      // Risk detection timeline – aggregate by date + riskLevel
+      const riskByDate = new Map<string, { high: number; medium: number; low: number; total: number }>();
+      for (const d of riskDetections) {
+        const date = (d.activityDateTime ?? d.detectedDateTime ?? "").split("T")[0];
+        if (!date) continue;
+        const existing = riskByDate.get(date) ?? { high: 0, medium: 0, low: 0, total: 0 };
+        const level: string = (d.riskLevel ?? "").toLowerCase();
+        if (level === "high") existing.high++;
+        else if (level === "medium") existing.medium++;
+        else if (level === "low") existing.low++;
+        existing.total++;
+        riskByDate.set(date, existing);
+      }
+      const riskDetectionTimeline = Array.from(riskByDate.entries())
+        .map(([date, counts]) => ({ date, ...counts }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-90); // last 90 days worth of entries
+
+      // Risky users detail
+      const riskyUsersDetail = riskyUsersRaw.map((u: any) => ({
+        id: u.id,
+        displayName: u.displayName ?? u.userPrincipalName ?? u.id,
+        userPrincipalName: u.userPrincipalName ?? "",
+        riskLevel: u.riskLevel ?? "none",
+        riskState: u.riskState ?? "none",
+        riskLastUpdatedDateTime: u.riskLastUpdatedDateTime ?? null,
+      }));
+
       const enabledCAPs = caps.filter((c) => c.state === "enabled").length;
       const disabledCAPs = caps.filter((c) => c.state === "disabled").length;
       const reportOnlyCAPs = caps.filter((c) => c.state === "enabledForReportingButNotEnforced").length;
@@ -208,16 +250,6 @@ router.get("/m365/security", async (req, res): Promise<void> => {
         modifiedDateTime: p.modifiedDateTime ?? null,
       }));
 
-      let riskyUsers = 0;
-      try {
-        const riskyRes = await fetchWithToken(
-          "https://graph.microsoft.com/v1.0/identityProtection/riskyUsers?$filter=riskState eq 'atRisk'&$count=true"
-        );
-        riskyUsers = riskyRes?.["@odata.count"] ?? 0;
-      } catch {
-        riskyUsers = 0;
-      }
-
       return {
         secureScore,
         secureScoreMax,
@@ -232,10 +264,12 @@ router.get("/m365/security", async (req, res): Promise<void> => {
         secureScoreHistory,
         controlCategories,
         caPolicies,
-        riskyUsers,
+        riskyUsers: riskyUsersDetail.length,
         adminsWithoutMfa: mfaDisabledUsers,
         mfaUsersList,
         mfaMethodsBreakdown,
+        riskDetectionTimeline,
+        riskyUsersDetail,
       };
     });
 

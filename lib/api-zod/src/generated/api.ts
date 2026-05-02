@@ -153,6 +153,25 @@ export const GetM365SecurityResponse = zod.object({
       percentOfUsers: zod.number(),
     }),
   ),
+  riskDetectionTimeline: zod.array(
+    zod.object({
+      date: zod.string(),
+      high: zod.number(),
+      medium: zod.number(),
+      low: zod.number(),
+      total: zod.number(),
+    }),
+  ),
+  riskyUsersDetail: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      userPrincipalName: zod.string(),
+      riskLevel: zod.string(),
+      riskState: zod.string(),
+      riskLastUpdatedDateTime: zod.string().nullable(),
+    }),
+  ),
 });
 
 /**
