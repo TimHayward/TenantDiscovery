@@ -11,11 +11,11 @@ import {
 import { CSVLink } from "react-csv";
 import {
   Download, ShieldCheck, ShieldAlert, Monitor, Smartphone,
-  Apple, AlertTriangle, CheckCircle2, XCircle, Clock, Info,
+  Apple, AlertTriangle, CheckCircle2, XCircle, Clock, Info, Search, X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatDate } from "@/lib/utils";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   useReactTable, getCoreRowModel, getSortedRowModel,
   getFilteredRowModel, getPaginationRowModel, flexRender,
@@ -176,7 +176,9 @@ const deviceColumns: ColumnDef<IntuneDeviceItem>[] = [
   {
     accessorKey: "isEncrypted",
     header: "Encrypted",
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
+      const excl = (table.options.meta as { excludedDeviceNames?: Set<string> })?.excludedDeviceNames?.has(row.original.deviceName);
+      if (excl) return <span className="text-xs text-muted-foreground font-medium">N/A</span>;
       if (row.original.isEncrypted === null) return <span className="text-muted-foreground text-sm">—</span>;
       return row.original.isEncrypted
         ? <CheckCircle2 className="w-4 h-4 text-green-500" />
@@ -301,6 +303,85 @@ export function IntuneTab() {
   const isDark = theme === "dark";
   const loading = isLoading || isFetching;
 
+  // ── AVD & Windows 365 encryption exclusions ────────────────────────────────
+  const [avdGroupId, setAvdGroupIdState] = useState<string>(() => localStorage.getItem("avdGroupId") ?? "");
+  const [avdGroupName, setAvdGroupNameState] = useState<string>(() => localStorage.getItem("avdGroupName") ?? "");
+  const [avdGroupSearch, setAvdGroupSearch] = useState("");
+  const [groups, setGroups] = useState<Array<{ id: string; displayName: string; description?: string }>>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [groupDeviceNames, setGroupDeviceNames] = useState<Set<string>>(new Set());
+  const [groupMembersLoading, setGroupMembersLoading] = useState(false);
+  const [showGroupDropdown, setShowGroupDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const setAvdGroupId = useCallback((id: string, name: string) => {
+    setAvdGroupIdState(id);
+    setAvdGroupNameState(name);
+    localStorage.setItem("avdGroupId", id);
+    localStorage.setItem("avdGroupName", name);
+  }, []);
+
+  const fetchGroups = useCallback(async (q: string) => {
+    setGroupsLoading(true);
+    try {
+      const resp = await fetch(`/api/m365/groups?q=${encodeURIComponent(q)}`);
+      if (resp.ok) {
+        const d = await resp.json();
+        setGroups(d.groups ?? []);
+      }
+    } finally {
+      setGroupsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!avdGroupId) { setGroupDeviceNames(new Set()); return; }
+    setGroupMembersLoading(true);
+    fetch(`/api/m365/groups/${encodeURIComponent(avdGroupId)}/device-members`)
+      .then((r) => r.json())
+      .then((d) => setGroupDeviceNames(new Set<string>(d.deviceNames ?? [])))
+      .catch(() => setGroupDeviceNames(new Set()))
+      .finally(() => setGroupMembersLoading(false));
+  }, [avdGroupId]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowGroupDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Windows 365 Cloud PCs — auto-detected by model name
+  const win365DeviceNames = useMemo(
+    () => new Set((data?.deviceList ?? []).filter((d) => d.model?.toLowerCase().startsWith("cloud pc")).map((d) => d.deviceName)),
+    [data]
+  );
+
+  // All devices excluded from encryption calculation (Win365 + selected AVD group)
+  const excludedDeviceNames = useMemo(
+    () => new Set([...win365DeviceNames, ...groupDeviceNames]),
+    [win365DeviceNames, groupDeviceNames]
+  );
+
+  // Adjusted encryption stats (excluding Win365 + AVD devices)
+  const { adjustedTotal, adjustedEncrypted, adjustedPercent } = useMemo(() => {
+    const deviceList = data?.deviceList ?? [];
+    if (deviceList.length === 0) {
+      return {
+        adjustedTotal: data?.totalDevices ?? 0,
+        adjustedEncrypted: data?.encryptedDevices ?? 0,
+        adjustedPercent: data?.encryptionPercent ?? 0,
+      };
+    }
+    const eligible = deviceList.filter((d) => !excludedDeviceNames.has(d.deviceName));
+    const encCount = eligible.filter((d) => d.isEncrypted).length;
+    const pct = eligible.length > 0 ? Math.round((encCount / eligible.length) * 100) : 0;
+    return { adjustedTotal: eligible.length, adjustedEncrypted: encCount, adjustedPercent: pct };
+  }, [data, excludedDeviceNames]);
+
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
 
@@ -331,9 +412,9 @@ export function IntuneTab() {
         detail: (data?.totalCompliancePolicies ?? 0) > 0 ? `${data?.totalCompliancePolicies} policies configured` : "Not Configured" },
     ]},
     { id: "4.6", title: "4.6 All devices have drive encryption applied", items: [
-      { label: "Drive encryption applied to all enrolled devices",
-        status: (data?.encryptedDevices ?? 0) === (data?.totalDevices ?? -1) ? "pass" : (data?.encryptionPercent ?? 0) >= 80 ? "warning" : "fail",
-        detail: `${data?.encryptedDevices ?? 0} of ${data?.totalDevices ?? 0} devices encrypted (${data?.encryptionPercent ?? 0}%)` },
+      { label: "Drive encryption applied to all enrolled devices (excludes Win365/AVD)",
+        status: adjustedEncrypted === adjustedTotal && adjustedTotal > 0 ? "pass" : adjustedPercent >= 80 ? "warning" : "fail",
+        detail: `${adjustedEncrypted} of ${adjustedTotal} eligible devices encrypted (${adjustedPercent}%)` },
     ]},
     { id: "4.7", title: "4.7 Lockout screen and password settings shall be configured for each device", items: [
       { label: "Lockout and password policies deployed to all device platforms", status: "manual" },
@@ -402,6 +483,7 @@ export function IntuneTab() {
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 20 } },
+    meta: { excludedDeviceNames },
   });
 
   const activePolicies: IntunePolicyItem[] = useMemo(() => {
@@ -634,13 +716,18 @@ export function IntuneTab() {
 
       {/* ── Security highlights row ───────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-l-4" style={{ borderLeftColor: data?.encryptionPercent && data.encryptionPercent >= 90 ? C.green : C.yellow }}>
+        <Card className="border-l-4" style={{ borderLeftColor: adjustedPercent >= 90 ? C.green : C.yellow }}>
           <CardContent className="pt-4 pb-3 px-4 flex items-start gap-3">
-            <ShieldCheck className="w-8 h-8 mt-0.5 flex-shrink-0" style={{ color: data?.encryptionPercent && data.encryptionPercent >= 90 ? C.green : C.yellow }} />
+            <ShieldCheck className="w-8 h-8 mt-0.5 flex-shrink-0" style={{ color: adjustedPercent >= 90 ? C.green : C.yellow }} />
             <div>
               <p className="text-sm font-semibold">Device Encryption</p>
-              <p className="text-2xl font-bold mt-0.5">{loading ? "—" : `${data?.encryptionPercent ?? 0}%`}</p>
-              <p className="text-xs text-muted-foreground">{loading ? "" : `${data?.encryptedDevices ?? 0} of ${data?.totalDevices ?? 0} devices encrypted`}</p>
+              <p className="text-2xl font-bold mt-0.5">{loading ? "—" : `${adjustedPercent}%`}</p>
+              <p className="text-xs text-muted-foreground">
+                {loading ? "" : `${adjustedEncrypted} of ${adjustedTotal} eligible devices encrypted`}
+                {!loading && excludedDeviceNames.size > 0 && (
+                  <span className="ml-1 opacity-70">({excludedDeviceNames.size} N/A excluded)</span>
+                )}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -796,6 +883,91 @@ export function IntuneTab() {
             </div>
           ) : (
             <div className="space-y-3">
+
+              {/* ── AVD / Windows 365 Exclusion Selector ─────────────────── */}
+              <div className="rounded-md border border-dashed bg-muted/20 px-3 py-2.5 space-y-2">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ShieldCheck className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">Encryption Exclusions</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        Windows 365 auto-detected ({win365DeviceNames.size})
+                        {avdGroupId && ` · AVD: ${avdGroupName} (${groupMembersLoading ? "…" : groupDeviceNames.size})`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0" ref={dropdownRef}>
+                    {avdGroupId && (
+                      <div className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-full px-2.5 py-0.5">
+                        <span className="text-xs font-medium text-blue-700 dark:text-blue-300 max-w-[160px] truncate">{avdGroupName}</span>
+                        <button
+                          onClick={() => setAvdGroupId("", "")}
+                          className="text-blue-400 hover:text-blue-600 transition-colors ml-0.5"
+                          title="Clear AVD group"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="relative">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => {
+                          setShowGroupDropdown((v) => !v);
+                          if (!showGroupDropdown && groups.length === 0) fetchGroups("");
+                        }}
+                      >
+                        {avdGroupId ? "Change AVD Group" : "Select AVD Group"}
+                      </Button>
+                      {showGroupDropdown && (
+                        <div className="absolute right-0 top-full mt-1 z-50 w-72 bg-popover border rounded-md shadow-lg p-2 space-y-2">
+                          <div className="relative">
+                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                            <input
+                              autoFocus
+                              className="w-full pl-7 pr-3 py-1.5 text-sm border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                              placeholder="Search groups…"
+                              value={avdGroupSearch}
+                              onChange={(e) => {
+                                setAvdGroupSearch(e.target.value);
+                                fetchGroups(e.target.value);
+                              }}
+                            />
+                          </div>
+                          <div className="max-h-52 overflow-y-auto space-y-0.5">
+                            {groupsLoading ? (
+                              <p className="text-xs text-muted-foreground text-center py-4">Loading groups…</p>
+                            ) : groups.length === 0 ? (
+                              <p className="text-xs text-muted-foreground text-center py-4">No groups found</p>
+                            ) : groups.map((g) => (
+                              <button
+                                key={g.id}
+                                className={`w-full text-left px-2 py-1.5 rounded-sm text-sm hover:bg-muted transition-colors ${g.id === avdGroupId ? "bg-muted font-medium" : ""}`}
+                                onClick={() => { setAvdGroupId(g.id, g.displayName); setShowGroupDropdown(false); }}
+                              >
+                                <p className="truncate">{g.displayName}</p>
+                                {g.description && <p className="text-xs text-muted-foreground truncate">{g.description}</p>}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {excludedDeviceNames.size > 0 && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Info className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>
+                      {excludedDeviceNames.size} device{excludedDeviceNames.size !== 1 ? "s" : ""} excluded from encryption stats — shown as N/A in the table below
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center gap-3 flex-wrap">
                 <Input
                   placeholder="Search devices, users…"

@@ -10,6 +10,7 @@ import m365SharePointRouter from "./m365SharePoint";
 import m365ComplianceRouter from "./m365Compliance";
 import m365ServiceHealthRouter from "./m365ServiceHealth";
 import m365IntuneRouter from "./m365Intune";
+import m365GroupsRouter from "./m365Groups";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(m365SharePointRouter);
 router.use(m365ComplianceRouter);
 router.use(m365ServiceHealthRouter);
 router.use(m365IntuneRouter);
+router.use(m365GroupsRouter);
 
 export default router;
