@@ -1,5 +1,5 @@
 import React from "react";
-import { useGetM365Intune } from "@workspace/api-client-react";
+import { useGetM365Intune, useGetM365IntuneApps } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { CSVLink } from "react-csv";
 import {
   Download, ShieldCheck, ShieldAlert, Monitor, Smartphone,
   Apple, AlertTriangle, CheckCircle2, XCircle, Clock, Info, Search, X, ChevronDown, ClipboardList,
+  Package, PackageCheck, PackageX, Layers,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatDate } from "@/lib/utils";
@@ -31,6 +32,8 @@ import type {
   IntuneDeviceItem,
   IntunePolicyItem,
   IntuneAssessmentItem,
+  IntuneAppInstallItem,
+  IntuneDiscoveredAppItem,
 } from "@workspace/api-client-react/src/generated/api.schemas";
 
 // ── palette ───────────────────────────────────────────────────────────────────
@@ -428,6 +431,102 @@ const staleDeviceColumns: ColumnDef<StaleDevice>[] = [
     accessorKey: "complianceState",
     header: "Compliance",
     cell: ({ row }) => <ComplianceBadge state={row.original.complianceState} />,
+  },
+];
+
+// ── App install column definitions ────────────────────────────────────────────
+
+const appInstallColumns: ColumnDef<IntuneAppInstallItem>[] = [
+  {
+    accessorKey: "displayName",
+    header: "App",
+    cell: ({ row }) => (
+      <div>
+        <p className="font-medium text-sm">{row.original.displayName}</p>
+        {row.original.publisher && (
+          <p className="text-xs text-muted-foreground">{row.original.publisher}</p>
+        )}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "platform",
+    header: "Platform",
+    cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
+  },
+  {
+    accessorKey: "installed",
+    header: "Installed",
+    cell: ({ row }) => (
+      <span className="font-semibold text-sm tabular-nums" style={{ color: C.green }}>{row.original.installed}</span>
+    ),
+  },
+  {
+    accessorKey: "failed",
+    header: "Failed",
+    cell: ({ row }) => (
+      <span className={`font-semibold text-sm tabular-nums ${row.original.failed > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
+        {row.original.failed}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "pending",
+    header: "Pending",
+    cell: ({ row }) => (
+      <span className="font-semibold text-sm tabular-nums" style={{ color: row.original.pending > 0 ? C.yellow : undefined }}>
+        {row.original.pending}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "notInstalled",
+    header: "Not Installed",
+    cell: ({ row }) => <span className="text-sm tabular-nums text-muted-foreground">{row.original.notInstalled}</span>,
+  },
+  {
+    accessorKey: "notApplicable",
+    header: "N/A",
+    cell: ({ row }) => <span className="text-sm tabular-nums text-muted-foreground">{row.original.notApplicable}</span>,
+  },
+];
+
+// ── Discovered app column definitions ─────────────────────────────────────────
+
+const discoveredAppColumns: ColumnDef<IntuneDiscoveredAppItem>[] = [
+  {
+    accessorKey: "displayName",
+    header: "App",
+    cell: ({ row }) => (
+      <div>
+        <p className="font-medium text-sm">{row.original.displayName}</p>
+        {row.original.version && (
+          <p className="text-xs text-muted-foreground">{row.original.version}</p>
+        )}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "platform",
+    header: "Platform",
+    cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
+  },
+  {
+    accessorKey: "managed",
+    header: "Status",
+    cell: ({ row }) => (
+      <Badge className={row.original.managed
+        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 font-normal text-xs border-0"
+        : "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 font-normal text-xs border-0"
+      }>
+        {row.original.managed ? "Managed" : "Unmanaged"}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: "deviceCount",
+    header: "Devices",
+    cell: ({ row }) => <span className="font-semibold text-sm tabular-nums">{row.original.deviceCount}</span>,
   },
 ];
 
@@ -902,6 +1001,91 @@ export function IntuneTab() {
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 15 } },
+  });
+
+  // ── App estate data ───────────────────────────────────────────────────────
+  const { data: appsData, isLoading: appsLoading } = useGetM365IntuneApps();
+  const appEstateLoading = appsLoading;
+
+  const installOverallChart = useMemo(() => [
+    { name: "Installed",     value: appsData?.totalInstalled     ?? 0, color: C.green  },
+    { name: "Failed",        value: appsData?.totalFailed        ?? 0, color: C.red    },
+    { name: "Pending",       value: appsData?.totalPending       ?? 0, color: C.yellow },
+    { name: "Not Installed", value: appsData?.totalNotInstalled  ?? 0, color: C.orange },
+    { name: "N/A",           value: appsData?.totalNotApplicable ?? 0, color: C.gray   },
+  ].filter((e) => e.value > 0), [appsData]);
+
+  const installByPlatformChart = useMemo(() =>
+    (appsData?.installByPlatform ?? []).map((p) => ({
+      platform:        p.platform,
+      Installed:       p.installed,
+      Failed:          p.failed,
+      Pending:         p.pending,
+      "Not Installed": p.notInstalled,
+    })),
+  [appsData]);
+
+  const discoveredOverallChart = useMemo(() => [
+    { name: "Managed",   value: appsData?.managedDiscoveredApps   ?? 0, color: C.blue   },
+    { name: "Unmanaged", value: appsData?.unmanagedDiscoveredApps ?? 0, color: C.orange },
+  ].filter((e) => e.value > 0), [appsData]);
+
+  const discoveredByPlatformChart = useMemo(() =>
+    (appsData?.discoveredByPlatform ?? []).map((p) => ({
+      platform:  p.platform,
+      Managed:   p.managed,
+      Unmanaged: p.unmanaged,
+    })),
+  [appsData]);
+
+  const [installPlatformFilter, setInstallPlatformFilter] = useState("all");
+  const [installFilter, setInstallFilter] = useState("");
+  const [installSorting, setInstallSorting] = useState<SortingState>([{ id: "failed", desc: true }]);
+  const [installShowFailed, setInstallShowFailed] = useState(false);
+
+  const filteredAppInstalls = useMemo(() => {
+    let list = appsData?.appInstallList ?? [];
+    if (installPlatformFilter !== "all") list = list.filter((a) => a.platform === installPlatformFilter);
+    if (installShowFailed) list = list.filter((a) => a.failed > 0);
+    return list;
+  }, [appsData, installPlatformFilter, installShowFailed]);
+
+  const appInstallTable = useReactTable({
+    data: filteredAppInstalls,
+    columns: appInstallColumns,
+    state: { sorting: installSorting, globalFilter: installFilter },
+    onSortingChange: setInstallSorting,
+    onGlobalFilterChange: setInstallFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 20 } },
+  });
+
+  const [discoveredPlatformFilter, setDiscoveredPlatformFilter] = useState("all");
+  const [discoveredManagedFilter, setDiscoveredManagedFilter] = useState<"all" | "managed" | "unmanaged">("all");
+  const [discoveredFilter, setDiscoveredFilter] = useState("");
+  const [discoveredSorting, setDiscoveredSorting] = useState<SortingState>([{ id: "deviceCount", desc: true }]);
+
+  const filteredDiscoveredApps = useMemo(() => {
+    let list = appsData?.discoveredAppList ?? [];
+    if (discoveredPlatformFilter !== "all") list = list.filter((a) => a.platform === discoveredPlatformFilter);
+    if (discoveredManagedFilter !== "all") list = list.filter((a) => discoveredManagedFilter === "managed" ? a.managed : !a.managed);
+    return list;
+  }, [appsData, discoveredPlatformFilter, discoveredManagedFilter]);
+
+  const discoveredAppTable = useReactTable({
+    data: filteredDiscoveredApps,
+    columns: discoveredAppColumns,
+    state: { sorting: discoveredSorting, globalFilter: discoveredFilter },
+    onSortingChange: setDiscoveredSorting,
+    onGlobalFilterChange: setDiscoveredFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 20 } },
   });
 
   if (!loading && data?.permissionRequired) {
@@ -1820,6 +2004,393 @@ export function IntuneTab() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* SECTION: APP INSTALLATION HEALTH */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+          <Package className="w-5 h-5" />
+          App Installation Health
+        </h2>
+
+        {!appEstateLoading && appsData?.installPermissionRequired && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3">
+            <Info className="w-4 h-4 mt-0.5 text-amber-500 flex-shrink-0" />
+            <div className="text-sm text-amber-700 dark:text-amber-300">
+              <span className="font-semibold">Permissions required for app install data.</span>{" "}
+              Grant <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded text-xs">DeviceManagementApps.Read.All</code> to see app installation status.
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <KPICard title="Assigned Apps"  value={appsData?.totalAssignedApps}   loading={appEstateLoading} />
+          <KPICard title="Installed"      value={appsData?.totalInstalled}      loading={appEstateLoading} valueColor={C.green} />
+          <KPICard title="Failed"         value={appsData?.totalFailed}         loading={appEstateLoading} valueColor={appsData && appsData.totalFailed > 0 ? C.red : C.green} />
+          <KPICard title="Pending"        value={appsData?.totalPending}        loading={appEstateLoading} valueColor={appsData && appsData.totalPending > 0 ? C.yellow : undefined} />
+          <KPICard title="Not Installed"  value={appsData?.totalNotInstalled}   loading={appEstateLoading} valueColor={C.gray} />
+          <KPICard title="Not Applicable" value={appsData?.totalNotApplicable}  loading={appEstateLoading} valueColor={C.gray} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Overall Install Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {appEstateLoading ? <Skeleton className="w-full h-[240px]" /> : installOverallChart.length === 0 ? (
+                <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">No data available</div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <ResponsiveContainer width="100%" height={220} debounce={0}>
+                    <PieChart>
+                      <Pie
+                        data={installOverallChart} dataKey="value" nameKey="name"
+                        cx="50%" cy="50%" innerRadius={55} outerRadius={90}
+                        cornerRadius={2} paddingAngle={2} isAnimationActive={false} stroke="none"
+                      >
+                        {installOverallChart.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip isAnimationActive={false} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex flex-wrap justify-center gap-4 mt-1">
+                    {installOverallChart.map((entry) => (
+                      <div key={entry.name} className="flex items-center gap-2 text-sm">
+                        <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: entry.color }} />
+                        <span className="text-muted-foreground">{entry.name}</span>
+                        <span className="font-semibold">{entry.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Install Status by Platform</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {appEstateLoading ? <Skeleton className="w-full h-[240px]" /> : installByPlatformChart.length === 0 ? (
+                <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">No data available</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220} debounce={0}>
+                  <BarChart data={installByPlatformChart} margin={{ left: -20, right: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                    <XAxis dataKey="platform" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
+                    <Tooltip isAnimationActive={false} />
+                    <Legend />
+                    <Bar dataKey="Installed"     fill={C.green}  fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} stackId="a" />
+                    <Bar dataKey="Failed"        fill={C.red}    fillOpacity={0.85} isAnimationActive={false} stackId="a" />
+                    <Bar dataKey="Pending"       fill={C.yellow} fillOpacity={0.85} isAnimationActive={false} stackId="a" />
+                    <Bar dataKey="Not Installed" fill={C.orange} fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} stackId="a" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader className="px-4 pt-4 pb-2 flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle className="text-base">App Installation Detail</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">{appsData?.totalAssignedApps ?? 0} assigned app{(appsData?.totalAssignedApps ?? 0) !== 1 ? "s" : ""}</p>
+            </div>
+            <ExportBtn
+              filename="app-install-status.csv"
+              csvData={(appsData?.appInstallList ?? []).map((a) => ({
+                App: a.displayName, Publisher: a.publisher ?? "", Platform: a.platform,
+                Installed: a.installed, Failed: a.failed, Pending: a.pending,
+                "Not Installed": a.notInstalled, "Not Applicable": a.notApplicable,
+              }))}
+            />
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Search apps…"
+                  value={installFilter}
+                  onChange={(e) => setInstallFilter(e.target.value)}
+                  className="pl-8 h-8 text-sm"
+                />
+              </div>
+              <select
+                value={installPlatformFilter}
+                onChange={(e) => setInstallPlatformFilter(e.target.value)}
+                className="h-8 px-2 text-sm rounded-md border bg-background"
+              >
+                <option value="all">All Platforms</option>
+                {[...new Set((appsData?.appInstallList ?? []).map((a) => a.platform))].map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setInstallShowFailed((v) => !v)}
+                className={`h-8 px-3 text-sm rounded-md border transition-colors flex items-center gap-1.5 ${installShowFailed ? "bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300" : "bg-background hover:bg-muted"}`}
+              >
+                <PackageX className="w-3.5 h-3.5" />
+                Failed only
+              </button>
+            </div>
+            {appEstateLoading ? (
+              <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    {appInstallTable.getHeaderGroups().map((hg) => (
+                      <TableRow key={hg.id}>
+                        {hg.headers.map((header) => (
+                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap first:pl-4 last:pr-4">
+                            <div className="flex items-center gap-1">
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                              {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                            </div>
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {appInstallTable.getRowModel().rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          {appsData?.installPermissionRequired ? "Requires DeviceManagementApps.Read.All permission" : "No apps found"}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      appInstallTable.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} className="py-2.5 first:pl-4 last:pr-4">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            {appInstallTable.getPageCount() > 1 && (
+              <div className="flex items-center justify-between pt-3">
+                <p className="text-xs text-muted-foreground">
+                  Page {appInstallTable.getState().pagination.pageIndex + 1} of {appInstallTable.getPageCount()}
+                </p>
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => appInstallTable.previousPage()} disabled={!appInstallTable.getCanPreviousPage()}>Previous</Button>
+                  <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => appInstallTable.nextPage()} disabled={!appInstallTable.getCanNextPage()}>Next</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* SECTION: DISCOVERED APP ESTATE */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+          <Layers className="w-5 h-5" />
+          Discovered App Estate
+        </h2>
+
+        {!appEstateLoading && appsData?.discoveryPermissionRequired && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3">
+            <Info className="w-4 h-4 mt-0.5 text-amber-500 flex-shrink-0" />
+            <div className="text-sm text-amber-700 dark:text-amber-300">
+              <span className="font-semibold">Permissions required for discovered apps.</span>{" "}
+              Grant <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded text-xs">DeviceManagementManagedDevices.Read.All</code> to see discovered apps.
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <KPICard title="Total Discovered"  value={appsData?.totalDiscoveredApps}     loading={appEstateLoading} />
+          <KPICard title="Managed"           value={appsData?.managedDiscoveredApps}   loading={appEstateLoading} valueColor={C.blue} />
+          <KPICard title="Unmanaged"         value={appsData?.unmanagedDiscoveredApps} loading={appEstateLoading} valueColor={appsData && appsData.unmanagedDiscoveredApps > 0 ? C.orange : C.green} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Managed vs Unmanaged</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {appEstateLoading ? <Skeleton className="w-full h-[240px]" /> : discoveredOverallChart.length === 0 ? (
+                <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">No data available</div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <ResponsiveContainer width="100%" height={220} debounce={0}>
+                    <PieChart>
+                      <Pie
+                        data={discoveredOverallChart} dataKey="value" nameKey="name"
+                        cx="50%" cy="50%" innerRadius={55} outerRadius={90}
+                        cornerRadius={2} paddingAngle={2} isAnimationActive={false} stroke="none"
+                      >
+                        {discoveredOverallChart.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip isAnimationActive={false} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex flex-wrap justify-center gap-6 mt-1">
+                    {discoveredOverallChart.map((entry) => (
+                      <div key={entry.name} className="flex items-center gap-2 text-sm">
+                        <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: entry.color }} />
+                        <span className="text-muted-foreground">{entry.name}</span>
+                        <span className="font-semibold">{entry.value}</span>
+                        {(appsData?.totalDiscoveredApps ?? 0) > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            ({Math.round((entry.value / (appsData?.totalDiscoveredApps ?? 1)) * 100)}%)
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Managed vs Unmanaged by Platform</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {appEstateLoading ? <Skeleton className="w-full h-[240px]" /> : discoveredByPlatformChart.length === 0 ? (
+                <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">No data available</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220} debounce={0}>
+                  <BarChart data={discoveredByPlatformChart} margin={{ left: -20, right: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                    <XAxis dataKey="platform" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
+                    <Tooltip isAnimationActive={false} />
+                    <Legend />
+                    <Bar dataKey="Managed"   fill={C.blue}   fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} stackId="a" />
+                    <Bar dataKey="Unmanaged" fill={C.orange} fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} stackId="a" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader className="px-4 pt-4 pb-2 flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle className="text-base">Discovered App List</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">{appsData?.totalDiscoveredApps ?? 0} apps detected across enrolled devices</p>
+            </div>
+            <ExportBtn
+              filename="discovered-apps.csv"
+              csvData={(appsData?.discoveredAppList ?? []).map((a) => ({
+                App: a.displayName, Version: a.version ?? "", Platform: a.platform,
+                Status: a.managed ? "Managed" : "Unmanaged", Devices: a.deviceCount,
+              }))}
+            />
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Search apps…"
+                  value={discoveredFilter}
+                  onChange={(e) => setDiscoveredFilter(e.target.value)}
+                  className="pl-8 h-8 text-sm"
+                />
+              </div>
+              <select
+                value={discoveredPlatformFilter}
+                onChange={(e) => setDiscoveredPlatformFilter(e.target.value)}
+                className="h-8 px-2 text-sm rounded-md border bg-background"
+              >
+                <option value="all">All Platforms</option>
+                {[...new Set((appsData?.discoveredAppList ?? []).map((a) => a.platform))].map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              {(["all", "managed", "unmanaged"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setDiscoveredManagedFilter(f)}
+                  className={`h-8 px-3 text-sm rounded-md border transition-colors flex items-center gap-1.5 ${
+                    discoveredManagedFilter === f
+                      ? f === "managed"
+                        ? "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300"
+                        : f === "unmanaged"
+                        ? "bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300"
+                        : "bg-muted border-muted-foreground/30"
+                      : "bg-background hover:bg-muted"
+                  }`}
+                >
+                  {f === "managed"   && <PackageCheck className="w-3.5 h-3.5" />}
+                  {f === "unmanaged" && <PackageX     className="w-3.5 h-3.5" />}
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
+            {appEstateLoading ? (
+              <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    {discoveredAppTable.getHeaderGroups().map((hg) => (
+                      <TableRow key={hg.id}>
+                        {hg.headers.map((header) => (
+                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap first:pl-4 last:pr-4">
+                            <div className="flex items-center gap-1">
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                              {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                            </div>
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {discoveredAppTable.getRowModel().rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                          {appsData?.discoveryPermissionRequired ? "Requires DeviceManagementManagedDevices.Read.All permission" : "No apps found"}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      discoveredAppTable.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} className="py-2.5 first:pl-4 last:pr-4">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            {discoveredAppTable.getPageCount() > 1 && (
+              <div className="flex items-center justify-between pt-3">
+                <p className="text-xs text-muted-foreground">
+                  Page {discoveredAppTable.getState().pagination.pageIndex + 1} of {discoveredAppTable.getPageCount()}
+                </p>
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => discoveredAppTable.previousPage()} disabled={!discoveredAppTable.getCanPreviousPage()}>Previous</Button>
+                  <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => discoveredAppTable.nextPage()} disabled={!discoveredAppTable.getCanNextPage()}>Next</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* SECTION 4 — INTUNE SECURITY CHECKLIST */}

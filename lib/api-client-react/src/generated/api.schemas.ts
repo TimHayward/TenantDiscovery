@@ -618,3 +618,57 @@ export interface M365ServicePrincipalsData {
   permissionError: boolean;
   servicePrincipals: ServicePrincipalItem[];
 }
+
+export interface IntuneAppInstallItem {
+  id: string;
+  displayName: string;
+  publisher?: string | null;
+  platform: string;
+  installed: number;
+  failed: number;
+  pending: number;
+  notApplicable: number;
+  notInstalled: number;
+}
+
+export interface IntuneAppInstallByPlatform {
+  platform: string;
+  installed: number;
+  failed: number;
+  pending: number;
+  notApplicable: number;
+  notInstalled: number;
+}
+
+export interface IntuneDiscoveredAppItem {
+  id: string;
+  displayName: string;
+  version?: string | null;
+  deviceCount: number;
+  platform: string;
+  managed: boolean;
+}
+
+export interface IntuneDiscoveredByPlatform {
+  platform: string;
+  managed: number;
+  unmanaged: number;
+}
+
+export interface M365IntuneAppsData {
+  installPermissionRequired: boolean;
+  discoveryPermissionRequired: boolean;
+  totalAssignedApps: number;
+  totalInstalled: number;
+  totalFailed: number;
+  totalPending: number;
+  totalNotApplicable: number;
+  totalNotInstalled: number;
+  installByPlatform: IntuneAppInstallByPlatform[];
+  appInstallList: IntuneAppInstallItem[];
+  totalDiscoveredApps: number;
+  managedDiscoveredApps: number;
+  unmanagedDiscoveredApps: number;
+  discoveredByPlatform: IntuneDiscoveredByPlatform[];
+  discoveredAppList: IntuneDiscoveredAppItem[];
+}

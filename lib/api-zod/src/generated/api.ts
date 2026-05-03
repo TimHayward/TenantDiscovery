@@ -641,3 +641,60 @@ export const GetM365ServicePrincipalsResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary Intune app installation health and discovered app estate
+ */
+export const GetM365IntuneAppsResponse = zod.object({
+  installPermissionRequired: zod.boolean(),
+  discoveryPermissionRequired: zod.boolean(),
+  totalAssignedApps: zod.number(),
+  totalInstalled: zod.number(),
+  totalFailed: zod.number(),
+  totalPending: zod.number(),
+  totalNotApplicable: zod.number(),
+  totalNotInstalled: zod.number(),
+  installByPlatform: zod.array(
+    zod.object({
+      platform: zod.string(),
+      installed: zod.number(),
+      failed: zod.number(),
+      pending: zod.number(),
+      notApplicable: zod.number(),
+      notInstalled: zod.number(),
+    }),
+  ),
+  appInstallList: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      publisher: zod.string().nullish(),
+      platform: zod.string(),
+      installed: zod.number(),
+      failed: zod.number(),
+      pending: zod.number(),
+      notApplicable: zod.number(),
+      notInstalled: zod.number(),
+    }),
+  ),
+  totalDiscoveredApps: zod.number(),
+  managedDiscoveredApps: zod.number(),
+  unmanagedDiscoveredApps: zod.number(),
+  discoveredByPlatform: zod.array(
+    zod.object({
+      platform: zod.string(),
+      managed: zod.number(),
+      unmanaged: zod.number(),
+    }),
+  ),
+  discoveredAppList: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      version: zod.string().nullish(),
+      deviceCount: zod.number(),
+      platform: zod.string(),
+      managed: zod.boolean(),
+    }),
+  ),
+});

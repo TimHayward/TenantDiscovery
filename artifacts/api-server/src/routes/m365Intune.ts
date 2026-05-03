@@ -513,4 +513,136 @@ router.get("/m365/intune/device/:deviceId/compliance", async (req, res) => {
   }
 });
 
+// ── helper: derive UI platform from @odata.type ───────────────────────────────
+function platformFromOdataType(odataType: string): string {
+  const t = (odataType || "").toLowerCase();
+  if (t.includes("windows") || t.includes("win32") || t.includes("microsoftedge")) return "Windows";
+  if (t.includes("ios") || t.includes("ipad")) return "iOS";
+  if (t.includes("android")) return "Android";
+  if (t.includes("macos") || t.includes("mac")) return "macOS";
+  if (t.includes("web")) return "Web";
+  return "Other";
+}
+
+function platformFromDetected(platform: string): string {
+  switch ((platform || "").toLowerCase()) {
+    case "windows":       return "Windows";
+    case "windowsmobile": return "Windows Mobile";
+    case "ios":           return "iOS";
+    case "android":       return "Android";
+    case "macos":         return "macOS";
+    default:              return "Other";
+  }
+}
+
+router.get("/m365/intune/apps", async (req, res) => {
+  try {
+    const data = await getCached("m365-intune-apps", async () => {
+      const token = await getToken();
+
+      const [assignedAppsResult, detectedAppsResult] = await Promise.all([
+        fetchAllPages(
+          "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps" +
+            "?$filter=isAssigned eq true" +
+            "&$select=id,displayName,publisher,@odata.type" +
+            "&$expand=installSummary",
+          token
+        ),
+        fetchAllPages(
+          "https://graph.microsoft.com/beta/deviceManagement/detectedApps" +
+            "?$select=id,displayName,version,sizeInByte,deviceCount,platform",
+          token
+        ),
+      ]);
+
+      const installPermissionRequired = assignedAppsResult.permissionDenied;
+      const discoveryPermissionRequired = detectedAppsResult.permissionDenied;
+
+      // ── Section 1: App installation health ───────────────────────────────
+      const apps = assignedAppsResult.items;
+      let totalInstalled = 0, totalFailed = 0, totalPending = 0, totalNotApplicable = 0, totalNotInstalled = 0;
+      const installMap: Record<string, { installed: number; failed: number; pending: number; notApplicable: number; notInstalled: number }> = {};
+
+      const appInstallList = apps.map((app: any) => {
+        const s = app.installSummary ?? {};
+        const platform = platformFromOdataType(app["@odata.type"] || "");
+        const installed     = s.installedDeviceCount       ?? 0;
+        const failed        = s.failedDeviceCount          ?? 0;
+        const pending       = s.pendingInstallDeviceCount  ?? 0;
+        const notApplicable = s.notApplicableDeviceCount   ?? 0;
+        const notInstalled  = s.notInstalledDeviceCount    ?? 0;
+
+        totalInstalled     += installed;
+        totalFailed        += failed;
+        totalPending       += pending;
+        totalNotApplicable += notApplicable;
+        totalNotInstalled  += notInstalled;
+
+        if (!installMap[platform]) installMap[platform] = { installed: 0, failed: 0, pending: 0, notApplicable: 0, notInstalled: 0 };
+        installMap[platform].installed     += installed;
+        installMap[platform].failed        += failed;
+        installMap[platform].pending       += pending;
+        installMap[platform].notApplicable += notApplicable;
+        installMap[platform].notInstalled  += notInstalled;
+
+        return { id: app.id, displayName: app.displayName || "Unknown", publisher: app.publisher ?? null, platform, installed, failed, pending, notApplicable, notInstalled };
+      });
+
+      const installByPlatform = Object.entries(installMap)
+        .map(([platform, counts]) => ({ platform, ...counts }))
+        .sort((a, b) => (b.installed + b.failed) - (a.installed + a.failed));
+
+      // ── Section 2: Discovered app estate ─────────────────────────────────
+      const detectedApps = detectedAppsResult.items;
+      const managedNames = new Set(apps.map((a: any) => (a.displayName || "").toLowerCase().trim()));
+
+      let managedDiscoveredApps = 0, unmanagedDiscoveredApps = 0;
+      const discoveredMap: Record<string, { managed: number; unmanaged: number }> = {};
+
+      const discoveredAppList = detectedApps.map((app: any) => {
+        const platform = platformFromDetected(app.platform || "");
+        const managed = managedNames.has((app.displayName || "").toLowerCase().trim());
+        if (!discoveredMap[platform]) discoveredMap[platform] = { managed: 0, unmanaged: 0 };
+        if (managed) { managedDiscoveredApps++; discoveredMap[platform].managed++; }
+        else          { unmanagedDiscoveredApps++; discoveredMap[platform].unmanaged++; }
+        return {
+          id: app.id,
+          displayName: app.displayName || "Unknown",
+          version: app.version ?? null,
+          deviceCount: app.deviceCount ?? 0,
+          platform,
+          managed,
+        };
+      });
+
+      const discoveredByPlatform = Object.entries(discoveredMap)
+        .map(([platform, counts]) => ({ platform, ...counts }))
+        .sort((a, b) => (b.managed + b.unmanaged) - (a.managed + a.unmanaged));
+
+      return {
+        installPermissionRequired,
+        discoveryPermissionRequired,
+        totalAssignedApps: apps.length,
+        totalInstalled,
+        totalFailed,
+        totalPending,
+        totalNotApplicable,
+        totalNotInstalled,
+        installByPlatform,
+        appInstallList,
+        totalDiscoveredApps: detectedApps.length,
+        managedDiscoveredApps,
+        unmanagedDiscoveredApps,
+        discoveredByPlatform,
+        discoveredAppList,
+      };
+    });
+
+    res.json(data);
+  } catch (err: any) {
+    req.log.error({ err }, "Intune apps error");
+    res.status(500).json({ error: String(err.message) });
+  }
+});
+
 export default router;

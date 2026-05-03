@@ -214,6 +214,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365ServicePrincipalsData"
 
+  /m365/intune/apps:
+    get:
+      operationId: getM365IntuneApps
+      tags: [m365]
+      summary: Intune app installation health and discovered app estate
+      responses:
+        "200":
+          description: App installation success/failure and managed vs unmanaged discovered apps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365IntuneAppsData"
+
 components:
   schemas:
     HealthStatus:
@@ -1653,3 +1666,131 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ServicePrincipalItem"
+
+    IntuneAppInstallItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        publisher:
+          type: string
+          nullable: true
+        platform:
+          type: string
+        installed:
+          type: integer
+        failed:
+          type: integer
+        pending:
+          type: integer
+        notApplicable:
+          type: integer
+        notInstalled:
+          type: integer
+      required: [id, displayName, platform, installed, failed, pending, notApplicable, notInstalled]
+
+    IntuneAppInstallByPlatform:
+      type: object
+      properties:
+        platform:
+          type: string
+        installed:
+          type: integer
+        failed:
+          type: integer
+        pending:
+          type: integer
+        notApplicable:
+          type: integer
+        notInstalled:
+          type: integer
+      required: [platform, installed, failed, pending, notApplicable, notInstalled]
+
+    IntuneDiscoveredAppItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        version:
+          type: string
+          nullable: true
+        deviceCount:
+          type: integer
+        platform:
+          type: string
+        managed:
+          type: boolean
+      required: [id, displayName, deviceCount, platform, managed]
+
+    IntuneDiscoveredByPlatform:
+      type: object
+      properties:
+        platform:
+          type: string
+        managed:
+          type: integer
+        unmanaged:
+          type: integer
+      required: [platform, managed, unmanaged]
+
+    M365IntuneAppsData:
+      type: object
+      properties:
+        installPermissionRequired:
+          type: boolean
+        discoveryPermissionRequired:
+          type: boolean
+        totalAssignedApps:
+          type: integer
+        totalInstalled:
+          type: integer
+        totalFailed:
+          type: integer
+        totalPending:
+          type: integer
+        totalNotApplicable:
+          type: integer
+        totalNotInstalled:
+          type: integer
+        installByPlatform:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneAppInstallByPlatform"
+        appInstallList:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneAppInstallItem"
+        totalDiscoveredApps:
+          type: integer
+        managedDiscoveredApps:
+          type: integer
+        unmanagedDiscoveredApps:
+          type: integer
+        discoveredByPlatform:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneDiscoveredByPlatform"
+        discoveredAppList:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntuneDiscoveredAppItem"
+      required:
+        - installPermissionRequired
+        - discoveryPermissionRequired
+        - totalAssignedApps
+        - totalInstalled
+        - totalFailed
+        - totalPending
+        - totalNotApplicable
+        - totalNotInstalled
+        - installByPlatform
+        - appInstallList
+        - totalDiscoveredApps
+        - managedDiscoveredApps
+        - unmanagedDiscoveredApps
+        - discoveredByPlatform
+        - discoveredAppList

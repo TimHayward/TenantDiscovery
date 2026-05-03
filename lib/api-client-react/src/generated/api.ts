@@ -19,6 +19,7 @@ import type {
   M365AppsData,
   M365ComplianceData,
   M365ExchangeData,
+  M365IntuneAppsData,
   M365IntuneData,
   M365LicensesData,
   M365Overview,
@@ -1182,6 +1183,81 @@ export function useGetM365ServicePrincipals<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetM365ServicePrincipalsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Intune app installation health and discovered app estate
+ */
+export const getGetM365IntuneAppsUrl = () => {
+  return `/api/m365/intune/apps`;
+};
+
+export const getM365IntuneApps = async (
+  options?: RequestInit,
+): Promise<M365IntuneAppsData> => {
+  return customFetch<M365IntuneAppsData>(getGetM365IntuneAppsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365IntuneAppsQueryKey = () => {
+  return [`/api/m365/intune/apps`] as const;
+};
+
+export const getGetM365IntuneAppsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365IntuneApps>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365IntuneApps>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365IntuneAppsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getM365IntuneApps>>
+  > = ({ signal }) => getM365IntuneApps({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365IntuneApps>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365IntuneAppsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365IntuneApps>>
+>;
+export type GetM365IntuneAppsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Intune app installation health and discovered app estate
+ */
+
+export function useGetM365IntuneApps<
+  TData = Awaited<ReturnType<typeof getM365IntuneApps>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365IntuneApps>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365IntuneAppsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
