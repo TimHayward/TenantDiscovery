@@ -3,6 +3,7 @@ import { useGetM365Intune, useGetM365IntuneApps } from "@workspace/api-client-re
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
@@ -1335,12 +1336,10 @@ export function IntuneTab() {
       </div>
 
       {/* ── Policy summary per device type ───────────────────────────────── */}
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2 flex-row items-start justify-between space-y-0 gap-4 flex-wrap">
-          <div>
-            <CardTitle className="text-base">Policy Summary</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Compliance policies, configuration profiles, and app protection policies</p>
-          </div>
+      <CollapsibleSection
+        title="Policy Summary"
+        description="Compliance policies, configuration profiles, and app protection policies"
+        actions={<>
           <div className="flex gap-1 flex-wrap">
             {(["compliance", "config", "app"] as const).map((t) => {
               const labels = { compliance: "Compliance", config: "Config Profiles", app: "App Protection" };
@@ -1360,8 +1359,8 @@ export function IntuneTab() {
             Name: p.displayName, Platform: p.platform, "Assigned Groups": p.assignedGroups,
             Description: p.description, "Last Modified": p.lastModifiedDateTime ?? "",
           }))} />
-        </CardHeader>
-        <CardContent>
+        </>}
+      >
           {loading ? (
             <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : activePolicies.length === 0 ? (
@@ -1415,8 +1414,7 @@ export function IntuneTab() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
       {/* ── Stale Devices ────────────────────────────────────────────────── */}
       <div className="space-y-4 pt-2">
@@ -1569,22 +1567,10 @@ export function IntuneTab() {
 
             {/* Stale device table */}
             {staleDevices.length > 0 && (
-              <Card>
-                <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-                  <div>
-                    <CardTitle className="text-base">
-                      Stale Device List
-                      {staleDeviceBucketFilter !== "all" && (
-                        <span className="ml-2 text-sm font-normal text-muted-foreground">
-                          — {DEVICE_BUCKET_META[staleDeviceBucketFilter].label}
-                        </span>
-                      )}
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {filteredStaleDevices.length} device{filteredStaleDevices.length !== 1 ? "s" : ""} — click a row to see remediation guidance
-                    </p>
-                  </div>
-                  <ExportBtn
+              <CollapsibleSection
+                title={<>Stale Device List{staleDeviceBucketFilter !== "all" && <span className="ml-2 text-sm font-normal text-muted-foreground">— {DEVICE_BUCKET_META[staleDeviceBucketFilter].label}</span>}</>}
+                description={`${filteredStaleDevices.length} device${filteredStaleDevices.length !== 1 ? "s" : ""} — click a row to see remediation guidance`}
+                actions={<ExportBtn
                     filename="stale-devices.csv"
                     csvData={staleDevices.map((d) => ({
                       Device: d.deviceName,
@@ -1597,9 +1583,8 @@ export function IntuneTab() {
                       Staleness: DEVICE_BUCKET_META[d.staleBucket as DeviceStaleBucket].severity,
                       Compliance: d.complianceState,
                     }))}
-                  />
-                </CardHeader>
-                <CardContent>
+                  />}
+              >
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 flex-wrap">
                       <Input
@@ -1684,37 +1669,24 @@ export function IntuneTab() {
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+              </CollapsibleSection>
             )}
           </>
         )}
       </div>
 
       {/* ── Enrolled Device List ──────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              Enrolled Devices
-              {!loading && <Badge variant="outline" className="font-normal text-xs">{data?.totalDevices ?? 0} total</Badge>}
-            </CardTitle>
-            {!loading && deviceOsFilter !== "all" && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Filtered: {deviceOsFilter} ({filteredDevices.length} devices) ·{" "}
-                <button onClick={() => setDeviceOsFilter("all")} className="underline hover:text-foreground transition-colors">Show all</button>
-              </p>
-            )}
-          </div>
-          <ExportBtn filename="enrolled-devices.csv" csvData={(data?.deviceList ?? []).map((d) => ({
+      <CollapsibleSection
+        title={<>Enrolled Devices{!loading && <Badge variant="outline" className="font-normal text-xs">{data?.totalDevices ?? 0} total</Badge>}</>}
+        description={!loading && deviceOsFilter !== "all" ? `Filtered: ${deviceOsFilter} (${filteredDevices.length} devices)` : undefined}
+        actions={<ExportBtn filename="enrolled-devices.csv" csvData={(data?.deviceList ?? []).map((d) => ({
             Name: d.deviceName, OS: d.operatingSystem, Version: d.osVersion,
             Compliance: d.complianceState, User: d.userDisplayName, UPN: d.userPrincipalName,
             Encrypted: d.isEncrypted, Supervised: d.isSupervised, JailBroken: d.jailBroken,
             Model: d.model, Manufacturer: d.manufacturer, "Last Sync": d.lastSyncDateTime ?? "",
             Enrolled: d.enrolledDateTime ?? "",
-          }))} />
-        </CardHeader>
-        <CardContent>
+          }))} />}
+      >
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-9 w-80" />
@@ -1914,8 +1886,7 @@ export function IntuneTab() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {/* SECTION 4 — INTUNE ASSESSMENT TABLE (matches PDF report format)      */}
@@ -2096,22 +2067,18 @@ export function IntuneTab() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader className="px-4 pt-4 pb-2 flex-row items-start justify-between space-y-0">
-            <div>
-              <CardTitle className="text-base">App Installation Detail</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">{appsData?.totalAssignedApps ?? 0} assigned app{(appsData?.totalAssignedApps ?? 0) !== 1 ? "s" : ""}</p>
-            </div>
-            <ExportBtn
+        <CollapsibleSection
+          title="App Installation Detail"
+          description={`${appsData?.totalAssignedApps ?? 0} assigned app${(appsData?.totalAssignedApps ?? 0) !== 1 ? "s" : ""}`}
+          actions={<ExportBtn
               filename="app-install-status.csv"
               csvData={(appsData?.appInstallList ?? []).map((a) => ({
                 App: a.displayName, Publisher: a.publisher ?? "", Platform: a.platform,
                 Installed: a.installed, Failed: a.failed, Pending: a.pending,
                 "Not Installed": a.notInstalled, "Not Applicable": a.notApplicable,
               }))}
-            />
-          </CardHeader>
-          <CardContent className="pt-0">
+            />}
+        >
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
@@ -2192,8 +2159,7 @@ export function IntuneTab() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </CollapsibleSection>
       </div>
 
       {/* SECTION: DISCOVERED APP ESTATE */}
@@ -2284,21 +2250,17 @@ export function IntuneTab() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader className="px-4 pt-4 pb-2 flex-row items-start justify-between space-y-0">
-            <div>
-              <CardTitle className="text-base">Discovered App List</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">{appsData?.totalDiscoveredApps ?? 0} apps detected across enrolled devices</p>
-            </div>
-            <ExportBtn
+        <CollapsibleSection
+          title="Discovered App List"
+          description={`${appsData?.totalDiscoveredApps ?? 0} apps detected across enrolled devices`}
+          actions={<ExportBtn
               filename="discovered-apps.csv"
               csvData={(appsData?.discoveredAppList ?? []).map((a) => ({
                 App: a.displayName, Version: a.version ?? "", Platform: a.platform,
                 Status: a.managed ? "Managed" : "Unmanaged", Devices: a.deviceCount,
               }))}
-            />
-          </CardHeader>
-          <CardContent className="pt-0">
+            />}
+        >
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
@@ -2391,8 +2353,7 @@ export function IntuneTab() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </CollapsibleSection>
       </div>
 
       {/* SECTION 4 — INTUNE SECURITY CHECKLIST */}

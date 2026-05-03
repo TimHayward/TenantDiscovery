@@ -2,6 +2,7 @@ import { useGetM365Security } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -884,24 +885,18 @@ export function SecurityTab() {
       </Card>
 
       {/* ── CA Policy detail table ────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base">Conditional Access Policies</CardTitle>
-            {!loading && data?.caPolicies && (
-              <p className="text-xs text-muted-foreground mt-0.5">{data.caPolicies.length} policies total</p>
-            )}
-          </div>
-          <ExportBtn
+      <CollapsibleSection
+        title="Conditional Access Policies"
+        description={!loading && data?.caPolicies ? `${data.caPolicies.length} policies total` : undefined}
+        actions={<ExportBtn
             filename="conditional-access-policies.csv"
             csvData={(data?.caPolicies ?? []).map((p) => ({
               Name: p.displayName, State: p.state, "Target Users": p.targetUsers,
               "Target Apps": p.targetApps, "Auth Requirement": p.authStrength,
               "Last Modified": p.modifiedDateTime ?? "",
             }))}
-          />
-        </CardHeader>
-        <CardContent>
+          />}
+      >
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-64" />
@@ -965,22 +960,13 @@ export function SecurityTab() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
       {/* ── Security Settings (Secure Score Controls) ───────────────────────── */}
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Settings2 className="w-4 h-4 text-muted-foreground" />
-              Security Settings
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {controls.length > 0 ? `${controls.length} Secure Score controls evaluated by Microsoft` : "Secure Score control data"}
-            </p>
-          </div>
-          <ExportBtn
+      <CollapsibleSection
+        title={<><Settings2 className="w-4 h-4 text-muted-foreground" /> Security Settings</>}
+        description={controls.length > 0 ? `${controls.length} Secure Score controls evaluated by Microsoft` : "Secure Score control data"}
+        actions={<ExportBtn
             filename="security-settings.csv"
             csvData={controls.map((c) => ({
               Control: c.controlName,
@@ -990,9 +976,8 @@ export function SecurityTab() {
               Details: c.implementationStatus,
               "Last Synced": c.lastSynced ?? "",
             }))}
-          />
-        </CardHeader>
-        <CardContent>
+          />}
+      >
           {loading ? (
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-3">
@@ -1121,8 +1106,7 @@ export function SecurityTab() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
       {/* SECTION 6 — MICROSOFT DEFENDER / SECURITY CHECKLIST */}
       <ChecklistTable sectionTitle="Microsoft Defender" groups={securityChecklist} loading={loading} />

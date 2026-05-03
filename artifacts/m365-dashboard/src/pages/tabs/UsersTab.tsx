@@ -3,6 +3,7 @@ import { EnterpriseAppsSection } from "@/components/EnterpriseAppsSection";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
@@ -638,26 +639,10 @@ export function UsersTab() {
         </div>
 
         {/* Stale accounts table */}
-        <Card>
-          <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                Stale Account Details
-                {!loading && (
-                  <Badge variant="outline" className="font-normal text-xs ml-1">{staleUsers.length} accounts</Badge>
-                )}
-              </CardTitle>
-              {!loading && staleBucketFilter !== "all" && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Filtered: {BUCKET_META[staleBucketFilter].label} inactive ({filteredStaleUsers.length} users) ·{" "}
-                  <button onClick={() => setStaleBucketFilter("all")} className="underline hover:text-foreground transition-colors">
-                    Show all
-                  </button>
-                </p>
-              )}
-            </div>
-            {exportBtn("stale-accounts.csv", filteredStaleUsers.map((u) => ({
+        <CollapsibleSection
+          title={<><AlertTriangle className="w-4 h-4 text-amber-500" /> Stale Account Details{!loading && <Badge variant="outline" className="font-normal text-xs ml-1">{staleUsers.length} accounts</Badge>}</>}
+          description={!loading && staleBucketFilter !== "all" ? `Filtered: ${BUCKET_META[staleBucketFilter].label} inactive (${filteredStaleUsers.length} users)` : undefined}
+          actions={exportBtn("stale-accounts.csv", filteredStaleUsers.map((u) => ({
               Name: u.displayName,
               UPN: u.userPrincipalName,
               Staleness: BUCKET_META[u.bucket].severity,
@@ -668,8 +653,7 @@ export function UsersTab() {
               Licenses: u.assignedLicenses,
               Department: u.department ?? "",
             })))}
-          </CardHeader>
-          <CardContent>
+        >
             {loading ? (
               <div className="space-y-2">
                 <Skeleton className="h-9 w-64" />
@@ -783,23 +767,18 @@ export function UsersTab() {
                 )}
               </div>
             )}
-          </CardContent>
-        </Card>
+        </CollapsibleSection>
       </div>
 
       {/* ── All Users table ──────────────────────────────────────────────────── */}
-      <div className="space-y-2 pt-2">
-        <h2 className="text-xl font-semibold border-b pb-2">All Users</h2>
-        <Card>
-          <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Directory ({data?.totalUsers ?? "…"} users)</CardTitle>
-            {exportBtn("all-users.csv", (data?.users ?? []).map((u) => ({
-              Name: u.displayName, UPN: u.userPrincipalName, Type: u.userType,
-              MFA: u.mfaEnabled, Licenses: u.assignedLicenses, Department: u.department ?? "",
-              "Last Sign-In": u.lastSignIn ?? "Never", Enabled: u.accountEnabled,
-            })))}
-          </CardHeader>
-          <CardContent>
+      <CollapsibleSection
+        title={`All Users Directory (${data?.totalUsers ?? "…"} users)`}
+        actions={exportBtn("all-users.csv", (data?.users ?? []).map((u) => ({
+            Name: u.displayName, UPN: u.userPrincipalName, Type: u.userType,
+            MFA: u.mfaEnabled, Licenses: u.assignedLicenses, Department: u.department ?? "",
+            "Last Sign-In": u.lastSignIn ?? "Never", Enabled: u.accountEnabled,
+          })))}
+      >
             {loading ? (
               <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
@@ -868,9 +847,7 @@ export function UsersTab() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+      </CollapsibleSection>
 
       {/* ── ENTERPRISE APPLICATIONS ─────────────────────────────────────────── */}
       <EnterpriseAppsSection />

@@ -7,6 +7,7 @@ import type {
 } from "@workspace/api-client-react/src/generated/api.schemas";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -490,17 +491,10 @@ export function DefenderTab() {
       </div>
 
       {/* ── Device List Table ────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base">Device Inventory</CardTitle>
-            {!loading && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {data?.deviceSummary.total ?? 0} devices registered in Azure AD
-              </p>
-            )}
-          </div>
-          <ExportBtn
+      <CollapsibleSection
+        title="Device Inventory"
+        description={!loading ? `${data?.deviceSummary.total ?? 0} devices registered in Azure AD` : undefined}
+        actions={<ExportBtn
             filename="device-inventory.csv"
             csvData={(data?.deviceList ?? []).map((d) => ({
               Name: d.displayName, OS: d.operatingSystem, "Join Type": trustLabel(d.trustType),
@@ -508,9 +502,8 @@ export function DefenderTab() {
               Compliant: d.isCompliant === null ? "N/A" : d.isCompliant ? "Yes" : "No",
               "Last Sign-in": d.approximateLastSignInDateTime ?? "",
             }))}
-          />
-        </CardHeader>
-        <CardContent>
+          />}
+      >
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-64" />
@@ -591,19 +584,13 @@ export function DefenderTab() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
       {/* ── SaaS Apps ────────────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base">Enterprise Applications (SaaS)</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Service principals registered in the tenant — {thirdPartyApps} third-party, {(data?.saasApps.length ?? 0) - thirdPartyApps} Microsoft
-            </p>
-          </div>
-          <ExportBtn
+      <CollapsibleSection
+        title="Enterprise Applications (SaaS)"
+        description={`Service principals registered in the tenant — ${thirdPartyApps} third-party, ${(data?.saasApps.length ?? 0) - thirdPartyApps} Microsoft`}
+        actions={<ExportBtn
             filename="saas-apps.csv"
             csvData={(data?.saasApps ?? []).map((a) => ({
               Name: a.displayName,
@@ -611,9 +598,8 @@ export function DefenderTab() {
               Type: a.isFirstParty ? "Microsoft" : "Third-party",
               Created: a.createdDateTime ?? "",
             }))}
-          />
-        </CardHeader>
-        <CardContent>
+          />}
+      >
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-64" />
@@ -707,19 +693,13 @@ export function DefenderTab() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
       {/* ── OAuth Apps ───────────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base">OAuth Applications</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Apps with delegated permissions granted by users or admins
-            </p>
-          </div>
-          <ExportBtn
+      <CollapsibleSection
+        title="OAuth Applications"
+        description="Apps with delegated permissions granted by users or admins"
+        actions={<ExportBtn
             filename="oauth-apps.csv"
             csvData={(data?.oauthApps ?? []).map((a) => ({
               App: a.displayName,
@@ -727,9 +707,8 @@ export function DefenderTab() {
               "Org-wide": a.isOrgWide ? "Yes" : "No",
               Scopes: a.scopes.join(" "),
             }))}
-          />
-        </CardHeader>
-        <CardContent>
+          />}
+      >
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-64" />
@@ -821,8 +800,7 @@ export function DefenderTab() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
     </div>
   );

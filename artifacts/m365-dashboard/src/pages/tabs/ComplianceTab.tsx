@@ -2,6 +2,7 @@ import { useGetM365Compliance, useGetM365ServiceHealth } from "@workspace/api-cl
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { useTheme } from "next-themes";
@@ -301,15 +302,10 @@ export function ComplianceTab() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-              <div>
-                <CardTitle className="text-base">Sensitivity Labels</CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {compliance?.sensitivityLabelsList.length} labels configured
-                </p>
-              </div>
-              {compliance && compliance.sensitivityLabelsList.length > 0 && (
+          <CollapsibleSection
+            title="Sensitivity Labels"
+            description={`${compliance?.sensitivityLabelsList.length ?? 0} labels configured`}
+            actions={compliance && compliance.sensitivityLabelsList.length > 0 ? (
                 <CSVLink
                   data={compliance.sensitivityLabelsList.map(l => ({
                     Name: l.name,
@@ -329,9 +325,8 @@ export function ComplianceTab() {
                 >
                   <Download className="w-3.5 h-3.5" />
                 </CSVLink>
-              )}
-            </CardHeader>
-            <CardContent>
+              ) : undefined}
+          >
               <div className="space-y-3">
                 <Input
                   placeholder="Search labels..."
@@ -397,8 +392,7 @@ export function ComplianceTab() {
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+          </CollapsibleSection>
         )}
       </div>
 
@@ -412,11 +406,7 @@ export function ComplianceTab() {
           <KPICard title="Active Advisories" value={health?.activeAdvisories} loading={healthLoading} valueColor={health && health.activeAdvisories > 0 ? CHART_COLORS.yellow : CHART_COLORS.green} />
         </div>
 
-        <Card>
-          <CardHeader className="px-4 pt-4 pb-2">
-            <CardTitle className="text-base">All Services Status</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <CollapsibleSection title="All Services Status">
             {healthLoading ? (
               <div className="space-y-2 mt-2">
                 {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
@@ -456,8 +446,7 @@ export function ComplianceTab() {
                 </p>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </CollapsibleSection>
       </div>
 
       {/* SECTION 7 — PURVIEW / COMPLIANCE SECURITY CHECKLIST */}

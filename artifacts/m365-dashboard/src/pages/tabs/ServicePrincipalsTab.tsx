@@ -3,6 +3,7 @@ import { useGetM365ServicePrincipals } from "@workspace/api-client-react";
 import type { ServicePrincipalItem, SpConsentGrant } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -440,18 +441,10 @@ export function ServicePrincipalsTab() {
       </div>
 
       {/* Main table card */}
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2 flex-row items-start justify-between space-y-0 flex-wrap gap-3">
-          <div>
-            <CardTitle className="text-base">Enterprise Apps & Service Principals</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Consent grants, assigned users, and sign-in activity for all service principals.
-              Click expand for details.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2 items-center">
-            {/* View filter pills */}
+      <CollapsibleSection
+        title="Enterprise Apps & Service Principals"
+        description="Consent grants, assigned users, and sign-in activity for all service principals. Click expand for details."
+        actions={<div className="flex flex-wrap gap-2 items-center">
             <div className="flex gap-1.5 flex-wrap">
               {(
                 [
@@ -474,8 +467,6 @@ export function ServicePrincipalsTab() {
                 </button>
               ))}
             </div>
-
-            {/* Risk filter pills */}
             <div className="flex gap-1 flex-wrap">
               {(["all", "high", "medium", "low"] as const).map((r) => {
                 const rLabel = { all: "All Risk", high: `High (${riskCounts.high})`, medium: `Med (${riskCounts.medium})`, low: `Low (${riskCounts.low})` };
@@ -494,10 +485,8 @@ export function ServicePrincipalsTab() {
                 );
               })}
             </div>
-          </div>
-        </CardHeader>
-
-        <CardContent>
+          </div>}
+      >
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-8 w-64" />
@@ -580,8 +569,7 @@ export function ServicePrincipalsTab() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
       {/* Consent & security summary cards */}
       {!loading && (

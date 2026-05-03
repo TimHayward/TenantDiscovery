@@ -1,6 +1,7 @@
 import { useGetM365Licenses } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { CSVLink } from "react-csv";
@@ -199,11 +200,7 @@ export function LicensesTab() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2">
-          <CardTitle className="text-base">License Subscriptions</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CollapsibleSection title="License Subscriptions">
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
@@ -269,8 +266,7 @@ export function LicensesTab() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
     </div>
   );
 }
