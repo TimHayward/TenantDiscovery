@@ -1,16 +1,19 @@
 import { Router } from "express";
-import { getCached } from "../lib/graphClient.js";
+import { cache, getCached } from "../lib/graphClient.js";
 
 const router = Router();
 
-async function fetchWithToken(url: string): Promise<any> {
+async function fetchWithToken(
+  url: string,
+  scope = "https://graph.microsoft.com/.default"
+): Promise<any> {
   const { ClientSecretCredential } = await import("@azure/identity");
   const cred = new ClientSecretCredential(
     process.env.AZURE_TENANT_ID!,
     process.env.AZURE_CLIENT_ID!,
     process.env.AZURE_CLIENT_SECRET!
   );
-  const token = await cred.getToken("https://graph.microsoft.com/.default");
+  const token = await cred.getToken(scope);
   const resp = await fetch(url, {
     headers: { Authorization: `Bearer ${token!.token}` },
   });
@@ -18,16 +21,86 @@ async function fetchWithToken(url: string): Promise<any> {
   return resp.json();
 }
 
-async function fetchAllPages(firstUrl: string): Promise<any[]> {
+async function fetchAllPages(
+  firstUrl: string,
+  scope = "https://graph.microsoft.com/.default"
+): Promise<any[]> {
   const results: any[] = [];
   let url: string | null = firstUrl;
   while (url) {
-    const page: any = await fetchWithToken(url);
+    const page: any = await fetchWithToken(url, scope);
     if (!page || !page.value) break;
     results.push(...page.value);
     url = page["@odata.nextLink"] ?? null;
   }
   return results;
+}
+
+async function fetchDefenderMachinesWithDiagnostics(): Promise<{
+  machines: any[];
+  status: number | null;
+  error: string | null;
+  scope: string | null;
+}> {
+  const { ClientSecretCredential } = await import("@azure/identity");
+  const cred = new ClientSecretCredential(
+    process.env.AZURE_TENANT_ID!,
+    process.env.AZURE_CLIENT_ID!,
+    process.env.AZURE_CLIENT_SECRET!
+  );
+  const defenderScopes = [
+    "https://api.securitycenter.microsoft.com/.default",
+    "https://api.security.microsoft.com/.default",
+  ];
+
+  let token: { token: string } | null = null;
+  let usedScope: string | null = null;
+  for (const scope of defenderScopes) {
+    try {
+      const candidate = await cred.getToken(scope);
+      if (candidate?.token) {
+        token = { token: candidate.token };
+        usedScope = scope;
+        break;
+      }
+    } catch {
+      // Try next scope alias.
+    }
+  }
+
+  if (!token) {
+    return {
+      machines: [],
+      status: null,
+      error: "Failed to acquire Defender token for known scopes.",
+      scope: null,
+    };
+  }
+
+  const machines: any[] = [];
+  let url: string | null = "https://api.security.microsoft.com/api/machines?$top=10000";
+  let lastStatus: number | null = null;
+
+  while (url) {
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${token.token}` },
+    });
+    lastStatus = resp.status;
+    if (!resp.ok) {
+      const body = await resp.text();
+      return {
+        machines: [],
+        status: resp.status,
+        error: body.slice(0, 500),
+        scope: usedScope,
+      };
+    }
+    const page: any = await resp.json();
+    if (Array.isArray(page.value)) machines.push(...page.value);
+    url = page["@odata.nextLink"] ?? page.nextLink ?? null;
+  }
+
+  return { machines, status: lastStatus, error: null, scope: usedScope };
 }
 
 function summariseUsers(users: any): string {
@@ -302,13 +375,23 @@ const MICROSOFT_TENANT_ID = "f8cdef31-a31e-4b4a-93e4-5f571e91255a";
 
 router.get("/m365/security/estate", async (req, res): Promise<void> => {
   try {
+    const refreshRequested = req.query.refresh === "1";
+    if (refreshRequested) {
+      cache.del("m365-security-estate");
+    }
+
     const data = await getCached("m365-security-estate", async () => {
-      const [devicesRaw, servicePrincipalsRaw, oauthGrantsRaw] = await Promise.all([
+      const [devicesRaw, managedDevicesRaw, servicePrincipalsRaw, oauthGrantsRaw, mdeResult] = await Promise.all([
         fetchAllPages(
           "https://graph.microsoft.com/v1.0/devices" +
           "?$select=id,displayName,operatingSystem,operatingSystemVersion,trustType,isManaged,isCompliant,managementType,approximateLastSignInDateTime" +
           "&$top=999"
         ),
+        fetchAllPages(
+          "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices" +
+          "?$select=id,deviceName,azureADDeviceId,operatingSystem,osVersion,lastSyncDateTime,managementAgent,complianceState" +
+          "&$top=999"
+        ).catch(() => []),
         fetchAllPages(
           "https://graph.microsoft.com/v1.0/servicePrincipals" +
           "?$select=id,displayName,appId,publisherName,servicePrincipalType,appOwnerOrganizationId,createdDateTime,tags" +
@@ -319,7 +402,32 @@ router.get("/m365/security/estate", async (req, res): Promise<void> => {
           "?$select=clientId,consentType,principalId,scope" +
           "&$top=999"
         ),
+        // Defender for Endpoint machine inventory can include devices not present in Entra /devices.
+        fetchDefenderMachinesWithDiagnostics(),
       ]);
+
+      const mdeMachinesRaw = mdeResult.machines;
+
+      const mdeDeviceInventory = mdeMachinesRaw.map((m: any) => ({
+        id:
+          (m.aadDeviceId as string | undefined) ??
+          `mde:${(m.id as string | undefined) ?? Math.random().toString(36).slice(2)}`,
+        displayName:
+          (m.computerDnsName as string | undefined) ??
+          (m.deviceName as string | undefined) ??
+          (m.id as string | undefined) ??
+          "Unknown",
+        operatingSystem:
+          (m.osPlatform as string | undefined) ??
+          (m.osProcessor as string | undefined) ??
+          "Unknown",
+        operatingSystemVersion: (m.osVersion as string | undefined) ?? null,
+        trustType: null as string | null,
+        isManaged: true,
+        isCompliant: null as boolean | null,
+        managementType: "MicrosoftSense" as string | null,
+        approximateLastSignInDateTime: (m.lastSeen as string | undefined) ?? null,
+      }));
 
       // Build SP name map for resolving OAuth client names
       const spNameMap = new Map<string, string>();
@@ -340,8 +448,98 @@ router.get("/m365/security/estate", async (req, res): Promise<void> => {
         approximateLastSignInDateTime: (d.approximateLastSignInDateTime as string) ?? null,
       }));
 
+      const normalizeName = (s: string | null | undefined) =>
+        (s ?? "").trim().toLowerCase();
+
+      // Merge Intune-managed devices, including records that may not exist in /devices.
+      const byId = new Map(deviceList.map((d) => [d.id, d]));
+      const byName = new Map(
+        deviceList
+          .map((d) => [normalizeName(d.displayName), d] as const)
+          .filter(([name]) => name.length > 0)
+      );
+      for (const md of managedDevicesRaw) {
+        const aadDeviceId = (md.azureADDeviceId as string | undefined) ?? null;
+        const deviceName = (md.deviceName as string | undefined) ?? "Unknown";
+        const existingByName = byName.get(normalizeName(deviceName));
+        const id = aadDeviceId ?? `intune:${(md.id as string) ?? Math.random().toString(36).slice(2)}`;
+        const existing = byId.get(id) ?? (!aadDeviceId ? existingByName : undefined);
+        const complianceState = (md.complianceState as string | undefined)?.toLowerCase() ?? "unknown";
+        const inferredCompliance =
+          complianceState === "compliant" ? true :
+          complianceState === "noncompliant" ? false :
+          null;
+        if (existing) {
+          existing.isManaged = true;
+          if (!existing.managementType) existing.managementType = "MDM";
+          if (existing.isCompliant === null) existing.isCompliant = inferredCompliance;
+          if (!existing.approximateLastSignInDateTime) {
+            existing.approximateLastSignInDateTime =
+              (md.lastSyncDateTime as string | undefined) ?? existing.approximateLastSignInDateTime;
+          }
+          continue;
+        }
+
+        const merged = {
+          id,
+          displayName: deviceName,
+          operatingSystem: (md.operatingSystem as string | undefined) ?? "Unknown",
+          operatingSystemVersion: (md.osVersion as string | undefined) ?? null,
+          trustType: null as string | null,
+          isManaged: true,
+          isCompliant: inferredCompliance,
+          managementType: "MDM" as string | null,
+          approximateLastSignInDateTime: (md.lastSyncDateTime as string | undefined) ?? null,
+        };
+        deviceList.push(merged);
+        byId.set(merged.id, merged);
+        const normalizedName = normalizeName(merged.displayName);
+        if (normalizedName.length > 0) byName.set(normalizedName, merged);
+      }
+
+      // Merge Defender machines, including Defender-only devices that do not exist in /devices.
+      for (const m of mdeMachinesRaw) {
+        const aadDeviceId = (m.aadDeviceId as string | undefined) ?? null;
+        const mdeDisplayName =
+          (m.computerDnsName as string | undefined) ??
+          (m.deviceName as string | undefined) ??
+          (m.id as string | undefined) ??
+          "Unknown";
+        const existingByName = byName.get(normalizeName(mdeDisplayName));
+        const id = aadDeviceId ?? `mde:${(m.id as string) ?? Math.random().toString(36).slice(2)}`;
+        const existing = byId.get(id) ?? (!aadDeviceId ? existingByName : undefined);
+        if (existing) {
+          existing.managementType = "MicrosoftSense";
+          existing.isManaged = true;
+          if (!existing.approximateLastSignInDateTime) {
+            existing.approximateLastSignInDateTime =
+              (m.lastSeen as string | undefined) ?? existing.approximateLastSignInDateTime;
+          }
+          continue;
+        }
+
+        const merged = {
+          id,
+          displayName: mdeDisplayName,
+          operatingSystem:
+            (m.osPlatform as string | undefined) ??
+            (m.osProcessor as string | undefined) ??
+            "Unknown",
+          operatingSystemVersion: (m.osVersion as string | undefined) ?? null,
+          trustType: null as string | null,
+          isManaged: true,
+          isCompliant: null as boolean | null,
+          managementType: "MicrosoftSense" as string | null,
+          approximateLastSignInDateTime: (m.lastSeen as string | undefined) ?? null,
+        };
+        deviceList.push(merged);
+        byId.set(merged.id, merged);
+        const normalizedName = normalizeName(merged.displayName);
+        if (normalizedName.length > 0) byName.set(normalizedName, merged);
+      }
+
       const managed = deviceList.filter((d) => d.isManaged || !!d.managementType).length;
-      const mde     = deviceList.filter((d) => d.managementType === "MicrosoftSense").length;
+      const mde     = mdeDeviceInventory.length;
       const azureAdJoined = deviceList.filter((d) => d.trustType === "AzureAd").length;
       const hybridJoined  = deviceList.filter((d) => d.trustType === "ServerAd").length;
       const registered    = deviceList.filter((d) => d.trustType === "Workplace").length;
@@ -409,7 +607,15 @@ router.get("/m365/security/estate", async (req, res): Promise<void> => {
       const oauthApps = Array.from(oauthMap.values())
         .sort((a, b) => (a.isOrgWide === b.isOrgWide ? 0 : a.isOrgWide ? -1 : 1));
 
-      return { deviceSummary, deviceList, saasApps, oauthApps };
+      const mdeStatus = {
+        ok: !mdeResult.error,
+        status: mdeResult.status,
+        count: mdeMachinesRaw.length,
+        scope: mdeResult.scope,
+        error: mdeResult.error,
+      };
+
+      return { deviceSummary, deviceList, mdeDeviceInventory, mdeStatus, saasApps, oauthApps };
     });
 
     res.json(data);

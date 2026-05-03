@@ -12,9 +12,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CSVLink } from "react-csv";
 import {
-  Download, Monitor, ShieldCheck, ShieldAlert, Globe, Lock, AlertTriangle, Building2,
+  Download, Monitor, ShieldCheck, ShieldAlert, Globe, Lock, AlertTriangle, Building2, ChevronDown,
 } from "lucide-react";
 import {
   useReactTable, getCoreRowModel, getSortedRowModel,
@@ -61,6 +70,12 @@ function trustLabel(t: string | null): string {
 function mgmtLabel(t: string | null, isManaged: boolean): string {
   if (t) return MGMT_LABELS[t] ?? t;
   return isManaged ? "Managed" : "Unmanaged";
+}
+
+function complianceFilterKey(v: boolean | null | undefined): "compliant" | "noncompliant" | "unknown" {
+  if (v === true) return "compliant";
+  if (v === false) return "noncompliant";
+  return "unknown";
 }
 
 // ── small helpers ─────────────────────────────────────────────────────────────
@@ -289,6 +304,10 @@ const oauthColumns: ColumnDef<OAuthAppItem>[] = [
 
 export function DefenderTab() {
   const { data, isLoading, isFetching } = useGetM365SecurityEstate();
+  const estateData = data as unknown as {
+    mdeDeviceInventory?: DeviceEstateItem[];
+    mdeStatus?: { ok: boolean; status: number | null; count: number; error: string | null };
+  } | undefined;
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const loading = isLoading || isFetching;
@@ -299,12 +318,92 @@ export function DefenderTab() {
   const [deviceFilter, setDeviceFilter] = useState("");
   const [deviceSorting, setDeviceSorting] = useState<SortingState>([]);
   const [showUnmanagedOnly, setShowUnmanagedOnly] = useState(false);
+  const [selectedComplianceFilters, setSelectedComplianceFilters] = useState<Array<"compliant" | "noncompliant" | "unknown">>([]);
+  const [selectedJoinTypeFilters, setSelectedJoinTypeFilters] = useState<string[]>([]);
+  const [selectedManagementFilters, setSelectedManagementFilters] = useState<string[]>([]);
+
+  const complianceOptions = useMemo(() => {
+    const counts = new Map<"compliant" | "noncompliant" | "unknown", number>([
+      ["compliant", 0],
+      ["noncompliant", 0],
+      ["unknown", 0],
+    ]);
+    for (const d of data?.deviceList ?? []) {
+      const key = complianceFilterKey(d.isCompliant);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return [
+      { key: "compliant" as const, label: "Compliant", count: counts.get("compliant") ?? 0 },
+      { key: "noncompliant" as const, label: "Non-compliant", count: counts.get("noncompliant") ?? 0 },
+      { key: "unknown" as const, label: "Unknown", count: counts.get("unknown") ?? 0 },
+    ];
+  }, [data?.deviceList]);
+
+  const joinTypeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const d of data?.deviceList ?? []) {
+      const key = d.trustType ?? "unknown";
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([key, count]) => ({
+        key,
+        label: key === "unknown" ? "Unknown" : trustLabel(key),
+        count,
+      }));
+  }, [data?.deviceList]);
+
+  const managementOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const d of data?.deviceList ?? []) {
+      const key = d.managementType ?? (d.isManaged ? "managed" : "unmanaged");
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([key, count]) => ({
+        key,
+        label: key === "managed" ? "Managed" : key === "unmanaged" ? "Unmanaged" : (MGMT_LABELS[key] ?? key),
+        count,
+      }));
+  }, [data?.deviceList]);
+
+  const toggleComplianceFilter = (key: "compliant" | "noncompliant" | "unknown") => {
+    setSelectedComplianceFilters((prev) =>
+      prev.includes(key) ? prev.filter((v) => v !== key) : [...prev, key],
+    );
+  };
+
+  const toggleJoinTypeFilter = (key: string) => {
+    setSelectedJoinTypeFilters((prev) =>
+      prev.includes(key) ? prev.filter((v) => v !== key) : [...prev, key],
+    );
+  };
+
+  const toggleManagementFilter = (key: string) => {
+    setSelectedManagementFilters((prev) =>
+      prev.includes(key) ? prev.filter((v) => v !== key) : [...prev, key],
+    );
+  };
 
   const filteredDevices = useMemo(() => {
     let devs = data?.deviceList ?? [];
     if (showUnmanagedOnly) devs = devs.filter((d) => !d.isManaged && !d.managementType);
+    if (selectedComplianceFilters.length > 0) {
+      devs = devs.filter((d) => selectedComplianceFilters.includes(complianceFilterKey(d.isCompliant)));
+    }
+    if (selectedJoinTypeFilters.length > 0) {
+      devs = devs.filter((d) => selectedJoinTypeFilters.includes(d.trustType ?? "unknown"));
+    }
+    if (selectedManagementFilters.length > 0) {
+      devs = devs.filter((d) => {
+        const key = d.managementType ?? (d.isManaged ? "managed" : "unmanaged");
+        return selectedManagementFilters.includes(key);
+      });
+    }
     return devs;
-  }, [data?.deviceList, showUnmanagedOnly]);
+  }, [data?.deviceList, showUnmanagedOnly, selectedComplianceFilters, selectedJoinTypeFilters, selectedManagementFilters]);
 
   const deviceTable = useReactTable({
     data: filteredDevices,
@@ -312,6 +411,45 @@ export function DefenderTab() {
     state: { sorting: deviceSorting, globalFilter: deviceFilter },
     onSortingChange: setDeviceSorting,
     onGlobalFilterChange: setDeviceFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 20 } },
+  });
+
+  // ── Defender for Endpoint inventory table state ──
+  const [mdeDeviceFilter, setMdeDeviceFilter] = useState("");
+  const [mdeDeviceSorting, setMdeDeviceSorting] = useState<SortingState>([]);
+
+  const mdeInventoryDevices = useMemo(() => {
+    if (estateData && Object.prototype.hasOwnProperty.call(estateData, "mdeDeviceInventory")) {
+      return Array.isArray(estateData.mdeDeviceInventory) ? estateData.mdeDeviceInventory : [];
+    }
+    return (data?.deviceList ?? []).filter((d) => d.managementType === "MicrosoftSense");
+  }, [data, estateData]);
+
+  const mdeStatus = estateData?.mdeStatus;
+
+  const mdeInventoryStatus = useMemo(() => {
+    if (loading) {
+      return { label: "Loading", className: "bg-muted text-muted-foreground border-0" };
+    }
+    if (mdeStatus?.ok === false) {
+      return { label: `Auth Error (${mdeStatus.status ?? "?"})`, className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-0" };
+    }
+    if (mdeInventoryDevices.length === 0) {
+      return { label: "Empty", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-0" };
+    }
+    return { label: "Live", className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-0" };
+  }, [loading, mdeStatus, mdeInventoryDevices.length]);
+
+  const mdeDeviceTable = useReactTable({
+    data: mdeInventoryDevices,
+    columns: deviceColumns,
+    state: { sorting: mdeDeviceSorting, globalFilter: mdeDeviceFilter },
+    onSortingChange: setMdeDeviceSorting,
+    onGlobalFilterChange: setMdeDeviceFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -519,6 +657,84 @@ export function DefenderTab() {
                   onChange={(e) => setDeviceFilter(e.target.value)}
                   className="max-w-xs"
                 />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      Compliance
+                      {selectedComplianceFilters.length > 0 ? ` (${selectedComplianceFilters.length})` : ""}
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    <DropdownMenuLabel>Compliance</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setSelectedComplianceFilters([]); }}>
+                      All
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {complianceOptions.map((opt) => (
+                      <DropdownMenuCheckboxItem
+                        key={opt.key}
+                        checked={selectedComplianceFilters.includes(opt.key)}
+                        onCheckedChange={() => toggleComplianceFilter(opt.key)}
+                      >
+                        {opt.label} ({opt.count})
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      Join type
+                      {selectedJoinTypeFilters.length > 0 ? ` (${selectedJoinTypeFilters.length})` : ""}
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    <DropdownMenuLabel>Join Type</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setSelectedJoinTypeFilters([]); }}>
+                      All
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {joinTypeOptions.map((opt) => (
+                      <DropdownMenuCheckboxItem
+                        key={opt.key}
+                        checked={selectedJoinTypeFilters.includes(opt.key)}
+                        onCheckedChange={() => toggleJoinTypeFilter(opt.key)}
+                      >
+                        {opt.label} ({opt.count})
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      Management
+                      {selectedManagementFilters.length > 0 ? ` (${selectedManagementFilters.length})` : ""}
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    <DropdownMenuLabel>Management</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setSelectedManagementFilters([]); }}>
+                      All
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {managementOptions.map((opt) => (
+                      <DropdownMenuCheckboxItem
+                        key={opt.key}
+                        checked={selectedManagementFilters.includes(opt.key)}
+                        onCheckedChange={() => toggleManagementFilter(opt.key)}
+                      >
+                        {opt.label} ({opt.count})
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 <div className="flex gap-2 text-sm">
                   <button
                     onClick={() => setShowUnmanagedOnly(false)}
@@ -581,6 +797,106 @@ export function DefenderTab() {
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => deviceTable.previousPage()} disabled={!deviceTable.getCanPreviousPage()}>Previous</Button>
                   <Button variant="outline" size="sm" onClick={() => deviceTable.nextPage()} disabled={!deviceTable.getCanNextPage()}>Next</Button>
+                </div>
+              </div>
+            </div>
+          )}
+      </CollapsibleSection>
+
+      {/* ── Defender for Endpoint Device Inventory ─────────────────────────── */}
+      <CollapsibleSection
+        title={
+          <div className="flex items-center gap-2">
+            <span>Defender for Endpoint Device Inventory</span>
+            <Badge className={`font-normal text-xs ${mdeInventoryStatus.className}`}>
+              {mdeInventoryStatus.label}
+            </Badge>
+          </div>
+        }
+        storageKey="defender-mde-device-inventory"
+        description={!loading ? `${mdeInventoryDevices.length} devices identified by Defender for Endpoint` : undefined}
+        actions={<ExportBtn
+            filename="defender-endpoint-device-inventory.csv"
+            csvData={mdeInventoryDevices.map((d) => ({
+              Name: d.displayName,
+              OS: d.operatingSystem,
+              "Join Type": trustLabel(d.trustType),
+              Management: mgmtLabel(d.managementType, d.isManaged),
+              Compliant: d.isCompliant === null ? "N/A" : d.isCompliant ? "Yes" : "No",
+              "Last Sign-in": d.approximateLastSignInDateTime ?? "",
+            }))}
+          />}
+      >
+          {loading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-64" />
+              {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {mdeStatus?.ok === false && (
+                <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                      Defender API access is failing (HTTP {mdeStatus.status ?? "unknown"}).
+                    </p>
+                    <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-0.5">
+                      This table only shows live Defender machine inventory and will remain empty until Defender Machine.Read permission is granted to this app and admin consented.
+                    </p>
+                  </div>
+                </div>
+              )}
+              <Input
+                placeholder="Search Defender devices…"
+                value={mdeDeviceFilter}
+                onChange={(e) => setMdeDeviceFilter(e.target.value)}
+                className="max-w-xs"
+              />
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    {mdeDeviceTable.getHeaderGroups().map((hg) => (
+                      <TableRow key={hg.id}>
+                        {hg.headers.map((header) => (
+                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
+                            <div className="flex items-center gap-1">
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                              {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                            </div>
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {mdeDeviceTable.getRowModel().rows.length > 0 ? (
+                      mdeDeviceTable.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} className="py-2">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={deviceColumns.length} className="h-16 text-center text-muted-foreground">
+                          {mdeStatus?.ok === false ? "No live Defender inventory returned (authorization or scope issue)." : "No Defender-managed devices found."}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {mdeDeviceTable.getFilteredRowModel().rows.length} device{mdeDeviceTable.getFilteredRowModel().rows.length !== 1 ? "s" : ""}
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => mdeDeviceTable.previousPage()} disabled={!mdeDeviceTable.getCanPreviousPage()}>Previous</Button>
+                  <Button variant="outline" size="sm" onClick={() => mdeDeviceTable.nextPage()} disabled={!mdeDeviceTable.getCanNextPage()}>Next</Button>
                 </div>
               </div>
             </div>
