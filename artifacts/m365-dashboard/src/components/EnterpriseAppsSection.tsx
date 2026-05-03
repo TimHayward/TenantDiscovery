@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useGetM365Apps } from "@workspace/api-client-react";
 import type { AppRegistration, AppCredential, AppPermission } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
@@ -664,9 +664,8 @@ export function EnterpriseAppsSection() {
                   <TableBody>
                     {appTable.getRowModel().rows.length > 0 ? (
                       appTable.getRowModel().rows.map((row) => (
-                        <>
+                        <React.Fragment key={row.id}>
                           <TableRow
-                            key={row.id}
                             className={
                               row.original.riskLevel === "high"
                                 ? "bg-red-50/40 dark:bg-red-950/10"
@@ -689,7 +688,7 @@ export function EnterpriseAppsSection() {
                               </TableCell>
                             </TableRow>
                           )}
-                        </>
+                        </React.Fragment>
                       ))
                     ) : (
                       <TableRow>

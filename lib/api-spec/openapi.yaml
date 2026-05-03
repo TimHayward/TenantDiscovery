@@ -169,6 +169,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365AppsData"
 
+  /m365/service-principals:
+    get:
+      operationId: getM365ServicePrincipals
+      tags: [m365]
+      summary: Service principals (enterprise apps) with consent grants and sign-in activity
+      responses:
+        "200":
+          description: Service principals data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365ServicePrincipalsData"
+
 components:
   schemas:
     HealthStatus:
@@ -1304,3 +1317,124 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AppRegistration"
+
+    SpConsentGrant:
+      type: object
+      required: [consentType, resourceId, resourceName, scopes, isHighRisk]
+      properties:
+        consentType:
+          type: string
+          enum: [AllPrincipals, Principal]
+        principalId:
+          type: string
+          nullable: true
+        resourceId:
+          type: string
+        resourceName:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        isHighRisk:
+          type: boolean
+
+    ServicePrincipalItem:
+      type: object
+      required:
+        - id
+        - appId
+        - displayName
+        - servicePrincipalType
+        - accountEnabled
+        - tags
+        - consentGrants
+        - hasHighRiskGrants
+        - assignedUserCount
+        - assignedGroupCount
+        - isAdminConsented
+        - isFirstParty
+        - riskLevel
+        - riskScore
+        - riskFactors
+      properties:
+        id:
+          type: string
+        appId:
+          type: string
+        displayName:
+          type: string
+        publisherName:
+          type: string
+          nullable: true
+        servicePrincipalType:
+          type: string
+        accountEnabled:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        homepage:
+          type: string
+          nullable: true
+        lastSignInDateTime:
+          type: string
+          nullable: true
+        consentGrants:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpConsentGrant"
+        hasHighRiskGrants:
+          type: boolean
+        assignedUserCount:
+          type: integer
+        assignedGroupCount:
+          type: integer
+        isAdminConsented:
+          type: boolean
+        isFirstParty:
+          type: boolean
+        riskLevel:
+          type: string
+          enum: [high, medium, low]
+        riskScore:
+          type: integer
+        riskFactors:
+          type: array
+          items:
+            type: string
+
+    M365ServicePrincipalsData:
+      type: object
+      required:
+        - total
+        - applicationCount
+        - managedIdentityCount
+        - microsoftOwnedCount
+        - thirdPartyCount
+        - disabledCount
+        - withHighRiskGrants
+        - permissionError
+        - servicePrincipals
+      properties:
+        total:
+          type: integer
+        applicationCount:
+          type: integer
+        managedIdentityCount:
+          type: integer
+        microsoftOwnedCount:
+          type: integer
+        thirdPartyCount:
+          type: integer
+        disabledCount:
+          type: integer
+        withHighRiskGrants:
+          type: integer
+        permissionError:
+          type: boolean
+        servicePrincipals:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServicePrincipalItem"

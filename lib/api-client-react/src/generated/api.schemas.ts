@@ -474,3 +474,62 @@ export interface M365AppsData {
   permissionError: boolean;
   apps: AppRegistration[];
 }
+
+export type SpConsentGrantConsentType =
+  (typeof SpConsentGrantConsentType)[keyof typeof SpConsentGrantConsentType];
+
+export const SpConsentGrantConsentType = {
+  AllPrincipals: "AllPrincipals",
+  Principal: "Principal",
+} as const;
+
+export interface SpConsentGrant {
+  consentType: SpConsentGrantConsentType;
+  principalId?: string | null;
+  resourceId: string;
+  resourceName: string;
+  scopes: string[];
+  isHighRisk: boolean;
+}
+
+export type ServicePrincipalItemRiskLevel =
+  (typeof ServicePrincipalItemRiskLevel)[keyof typeof ServicePrincipalItemRiskLevel];
+
+export const ServicePrincipalItemRiskLevel = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export interface ServicePrincipalItem {
+  id: string;
+  appId: string;
+  displayName: string;
+  publisherName?: string | null;
+  servicePrincipalType: string;
+  accountEnabled: boolean;
+  tags: string[];
+  homepage?: string | null;
+  lastSignInDateTime?: string | null;
+  consentGrants: SpConsentGrant[];
+  hasHighRiskGrants: boolean;
+  assignedUserCount: number;
+  assignedGroupCount: number;
+  isAdminConsented: boolean;
+  isFirstParty: boolean;
+  riskLevel: ServicePrincipalItemRiskLevel;
+  riskScore: number;
+  riskFactors: string[];
+}
+
+export interface M365ServicePrincipalsData {
+  total: number;
+  applicationCount: number;
+  managedIdentityCount: number;
+  microsoftOwnedCount: number;
+  thirdPartyCount: number;
+  disabledCount: number;
+  withHighRiskGrants: number;
+  permissionError: boolean;
+  servicePrincipals: ServicePrincipalItem[];
+}

@@ -505,3 +505,48 @@ export const GetM365AppsResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary Service principals (enterprise apps) with consent grants and sign-in activity
+ */
+export const GetM365ServicePrincipalsResponse = zod.object({
+  total: zod.number(),
+  applicationCount: zod.number(),
+  managedIdentityCount: zod.number(),
+  microsoftOwnedCount: zod.number(),
+  thirdPartyCount: zod.number(),
+  disabledCount: zod.number(),
+  withHighRiskGrants: zod.number(),
+  permissionError: zod.boolean(),
+  servicePrincipals: zod.array(
+    zod.object({
+      id: zod.string(),
+      appId: zod.string(),
+      displayName: zod.string(),
+      publisherName: zod.string().nullish(),
+      servicePrincipalType: zod.string(),
+      accountEnabled: zod.boolean(),
+      tags: zod.array(zod.string()),
+      homepage: zod.string().nullish(),
+      lastSignInDateTime: zod.string().nullish(),
+      consentGrants: zod.array(
+        zod.object({
+          consentType: zod.enum(["AllPrincipals", "Principal"]),
+          principalId: zod.string().nullish(),
+          resourceId: zod.string(),
+          resourceName: zod.string(),
+          scopes: zod.array(zod.string()),
+          isHighRisk: zod.boolean(),
+        }),
+      ),
+      hasHighRiskGrants: zod.boolean(),
+      assignedUserCount: zod.number(),
+      assignedGroupCount: zod.number(),
+      isAdminConsented: zod.boolean(),
+      isFirstParty: zod.boolean(),
+      riskLevel: zod.enum(["high", "medium", "low"]),
+      riskScore: zod.number(),
+      riskFactors: zod.array(zod.string()),
+    }),
+  ),
+});

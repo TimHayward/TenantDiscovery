@@ -23,6 +23,7 @@ import type {
   M365Overview,
   M365SecurityData,
   M365ServiceHealthData,
+  M365ServicePrincipalsData,
   M365SharePointData,
   M365TeamsData,
   M365UsersData,
@@ -929,6 +930,85 @@ export function useGetM365Apps<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetM365AppsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Service principals (enterprise apps) with consent grants and sign-in activity
+ */
+export const getGetM365ServicePrincipalsUrl = () => {
+  return `/api/m365/service-principals`;
+};
+
+export const getM365ServicePrincipals = async (
+  options?: RequestInit,
+): Promise<M365ServicePrincipalsData> => {
+  return customFetch<M365ServicePrincipalsData>(
+    getGetM365ServicePrincipalsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetM365ServicePrincipalsQueryKey = () => {
+  return [`/api/m365/service-principals`] as const;
+};
+
+export const getGetM365ServicePrincipalsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365ServicePrincipals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365ServicePrincipals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetM365ServicePrincipalsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getM365ServicePrincipals>>
+  > = ({ signal }) => getM365ServicePrincipals({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365ServicePrincipals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365ServicePrincipalsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365ServicePrincipals>>
+>;
+export type GetM365ServicePrincipalsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Service principals (enterprise apps) with consent grants and sign-in activity
+ */
+
+export function useGetM365ServicePrincipals<
+  TData = Awaited<ReturnType<typeof getM365ServicePrincipals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365ServicePrincipals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365ServicePrincipalsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
