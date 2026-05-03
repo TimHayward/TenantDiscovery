@@ -1017,11 +1017,12 @@ export function IntuneTab() {
 
   const installByPlatformChart = useMemo(() =>
     (appsData?.installByPlatform ?? []).map((p) => ({
-      platform:        p.platform,
-      Installed:       p.installed,
-      Failed:          p.failed,
-      Pending:         p.pending,
-      "Not Installed": p.notInstalled,
+      platform:          p.platform,
+      Installed:         p.installed,
+      Failed:            p.failed,
+      Pending:           p.pending,
+      "Not Installed":   p.notInstalled,
+      "Not Applicable":  p.notApplicable,
     })),
   [appsData]);
 
@@ -2083,10 +2084,11 @@ export function IntuneTab() {
                     <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
                     <Tooltip isAnimationActive={false} />
                     <Legend />
-                    <Bar dataKey="Installed"     fill={C.green}  fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} stackId="a" />
-                    <Bar dataKey="Failed"        fill={C.red}    fillOpacity={0.85} isAnimationActive={false} stackId="a" />
-                    <Bar dataKey="Pending"       fill={C.yellow} fillOpacity={0.85} isAnimationActive={false} stackId="a" />
-                    <Bar dataKey="Not Installed" fill={C.orange} fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} stackId="a" />
+                    <Bar dataKey="Installed"      fill={C.green}  fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} stackId="a" />
+                    <Bar dataKey="Failed"         fill={C.red}    fillOpacity={0.85} isAnimationActive={false} stackId="a" />
+                    <Bar dataKey="Pending"        fill={C.yellow} fillOpacity={0.85} isAnimationActive={false} stackId="a" />
+                    <Bar dataKey="Not Installed"  fill={C.orange} fillOpacity={0.85} isAnimationActive={false} stackId="a" />
+                    <Bar dataKey="Not Applicable" fill={C.gray}   fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} stackId="a" />
                   </BarChart>
                 </ResponsiveContainer>
               )}
