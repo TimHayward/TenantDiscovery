@@ -11,7 +11,7 @@ import {
 import { CSVLink } from "react-csv";
 import {
   Download, ShieldCheck, ShieldAlert, Monitor, Smartphone,
-  Apple, AlertTriangle, CheckCircle2, XCircle, Clock, Info, Search, X, ChevronDown,
+  Apple, AlertTriangle, CheckCircle2, XCircle, Clock, Info, Search, X, ChevronDown, ClipboardList,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatDate } from "@/lib/utils";
@@ -60,6 +60,49 @@ const COMPLIANCE_COLORS: Record<string, string> = {
   inGracePeriod: C.yellow,
   notApplicable: C.gray,
   error:         C.orange,
+};
+
+// ── stale device helpers ──────────────────────────────────────────────────────
+
+type DeviceStaleBucket = "30-60" | "60-90" | "90+";
+
+const DEVICE_BUCKET_META: Record<DeviceStaleBucket, { label: string; color: string; severity: string; bg: string }> = {
+  "30-60": { label: "30–60 days", color: C.yellow, severity: "At Risk",    bg: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  "60-90": { label: "60–90 days", color: C.orange, severity: "Stale",      bg: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
+  "90+":   { label: "90+ days",   color: C.red,    severity: "Very Stale", bg: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" },
+};
+
+function deviceDaysSinceSync(lastSyncDateTime: string | null | undefined): number | null {
+  if (!lastSyncDateTime) return null;
+  return Math.floor((Date.now() - new Date(lastSyncDateTime).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function getDeviceStaleBucket(lastSyncDateTime: string | null | undefined): DeviceStaleBucket | null {
+  const days = deviceDaysSinceSync(lastSyncDateTime);
+  if (days === null) return "90+";
+  if (days < 30) return null;
+  if (days < 60) return "30-60";
+  if (days < 90) return "60-90";
+  return "90+";
+}
+
+type StaleDevice = IntuneDeviceItem & { daysSinceSync: number | null; staleBucket: DeviceStaleBucket };
+
+type DeviceRemediationItem = { icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; action: string; detail: string };
+
+const DEVICE_REMEDIATION: Record<DeviceStaleBucket, DeviceRemediationItem[]> = {
+  "30-60": [
+    { icon: Clock,         action: "Investigate inactivity", detail: "Check with assigned user — device may be decommissioned, on leave, or misconfigured." },
+    { icon: ShieldAlert,   action: "Review compliance state", detail: "Stale devices may have missed patches or compliance policy updates." },
+  ],
+  "60-90": [
+    { icon: AlertTriangle, action: "Contact assigned user",   detail: "Confirm if device is still in use. If not, begin offboarding procedure." },
+    { icon: ShieldAlert,   action: "Disable or quarantine",   detail: "Consider isolating from corporate resources pending review." },
+  ],
+  "90+": [
+    { icon: XCircle,       action: "Retire and wipe device",  detail: "Remove from Intune, reclaim licence, and wipe if device is lost or decommissioned." },
+    { icon: ClipboardList, action: "Audit ownership",         detail: "Determine whether device is shared, reassigned, or truly abandoned." },
+  ],
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -317,6 +360,74 @@ const assessmentColumns: ColumnDef<IntuneAssessmentItem>[] = [
     accessorKey: "notes",
     header: "Notes",
     cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.notes}</span>,
+  },
+];
+
+// ── stale device table columns ────────────────────────────────────────────────
+
+const staleDeviceColumns: ColumnDef<StaleDevice>[] = [
+  {
+    accessorKey: "deviceName",
+    header: "Device",
+    cell: ({ row }) => (
+      <div>
+        <p className="font-medium text-sm">{row.original.deviceName}</p>
+        <p className="text-xs text-muted-foreground">{row.original.model || row.original.manufacturer || "—"}</p>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "operatingSystem",
+    header: "OS",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-1.5">
+        <OSIcon os={row.original.operatingSystem} />
+        <span className="text-sm">{row.original.operatingSystem}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "userDisplayName",
+    header: "Assigned User",
+    cell: ({ row }) => (
+      <div>
+        <p className="text-sm">{row.original.userDisplayName || "Unassigned"}</p>
+        {row.original.userPrincipalName && (
+          <p className="text-xs text-muted-foreground">{row.original.userPrincipalName}</p>
+        )}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "lastSyncDateTime",
+    header: "Last Sync",
+    cell: ({ row }) => (
+      <span className="text-xs text-muted-foreground whitespace-nowrap">
+        {formatDate(row.original.lastSyncDateTime) || "Never"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "daysSinceSync",
+    header: "Days Inactive",
+    cell: ({ row }) => (
+      <span className="font-semibold text-sm tabular-nums">
+        {row.original.daysSinceSync !== null ? row.original.daysSinceSync : "—"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "staleBucket",
+    header: "Staleness",
+    cell: ({ row }) => {
+      const meta = DEVICE_BUCKET_META[row.original.staleBucket as DeviceStaleBucket];
+      return <Badge className={`${meta.bg} font-normal text-xs border-0`}>{meta.severity}</Badge>;
+    },
+  },
+  {
+    accessorKey: "complianceState",
+    header: "Compliance",
+    cell: ({ row }) => <ComplianceBadge state={row.original.complianceState} />,
   },
 ];
 
@@ -745,6 +856,54 @@ export function IntuneTab() {
     [data]
   );
 
+  // ── Stale device computation ──────────────────────────────────────────────
+  const staleDevices = useMemo<StaleDevice[]>(() => {
+    return (data?.deviceList ?? []).flatMap((d) => {
+      const bucket = getDeviceStaleBucket(d.lastSyncDateTime);
+      if (!bucket) return [];
+      const days = deviceDaysSinceSync(d.lastSyncDateTime);
+      return [{ ...d, daysSinceSync: days, staleBucket: bucket } as StaleDevice];
+    });
+  }, [data]);
+
+  const staleDeviceCounts = useMemo(() => ({
+    "30-60": staleDevices.filter((d) => d.staleBucket === "30-60").length,
+    "60-90": staleDevices.filter((d) => d.staleBucket === "60-90").length,
+    "90+":   staleDevices.filter((d) => d.staleBucket === "90+").length,
+  }), [staleDevices]);
+
+  const staleDeviceChartData = useMemo(() =>
+    (["30-60", "60-90", "90+"] as DeviceStaleBucket[]).map((b) => ({
+      name: DEVICE_BUCKET_META[b].label,
+      count: staleDeviceCounts[b],
+      color: DEVICE_BUCKET_META[b].color,
+    })),
+  [staleDeviceCounts]);
+
+  const [staleDeviceBucketFilter, setStaleDeviceBucketFilter] = useState<DeviceStaleBucket | "all">("all");
+  const [staleDeviceFilter, setStaleDeviceFilter] = useState("");
+  const [staleDeviceSorting, setStaleDeviceSorting] = useState<SortingState>([{ id: "daysSinceSync", desc: true }]);
+  const [selectedStaleDevice, setSelectedStaleDevice] = useState<StaleDevice | null>(null);
+
+  const filteredStaleDevices = useMemo(() =>
+    staleDeviceBucketFilter === "all"
+      ? staleDevices
+      : staleDevices.filter((d) => d.staleBucket === staleDeviceBucketFilter),
+  [staleDevices, staleDeviceBucketFilter]);
+
+  const staleDeviceTable = useReactTable({
+    data: filteredStaleDevices,
+    columns: staleDeviceColumns,
+    state: { sorting: staleDeviceSorting, globalFilter: staleDeviceFilter },
+    onSortingChange: setStaleDeviceSorting,
+    onGlobalFilterChange: setStaleDeviceFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 15 } },
+  });
+
   if (!loading && data?.permissionRequired) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
@@ -782,13 +941,19 @@ export function IntuneTab() {
       )}
 
       {/* ── KPIs ────────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         <KPICard title="Total Devices"       value={data?.totalDevices}               loading={loading} />
         <KPICard title="Compliant"           value={data?.compliantDevices}            loading={loading} valueColor={C.green} />
         <KPICard title="Non-Compliant"       value={data?.nonCompliantDevices}         loading={loading} valueColor={data && data.nonCompliantDevices > 0 ? C.red : C.green} />
         <KPICard title="Compliance %"        value={data ? `${data.overallCompliancePercent}%` : undefined} loading={loading} valueColor={data && data.overallCompliancePercent < 80 ? C.red : C.green} />
         <KPICard title="Compliance Policies" value={data?.totalCompliancePolicies}     loading={loading} />
         <KPICard title="Config Profiles"     value={data?.totalConfigProfiles}         loading={loading} />
+        <KPICard
+          title="Stale Devices"
+          value={loading ? undefined : staleDevices.length}
+          loading={loading}
+          valueColor={staleDevices.length > 0 ? C.red : C.green}
+        />
       </div>
 
       {/* ── Enrolled by OS + Compliance by state ─────────────────────────── */}
@@ -1067,6 +1232,279 @@ export function IntuneTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Stale Devices ────────────────────────────────────────────────── */}
+      <div className="space-y-4 pt-2">
+        <div className="border-b pb-2">
+          <h2 className="text-xl font-semibold">Stale Devices</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Devices that have not checked in with Intune — potential security and hygiene risk
+          </p>
+        </div>
+
+        {!data?.deviceListAvailable ? (
+          <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800 px-4 py-3">
+            <Info className="w-4 h-4 mt-0.5 text-blue-500 flex-shrink-0" />
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Per-device staleness analysis requires{" "}
+              <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded text-xs">DeviceManagementManagedDevices.Read.All</code>{" "}
+              to access individual device sync dates.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* KPI filter buttons */}
+            <div className="grid grid-cols-3 gap-4">
+              {(["30-60", "60-90", "90+"] as DeviceStaleBucket[]).map((b) => {
+                const meta = DEVICE_BUCKET_META[b];
+                return (
+                  <button
+                    key={b}
+                    onClick={() => setStaleDeviceBucketFilter((prev) => prev === b ? "all" : b)}
+                    className={`text-left rounded-lg border p-4 transition-all hover:shadow-sm ${staleDeviceBucketFilter === b ? "ring-2 ring-offset-1" : ""}`}
+                  >
+                    {loading ? (
+                      <Skeleton className="h-10 w-16" />
+                    ) : (
+                      <>
+                        <p className="text-xs text-muted-foreground font-medium mb-1">{meta.label} since last sync</p>
+                        <p className="text-3xl font-bold" style={{ color: meta.color }}>{staleDeviceCounts[b]}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{meta.severity}</p>
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Chart + Remediation */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <Card className="lg:col-span-1">
+                <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-base">Stale by Category</CardTitle>
+                  <ExportBtn
+                    filename="stale-devices-by-category.csv"
+                    csvData={staleDeviceChartData}
+                  />
+                </CardHeader>
+                <CardContent>
+                  {loading ? <Skeleton className="w-full h-[200px]" /> : staleDevices.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-[200px] gap-2 text-center">
+                      <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                        <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      </div>
+                      <p className="text-sm font-medium text-green-600 dark:text-green-400">All devices are active</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={200} debounce={0}>
+                      <BarChart data={staleDeviceChartData} margin={{ left: -20, right: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
+                        <Tooltip isAnimationActive={false} />
+                        <Bar dataKey="count" name="Devices" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                          {staleDeviceChartData.map((entry, i) => (
+                            <Cell key={i} fill={entry.color} fillOpacity={0.85} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-2">
+                <CardHeader className="px-4 pt-4 pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4 text-muted-foreground" />
+                    Remediation Guidance
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {selectedStaleDevice
+                      ? `Actions for ${selectedStaleDevice.deviceName} (${DEVICE_BUCKET_META[selectedStaleDevice.staleBucket as DeviceStaleBucket].label} inactive)`
+                      : "Click a device in the table below to see specific recommendations, or review general guidance by category"}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+                  ) : staleDevices.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-2">
+                      <p className="text-sm font-medium text-green-600 dark:text-green-400">No stale devices — great hygiene!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {(selectedStaleDevice
+                        ? [[selectedStaleDevice.staleBucket as DeviceStaleBucket, DEVICE_REMEDIATION[selectedStaleDevice.staleBucket as DeviceStaleBucket]] as [DeviceStaleBucket, DeviceRemediationItem[]]]
+                        : (["90+", "60-90", "30-60"] as DeviceStaleBucket[])
+                            .filter((b) => staleDeviceCounts[b] > 0)
+                            .map((b): [DeviceStaleBucket, DeviceRemediationItem[]] => [b, DEVICE_REMEDIATION[b]])
+                      ).map(([bucket, actions]: [DeviceStaleBucket, DeviceRemediationItem[]]) => (
+                        <div key={bucket}>
+                          {!selectedStaleDevice && (
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: DEVICE_BUCKET_META[bucket].color }} />
+                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                {DEVICE_BUCKET_META[bucket].label} — {DEVICE_BUCKET_META[bucket].severity} ({staleDeviceCounts[bucket]})
+                              </span>
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            {actions.map(({ icon: Icon, action, detail }) => (
+                              <div key={action} className="flex items-start gap-3 p-2.5 rounded-md border bg-muted/30">
+                                <div
+                                  className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+                                  style={{ backgroundColor: `${DEVICE_BUCKET_META[bucket].color}20`, color: DEVICE_BUCKET_META[bucket].color }}
+                                >
+                                  <Icon className="w-3.5 h-3.5" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium leading-none mb-0.5">{action}</p>
+                                  <p className="text-xs text-muted-foreground leading-snug">{detail}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {!selectedStaleDevice && <div className="mt-3 border-t" />}
+                        </div>
+                      ))}
+                      {selectedStaleDevice && (
+                        <button
+                          onClick={() => setSelectedStaleDevice(null)}
+                          className="text-xs text-muted-foreground underline hover:text-foreground transition-colors mt-1"
+                        >
+                          Clear selection — show all guidance
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Stale device table */}
+            {staleDevices.length > 0 && (
+              <Card>
+                <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+                  <div>
+                    <CardTitle className="text-base">
+                      Stale Device List
+                      {staleDeviceBucketFilter !== "all" && (
+                        <span className="ml-2 text-sm font-normal text-muted-foreground">
+                          — {DEVICE_BUCKET_META[staleDeviceBucketFilter].label}
+                        </span>
+                      )}
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {filteredStaleDevices.length} device{filteredStaleDevices.length !== 1 ? "s" : ""} — click a row to see remediation guidance
+                    </p>
+                  </div>
+                  <ExportBtn
+                    filename="stale-devices.csv"
+                    csvData={staleDevices.map((d) => ({
+                      Device: d.deviceName,
+                      Model: d.model ?? "",
+                      OS: d.operatingSystem,
+                      "Assigned User": d.userDisplayName ?? "",
+                      UPN: d.userPrincipalName ?? "",
+                      "Last Sync": d.lastSyncDateTime ?? "Never",
+                      "Days Inactive": d.daysSinceSync ?? "—",
+                      Staleness: DEVICE_BUCKET_META[d.staleBucket as DeviceStaleBucket].severity,
+                      Compliance: d.complianceState,
+                    }))}
+                  />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Input
+                        placeholder="Search devices, users…"
+                        value={staleDeviceFilter}
+                        onChange={(e) => setStaleDeviceFilter(e.target.value)}
+                        className="max-w-xs"
+                      />
+                      {staleDeviceBucketFilter !== "all" && (
+                        <button
+                          onClick={() => setStaleDeviceBucketFilter("all")}
+                          className="text-xs text-muted-foreground underline hover:text-foreground"
+                        >
+                          Clear filter
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          {staleDeviceTable.getHeaderGroups().map((hg) => (
+                            <TableRow key={hg.id}>
+                              {hg.headers.map((header) => (
+                                <TableHead
+                                  key={header.id}
+                                  onClick={header.column.getToggleSortingHandler()}
+                                  className="cursor-pointer select-none whitespace-nowrap"
+                                >
+                                  <div className="flex items-center gap-1">
+                                    {flexRender(header.column.columnDef.header, header.getContext())}
+                                    {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                                  </div>
+                                </TableHead>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableHeader>
+                        <TableBody>
+                          {staleDeviceTable.getRowModel().rows.length > 0 ? (
+                            staleDeviceTable.getRowModel().rows.map((row) => (
+                              <TableRow
+                                key={row.id}
+                                onClick={() => setSelectedStaleDevice(
+                                  selectedStaleDevice?.id === row.original.id ? null : row.original
+                                )}
+                                className={`cursor-pointer transition-colors ${
+                                  selectedStaleDevice?.id === row.original.id
+                                    ? "bg-muted/60 ring-1 ring-inset ring-primary/20"
+                                    : row.original.staleBucket === "90+"
+                                    ? "bg-red-50/30 dark:bg-red-950/10 hover:bg-red-50/50"
+                                    : row.original.staleBucket === "60-90"
+                                    ? "bg-orange-50/20 dark:bg-orange-950/10 hover:bg-orange-50/40"
+                                    : "hover:bg-muted/30"
+                                }`}
+                              >
+                                {row.getVisibleCells().map((cell) => (
+                                  <TableCell key={cell.id} className="py-2 align-top">
+                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={staleDeviceColumns.length} className="h-16 text-center text-muted-foreground">
+                                No devices match the search.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {staleDeviceTable.getFilteredRowModel().rows.length} of {filteredStaleDevices.length}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => staleDeviceTable.previousPage()} disabled={!staleDeviceTable.getCanPreviousPage()}>Previous</Button>
+                        <Button variant="outline" size="sm" onClick={() => staleDeviceTable.nextPage()} disabled={!staleDeviceTable.getCanNextPage()}>Next</Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+      </div>
 
       {/* ── Enrolled Device List ──────────────────────────────────────────── */}
       <Card>
