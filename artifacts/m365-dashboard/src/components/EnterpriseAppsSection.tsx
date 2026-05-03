@@ -4,6 +4,7 @@ import type { AppRegistration, AppCredential, AppPermission } from "@workspace/a
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -593,16 +594,10 @@ export function EnterpriseAppsSection() {
       )}
 
       {/* App registrations table */}
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0 flex-wrap gap-3">
-          <div>
-            <CardTitle className="text-base">App Registrations</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Click any row's expand button to see the full 10-dimension security assessment
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Risk filter pills */}
+      <CollapsibleSection
+        title="App Registrations"
+        description="Click any row's expand button to see the full 10-dimension security assessment"
+        actions={<div className="flex items-center gap-2 flex-wrap">
             {(["all", "high", "medium", "low"] as const).map((r) => {
               const labels = {
                 all: `All (${data?.totalApps ?? 0})`,
@@ -624,9 +619,8 @@ export function EnterpriseAppsSection() {
                 </button>
               );
             })}
-          </div>
-        </CardHeader>
-        <CardContent>
+          </div>}
+      >
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-8 w-64" />
@@ -712,8 +706,7 @@ export function EnterpriseAppsSection() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
       {/* Enterprise Apps Security Checklist */}
       <ChecklistTable

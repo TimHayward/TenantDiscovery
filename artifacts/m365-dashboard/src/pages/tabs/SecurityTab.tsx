@@ -792,20 +792,16 @@ export function SecurityTab() {
       </Card>
 
       {/* ── MFA Method Strength ───────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base">MFA Method Strength</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Ranked by Microsoft's authentication strength guidance</p>
-          </div>
-          <ExportBtn
+      <CollapsibleSection
+        title="MFA Method Strength"
+        description="Ranked by Microsoft's authentication strength guidance"
+        actions={<ExportBtn
             filename="mfa-methods.csv"
             csvData={(data?.mfaMethodsBreakdown ?? []).map((m) => ({
               Method: m.displayName, Strength: m.strength, Users: m.count, "% of Users": m.percentOfUsers,
             }))}
-          />
-        </CardHeader>
-        <CardContent>
+          />}
+      >
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="w-full h-[200px]" />
@@ -881,8 +877,7 @@ export function SecurityTab() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
       {/* ── CA Policy detail table ────────────────────────────────────────────── */}
       <CollapsibleSection

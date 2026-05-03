@@ -2,6 +2,7 @@ import { useGetM365Teams, useGetM365SharePoint } from "@workspace/api-client-rea
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { CSVLink } from "react-csv";
@@ -225,11 +226,7 @@ export function TeamsSharePointTab() {
           <KPICard title="Total Files" value={spData ? formatCompact(spData.totalFiles) : undefined} loading={spLoading} />
         </div>
 
-        <Card>
-          <CardHeader className="px-4 pt-4 pb-2">
-            <CardTitle className="text-base">Top SharePoint Sites</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <CollapsibleSection title="Top SharePoint Sites">
             {spLoading ? (
               <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
@@ -295,8 +292,7 @@ export function TeamsSharePointTab() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </CollapsibleSection>
       </div>
 
       {/* SECTIONS 3 + 5 — TEAMS & SHAREPOINT SECURITY CHECKLIST */}
