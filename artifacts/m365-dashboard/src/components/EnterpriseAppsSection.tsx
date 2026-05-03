@@ -596,6 +596,7 @@ export function EnterpriseAppsSection() {
       {/* App registrations table */}
       <CollapsibleSection
         title="App Registrations"
+        storageKey="enterprise-app-registrations"
         description="Click any row's expand button to see the full 10-dimension security assessment"
         actions={<div className="flex items-center gap-2 flex-wrap">
             {(["all", "high", "medium", "low"] as const).map((r) => {

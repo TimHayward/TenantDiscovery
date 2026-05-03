@@ -641,6 +641,7 @@ export function UsersTab() {
         {/* Stale accounts table */}
         <CollapsibleSection
           title={<><AlertTriangle className="w-4 h-4 text-amber-500" /> Stale Account Details{!loading && <Badge variant="outline" className="font-normal text-xs ml-1">{staleUsers.length} accounts</Badge>}</>}
+          storageKey="users-stale-accounts"
           description={!loading && staleBucketFilter !== "all" ? `Filtered: ${BUCKET_META[staleBucketFilter].label} inactive (${filteredStaleUsers.length} users)` : undefined}
           actions={exportBtn("stale-accounts.csv", filteredStaleUsers.map((u) => ({
               Name: u.displayName,
@@ -773,6 +774,7 @@ export function UsersTab() {
       {/* ── All Users table ──────────────────────────────────────────────────── */}
       <CollapsibleSection
         title={`All Users Directory (${data?.totalUsers ?? "…"} users)`}
+        storageKey="users-all-users"
         actions={exportBtn("all-users.csv", (data?.users ?? []).map((u) => ({
             Name: u.displayName, UPN: u.userPrincipalName, Type: u.userType,
             MFA: u.mfaEnabled, Licenses: u.assignedLicenses, Department: u.department ?? "",

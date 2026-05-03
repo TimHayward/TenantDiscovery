@@ -200,7 +200,7 @@ export function LicensesTab() {
         </CardContent>
       </Card>
 
-      <CollapsibleSection title="License Subscriptions">
+      <CollapsibleSection title="License Subscriptions" storageKey="licenses-subscriptions">
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />

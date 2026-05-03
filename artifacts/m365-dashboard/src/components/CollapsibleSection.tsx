@@ -7,9 +7,34 @@ interface CollapsibleSectionProps {
   description?: React.ReactNode;
   actions?: React.ReactNode;
   defaultOpen?: boolean;
+  storageKey?: string;
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+}
+
+function usePersistedToggle(storageKey: string | undefined, defaultOpen: boolean) {
+  const [open, setOpen] = useState(() => {
+    if (!storageKey) return defaultOpen;
+    try {
+      const stored = localStorage.getItem(`m365-section:${storageKey}`);
+      if (stored !== null) return stored === "true";
+    } catch {}
+    return defaultOpen;
+  });
+
+  const toggle = () =>
+    setOpen((prev) => {
+      const next = !prev;
+      if (storageKey) {
+        try {
+          localStorage.setItem(`m365-section:${storageKey}`, String(next));
+        } catch {}
+      }
+      return next;
+    });
+
+  return [open, toggle] as const;
 }
 
 export function CollapsibleSection({
@@ -17,17 +42,18 @@ export function CollapsibleSection({
   description,
   actions,
   defaultOpen = false,
+  storageKey,
   children,
   className,
   contentClassName,
 }: CollapsibleSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, toggle] = usePersistedToggle(storageKey, defaultOpen);
 
   return (
     <Card className={className}>
       <CardHeader
         className={`px-4 pt-4 flex-row items-start justify-between space-y-0 gap-3 cursor-pointer select-none transition-colors hover:bg-muted/30 rounded-t-lg ${open ? "pb-2" : "pb-4 rounded-b-lg"}`}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={toggle}
       >
         <div className="flex-1 min-w-0">
           <div className="text-base font-semibold leading-none tracking-tight flex items-center gap-2 flex-wrap">

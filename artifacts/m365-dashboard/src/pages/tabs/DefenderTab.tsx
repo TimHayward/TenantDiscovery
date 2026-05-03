@@ -493,6 +493,7 @@ export function DefenderTab() {
       {/* ── Device List Table ────────────────────────────────────────────────── */}
       <CollapsibleSection
         title="Device Inventory"
+        storageKey="defender-device-inventory"
         description={!loading ? `${data?.deviceSummary.total ?? 0} devices registered in Azure AD` : undefined}
         actions={<ExportBtn
             filename="device-inventory.csv"
@@ -589,6 +590,7 @@ export function DefenderTab() {
       {/* ── SaaS Apps ────────────────────────────────────────────────────────── */}
       <CollapsibleSection
         title="Enterprise Applications (SaaS)"
+        storageKey="defender-saas-apps"
         description={`Service principals registered in the tenant — ${thirdPartyApps} third-party, ${(data?.saasApps.length ?? 0) - thirdPartyApps} Microsoft`}
         actions={<ExportBtn
             filename="saas-apps.csv"
@@ -698,6 +700,7 @@ export function DefenderTab() {
       {/* ── OAuth Apps ───────────────────────────────────────────────────────── */}
       <CollapsibleSection
         title="OAuth Applications"
+        storageKey="defender-oauth-apps"
         description="Apps with delegated permissions granted by users or admins"
         actions={<ExportBtn
             filename="oauth-apps.csv"

@@ -443,6 +443,7 @@ export function ServicePrincipalsTab() {
       {/* Main table card */}
       <CollapsibleSection
         title="Enterprise Apps & Service Principals"
+        storageKey="service-principals-main"
         description="Consent grants, assigned users, and sign-in activity for all service principals. Click expand for details."
         actions={<div className="flex flex-wrap gap-2 items-center">
             <div className="flex gap-1.5 flex-wrap">

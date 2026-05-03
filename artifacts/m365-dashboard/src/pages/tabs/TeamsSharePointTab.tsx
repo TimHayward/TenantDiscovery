@@ -226,7 +226,7 @@ export function TeamsSharePointTab() {
           <KPICard title="Total Files" value={spData ? formatCompact(spData.totalFiles) : undefined} loading={spLoading} />
         </div>
 
-        <CollapsibleSection title="Top SharePoint Sites">
+        <CollapsibleSection title="Top SharePoint Sites" storageKey="teams-sharepoint-sites">
             {spLoading ? (
               <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />

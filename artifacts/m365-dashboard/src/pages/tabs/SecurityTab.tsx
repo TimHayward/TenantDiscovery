@@ -794,6 +794,7 @@ export function SecurityTab() {
       {/* ── MFA Method Strength ───────────────────────────────────────────────── */}
       <CollapsibleSection
         title="MFA Method Strength"
+        storageKey="security-mfa-strength"
         description="Ranked by Microsoft's authentication strength guidance"
         actions={<ExportBtn
             filename="mfa-methods.csv"
@@ -882,6 +883,7 @@ export function SecurityTab() {
       {/* ── CA Policy detail table ────────────────────────────────────────────── */}
       <CollapsibleSection
         title="Conditional Access Policies"
+        storageKey="security-ca-policies"
         description={!loading && data?.caPolicies ? `${data.caPolicies.length} policies total` : undefined}
         actions={<ExportBtn
             filename="conditional-access-policies.csv"
@@ -960,6 +962,7 @@ export function SecurityTab() {
       {/* ── Security Settings (Secure Score Controls) ───────────────────────── */}
       <CollapsibleSection
         title={<><Settings2 className="w-4 h-4 text-muted-foreground" /> Security Settings</>}
+        storageKey="security-settings"
         description={controls.length > 0 ? `${controls.length} Secure Score controls evaluated by Microsoft` : "Secure Score control data"}
         actions={<ExportBtn
             filename="security-settings.csv"

@@ -304,6 +304,7 @@ export function ComplianceTab() {
         ) : (
           <CollapsibleSection
             title="Sensitivity Labels"
+            storageKey="compliance-sensitivity-labels"
             description={`${compliance?.sensitivityLabelsList.length ?? 0} labels configured`}
             actions={compliance && compliance.sensitivityLabelsList.length > 0 ? (
                 <CSVLink
@@ -406,7 +407,7 @@ export function ComplianceTab() {
           <KPICard title="Active Advisories" value={health?.activeAdvisories} loading={healthLoading} valueColor={health && health.activeAdvisories > 0 ? CHART_COLORS.yellow : CHART_COLORS.green} />
         </div>
 
-        <CollapsibleSection title="All Services Status">
+        <CollapsibleSection title="All Services Status" storageKey="compliance-service-health">
             {healthLoading ? (
               <div className="space-y-2 mt-2">
                 {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}

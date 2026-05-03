@@ -1338,6 +1338,7 @@ export function IntuneTab() {
       {/* ── Policy summary per device type ───────────────────────────────── */}
       <CollapsibleSection
         title="Policy Summary"
+        storageKey="intune-policy-summary"
         description="Compliance policies, configuration profiles, and app protection policies"
         actions={<>
           <div className="flex gap-1 flex-wrap">
@@ -1569,6 +1570,7 @@ export function IntuneTab() {
             {staleDevices.length > 0 && (
               <CollapsibleSection
                 title={<>Stale Device List{staleDeviceBucketFilter !== "all" && <span className="ml-2 text-sm font-normal text-muted-foreground">— {DEVICE_BUCKET_META[staleDeviceBucketFilter].label}</span>}</>}
+                storageKey="intune-stale-devices"
                 description={`${filteredStaleDevices.length} device${filteredStaleDevices.length !== 1 ? "s" : ""} — click a row to see remediation guidance`}
                 actions={<ExportBtn
                     filename="stale-devices.csv"
@@ -1678,6 +1680,7 @@ export function IntuneTab() {
       {/* ── Enrolled Device List ──────────────────────────────────────────── */}
       <CollapsibleSection
         title={<>Enrolled Devices{!loading && <Badge variant="outline" className="font-normal text-xs">{data?.totalDevices ?? 0} total</Badge>}</>}
+        storageKey="intune-enrolled-devices"
         description={!loading && deviceOsFilter !== "all" ? `Filtered: ${deviceOsFilter} (${filteredDevices.length} devices)` : undefined}
         actions={<ExportBtn filename="enrolled-devices.csv" csvData={(data?.deviceList ?? []).map((d) => ({
             Name: d.deviceName, OS: d.operatingSystem, Version: d.osVersion,
@@ -2069,6 +2072,7 @@ export function IntuneTab() {
 
         <CollapsibleSection
           title="App Installation Detail"
+          storageKey="intune-app-install"
           description={`${appsData?.totalAssignedApps ?? 0} assigned app${(appsData?.totalAssignedApps ?? 0) !== 1 ? "s" : ""}`}
           actions={<ExportBtn
               filename="app-install-status.csv"
@@ -2252,6 +2256,7 @@ export function IntuneTab() {
 
         <CollapsibleSection
           title="Discovered App List"
+          storageKey="intune-discovered-apps"
           description={`${appsData?.totalDiscoveredApps ?? 0} apps detected across enrolled devices`}
           actions={<ExportBtn
               filename="discovered-apps.csv"
