@@ -540,14 +540,35 @@ router.get("/m365/intune/apps", async (req, res) => {
     const data = await getCached("m365-intune-apps", async () => {
       const token = await getToken();
 
-      const [assignedAppsResult, detectedAppsResult] = await Promise.all([
-        fetchAllPages(
-          "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps" +
-            "?$filter=isAssigned eq true" +
-            "&$select=id,displayName,publisher,@odata.type" +
-            "&$expand=installSummary",
-          token
-        ),
+      // ── fetch install report + detected apps in parallel ─────────────────
+      const [installReportRaw, detectedAppsResult] = await Promise.all([
+        // Reports API — returns columnar data with per-app install counts
+        (async () => {
+          const allRows: any[][] = [];
+          let skip = 0;
+          const top = 200;
+          let totalRowCount = 0;
+          let schema: { Column: string }[] = [];
+          let permissionDenied = false;
+          do {
+            const resp = await fetch(
+              "https://graph.microsoft.com/beta/deviceManagement/reports/getAppsInstallSummaryReport",
+              {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ top, skip, filter: "" }),
+              }
+            );
+            if (PERMISSION_ERROR_CODES.has(resp.status)) { permissionDenied = true; break; }
+            if (!resp.ok) break;
+            const d = await resp.json();
+            if (schema.length === 0) schema = d.Schema || [];
+            totalRowCount = d.TotalRowCount ?? 0;
+            allRows.push(...(d.Values || []));
+            skip += top;
+          } while (allRows.length < totalRowCount);
+          return { rows: allRows, schema, permissionDenied };
+        })(),
         fetchAllPages(
           "https://graph.microsoft.com/beta/deviceManagement/detectedApps" +
             "?$select=id,displayName,version,sizeInByte,deviceCount,platform",
@@ -555,22 +576,27 @@ router.get("/m365/intune/apps", async (req, res) => {
         ),
       ]);
 
-      const installPermissionRequired = assignedAppsResult.permissionDenied;
+      const installPermissionRequired = installReportRaw.permissionDenied;
       const discoveryPermissionRequired = detectedAppsResult.permissionDenied;
 
+      // Build column index map from schema
+      const colIdx: Record<string, number> = {};
+      installReportRaw.schema.forEach((s: { Column: string }, i: number) => { colIdx[s.Column] = i; });
+
       // ── Section 1: App installation health ───────────────────────────────
-      const apps = assignedAppsResult.items;
       let totalInstalled = 0, totalFailed = 0, totalPending = 0, totalNotApplicable = 0, totalNotInstalled = 0;
       const installMap: Record<string, { installed: number; failed: number; pending: number; notApplicable: number; notInstalled: number }> = {};
 
-      const appInstallList = apps.map((app: any) => {
-        const s = app.installSummary ?? {};
-        const platform = platformFromOdataType(app["@odata.type"] || "");
-        const installed     = s.installedDeviceCount       ?? 0;
-        const failed        = s.failedDeviceCount          ?? 0;
-        const pending       = s.pendingInstallDeviceCount  ?? 0;
-        const notApplicable = s.notApplicableDeviceCount   ?? 0;
-        const notInstalled  = s.notInstalledDeviceCount    ?? 0;
+      const appInstallList = installReportRaw.rows.map((row: any[]) => {
+        const id            = String(row[colIdx["ApplicationId"]]                ?? "");
+        const displayName   = String(row[colIdx["DisplayName"]]                  ?? "Unknown");
+        const publisher     = row[colIdx["Publisher"]] != null ? String(row[colIdx["Publisher"]]) : null;
+        const platform      = String(row[colIdx["AppPlatform"]]                  ?? "Other");
+        const installed     = Number(row[colIdx["InstalledDeviceCount"]])         || 0;
+        const failed        = Number(row[colIdx["FailedDeviceCount"]])            || 0;
+        const pending       = Number(row[colIdx["PendingInstallDeviceCount"]])    || 0;
+        const notApplicable = Number(row[colIdx["NotApplicableDeviceCount"]])     || 0;
+        const notInstalled  = Number(row[colIdx["NotInstalledDeviceCount"]])      || 0;
 
         totalInstalled     += installed;
         totalFailed        += failed;
@@ -585,7 +611,7 @@ router.get("/m365/intune/apps", async (req, res) => {
         installMap[platform].notApplicable += notApplicable;
         installMap[platform].notInstalled  += notInstalled;
 
-        return { id: app.id, displayName: app.displayName || "Unknown", publisher: app.publisher ?? null, platform, installed, failed, pending, notApplicable, notInstalled };
+        return { id, displayName, publisher, platform, installed, failed, pending, notApplicable, notInstalled };
       });
 
       const installByPlatform = Object.entries(installMap)
@@ -594,7 +620,8 @@ router.get("/m365/intune/apps", async (req, res) => {
 
       // ── Section 2: Discovered app estate ─────────────────────────────────
       const detectedApps = detectedAppsResult.items;
-      const managedNames = new Set(apps.map((a: any) => (a.displayName || "").toLowerCase().trim()));
+      // Cross-reference managed app names from the install report
+      const managedNames = new Set(appInstallList.map((a) => a.displayName.toLowerCase().trim()));
 
       let managedDiscoveredApps = 0, unmanagedDiscoveredApps = 0;
       const discoveredMap: Record<string, { managed: number; unmanaged: number }> = {};
@@ -622,7 +649,7 @@ router.get("/m365/intune/apps", async (req, res) => {
       return {
         installPermissionRequired,
         discoveryPermissionRequired,
-        totalAssignedApps: apps.length,
+        totalAssignedApps: appInstallList.length,
         totalInstalled,
         totalFailed,
         totalPending,
