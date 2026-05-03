@@ -11,7 +11,7 @@ import {
 import { CSVLink } from "react-csv";
 import {
   Download, ShieldCheck, ShieldAlert, Monitor, Smartphone,
-  Apple, AlertTriangle, CheckCircle2, XCircle, Clock, Info, Search, X,
+  Apple, AlertTriangle, CheckCircle2, XCircle, Clock, Info, Search, X, ChevronDown,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatDate } from "@/lib/utils";
@@ -229,6 +229,31 @@ const deviceColumns: ColumnDef<IntuneDeviceItem>[] = [
     header: "Agent",
     cell: ({ row }) => <span className="text-xs text-muted-foreground capitalize">{row.original.managementAgent}</span>,
   },
+  {
+    id: "expand",
+    header: "",
+    cell: ({ row, table }) => {
+      const meta = table.options.meta as {
+        expandedDeviceId?: string | null;
+        setExpandedDeviceId?: (id: string | null) => void;
+      };
+      const canExpand = ["noncompliant", "inGracePeriod", "error"].includes(row.original.complianceState);
+      if (!canExpand) return null;
+      const isExpanded = meta.expandedDeviceId === row.original.id;
+      return (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            meta.setExpandedDeviceId?.(isExpanded ? null : row.original.id);
+          }}
+          className="p-1 rounded hover:bg-muted transition-colors flex items-center justify-center"
+          title="View compliance failure details"
+        >
+          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+        </button>
+      );
+    },
+  },
 ];
 
 const policyColumns: ColumnDef<IntunePolicyItem>[] = [
@@ -294,6 +319,207 @@ const assessmentColumns: ColumnDef<IntuneAssessmentItem>[] = [
     cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.notes}</span>,
   },
 ];
+
+// ── Compliance drill-down ──────────────────────────────────────────────────────
+
+const SETTING_FRIENDLY: Record<string, string> = {
+  osMinimumVersion:                                    "OS version too old (below minimum required)",
+  osMaximumVersion:                                    "OS version above maximum allowed",
+  mobileOsMinimumVersion:                              "Mobile OS version too old",
+  mobileOsMaximumVersion:                              "Mobile OS version above maximum",
+  bitLockerEnabled:                                    "BitLocker disk encryption not enabled",
+  storageRequireDeviceEncryption:                      "Device encryption not enabled",
+  storageRequireEncryption:                            "Storage encryption not enabled",
+  passcodeRequired:                                    "Passcode not configured",
+  passwordRequired:                                    "Password not configured",
+  passcodeMinimumLength:                               "Passcode too short",
+  passwordMinimumLength:                               "Password too short",
+  passcodeMinutesOfInactivityBeforeLock:               "Screen lock timeout exceeds policy",
+  passwordMinutesOfInactivityBeforeLock:               "Screen lock timeout exceeds policy",
+  passcodeRequiredType:                                "Passcode complexity insufficient",
+  passwordRequiredType:                                "Password complexity insufficient",
+  passcodeBlockSimple:                                 "Simple passcodes must be blocked",
+  activeFirewallRequired:                              "Firewall not active",
+  antivirusRequired:                                   "Antivirus not configured or up to date",
+  antispywareRequired:                                 "Anti-spyware not configured",
+  defenderEnabled:                                     "Windows Defender not enabled",
+  signatureOutOfDate:                                  "Defender signatures out of date",
+  rtpEnabled:                                          "Real-time protection not enabled",
+  secureBootEnabled:                                   "Secure Boot not enabled",
+  codeIntegrityEnabled:                                "Code integrity not enabled",
+  tpmRequired:                                         "TPM chip required but missing or disabled",
+  securityBlockJailbrokenDevices:                      "Jailbroken or rooted device detected",
+  deviceThreatProtectionEnabled:                       "Device threat protection not enabled",
+  deviceThreatProtectionRequiredSecurityLevel:         "Threat protection security level insufficient",
+  managedEmailProfileRequired:                         "Managed email profile missing",
+  securityRequireVerifyApps:                           "App verification not enabled",
+  securityRequireSafetyNetAttestationBasicIntegrity:   "SafetyNet basic integrity check failed",
+  securityRequireSafetyNetAttestationCertifiedDevice:  "SafetyNet certified device check failed",
+  securityPreventInstallAppsFromUnknownSources:        "Unknown app sources must be blocked",
+  securityDisableUsbDebugging:                         "USB debugging must be disabled",
+  earlyLaunchAntiMalwareDriverEnabled:                 "Early-launch anti-malware driver not enabled",
+  windowsDefenderMalwareProtectionEnabled:             "Windows Defender malware protection not enabled",
+};
+
+function friendlySettingName(raw: string): string {
+  if (!raw) return "";
+  return SETTING_FRIENDLY[raw] ?? raw.replace(/([A-Z])/g, " $1").trim();
+}
+
+const GENERIC_ERRORS = new Set(["No error code", "Not applicable", "No error", ""]);
+
+function isUsefulRule(rule: ComplianceRuleState): boolean {
+  const hasName = !!rule.settingName;
+  const hasDescription = !!rule.errorDescription && !GENERIC_ERRORS.has(rule.errorDescription);
+  return hasName || hasDescription;
+}
+
+type ComplianceRuleState = { settingName: string; state: string; errorDescription: string };
+type CompliancePolicyDetail = {
+  policyId: string; policyName: string; platformType: string;
+  state: string; lastReportedDateTime: string | null; failingRules: ComplianceRuleState[];
+};
+type ComplianceDetail = {
+  deviceId: string; totalPolicies: number; nonCompliantPolicies: number;
+  policies: CompliancePolicyDetail[];
+};
+
+function ComplianceDrillDownPanel({
+  deviceId, deviceName,
+}: {
+  deviceId: string; deviceName: string;
+}) {
+  const [detail, setDetail] = useState<ComplianceDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setFetchError(null);
+    fetch(`/api/m365/intune/device/${encodeURIComponent(deviceId)}/compliance`)
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) { setDetail(d); setLoading(false); } })
+      .catch((e) => { if (!cancelled) { setFetchError(String(e.message)); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [deviceId]);
+
+  const NON_COMPLIANT = new Set(["noncompliant", "nonCompliant", "error"]);
+
+  if (loading) {
+    return (
+      <div className="p-4 space-y-2 bg-red-50/20 dark:bg-red-950/10 border-t border-red-200 dark:border-red-900">
+        <div className="flex items-center gap-2 mb-3">
+          <ShieldAlert className="w-4 h-4 text-red-400" />
+          <span className="text-sm font-medium text-muted-foreground">Loading compliance details for {deviceName}…</span>
+        </div>
+        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="p-4 text-sm text-red-600 dark:text-red-400 bg-red-50/20 dark:bg-red-950/10 border-t border-red-200 dark:border-red-900">
+        Failed to load compliance details: {fetchError}
+      </div>
+    );
+  }
+
+  if (!detail || detail.policies.length === 0) {
+    return (
+      <div className="p-4 text-sm text-muted-foreground bg-muted/10 border-t">
+        No compliance policies found for this device.
+      </div>
+    );
+  }
+
+  const failingPolicies = detail.policies.filter((p) => NON_COMPLIANT.has(p.state));
+  const passingPolicies = detail.policies.filter((p) => !NON_COMPLIANT.has(p.state));
+
+  return (
+    <div className="bg-red-50/30 dark:bg-red-950/10 border-t border-red-200 dark:border-red-900 px-4 py-3 space-y-3">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <ShieldAlert className="w-4 h-4 text-red-500 flex-shrink-0" />
+        <span className="text-sm font-semibold">Compliance Failures — {deviceName}</span>
+        <span className="text-xs text-muted-foreground">
+          ({failingPolicies.length} of {detail.totalPolicies} polic{detail.totalPolicies !== 1 ? "ies" : "y"} failing)
+        </span>
+      </div>
+
+      {/* Failing policies */}
+      {failingPolicies.map((policy) => (
+        <div
+          key={policy.policyId}
+          className="rounded-md border border-red-200 dark:border-red-800 bg-white dark:bg-red-950/20 overflow-hidden"
+        >
+          <div className="px-3 py-2 bg-red-100/70 dark:bg-red-900/30 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              <span className="font-medium text-sm truncate">{policy.policyName}</span>
+              {policy.platformType && policy.platformType !== "unknown" && (
+                <Badge variant="outline" className="text-xs font-normal border-red-300 dark:border-red-700 shrink-0">
+                  {policy.platformType}
+                </Badge>
+              )}
+            </div>
+            {policy.lastReportedDateTime && (
+              <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                {formatDate(policy.lastReportedDateTime)}
+              </span>
+            )}
+          </div>
+
+          {(() => {
+            const useful = policy.failingRules.filter(isUsefulRule);
+            return useful.length > 0 ? (
+              <ul className="divide-y divide-red-100 dark:divide-red-900/30">
+                {useful.map((rule, idx) => {
+                  const label = rule.settingName
+                    ? friendlySettingName(rule.settingName)
+                    : rule.errorDescription;
+                  const secondary = rule.settingName && !GENERIC_ERRORS.has(rule.errorDescription)
+                    ? rule.errorDescription
+                    : null;
+                  return (
+                    <li key={idx} className="px-3 py-2 flex items-start gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{label}</p>
+                        {secondary && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{secondary}</p>
+                        )}
+                        {rule.settingName && (
+                          <p className="text-xs text-muted-foreground/50 font-mono mt-0.5">{rule.settingName}</p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="px-3 py-2 text-xs text-muted-foreground italic">
+                Specific rule details not available — device may lack an assigned compliance policy or Graph API doesn{"'"}t expose rule-level data for this policy type.
+              </p>
+            );
+          })()}
+        </div>
+      ))}
+
+      {/* Passing policies summary */}
+      {passingPolicies.length > 0 && (
+        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
+          <span>
+            {passingPolicies.length} polic{passingPolicies.length !== 1 ? "ies" : "y"} passing:{" "}
+            {passingPolicies.map((p) => p.policyName).join(", ")}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── component ─────────────────────────────────────────────────────────────────
 
@@ -460,6 +686,7 @@ export function IntuneTab() {
   const [deviceFilter, setDeviceFilter] = useState("");
   const [deviceSorting, setDeviceSorting] = useState<SortingState>([{ id: "complianceState", desc: true }]);
   const [deviceOsFilter, setDeviceOsFilter] = useState<string>("all");
+  const [expandedDeviceId, setExpandedDeviceId] = useState<string | null>(null);
 
   const [policyTab, setPolicyTab] = useState<"compliance" | "config" | "app">("compliance");
   const [policySorting, setPolicySorting] = useState<SortingState>([{ id: "platform", desc: false }]);
@@ -483,7 +710,7 @@ export function IntuneTab() {
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 20 } },
-    meta: { excludedDeviceNames },
+    meta: { excludedDeviceNames, expandedDeviceId, setExpandedDeviceId },
   });
 
   const activePolicies: IntunePolicyItem[] = useMemo(() => {
@@ -1007,16 +1234,33 @@ export function IntuneTab() {
                   <TableBody>
                     {deviceTable.getRowModel().rows.length > 0 ? (
                       deviceTable.getRowModel().rows.map((row) => (
-                        <TableRow
-                          key={row.id}
-                          className={row.original.complianceState === "noncompliant" ? "bg-red-50/40 dark:bg-red-950/10" : ""}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id} className="py-2 align-top">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
+                        <React.Fragment key={row.id}>
+                          <TableRow
+                            className={
+                              row.original.complianceState === "noncompliant"
+                                ? "bg-red-50/40 dark:bg-red-950/10"
+                                : row.original.complianceState === "inGracePeriod"
+                                ? "bg-yellow-50/40 dark:bg-yellow-950/10"
+                                : ""
+                            }
+                          >
+                            {row.getVisibleCells().map((cell) => (
+                              <TableCell key={cell.id} className="py-2 align-top">
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                          {expandedDeviceId === row.original.id && (
+                            <TableRow className="hover:bg-transparent">
+                              <TableCell colSpan={deviceColumns.length} className="p-0">
+                                <ComplianceDrillDownPanel
+                                  deviceId={row.original.id}
+                                  deviceName={row.original.deviceName}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
                       ))
                     ) : (
                       <TableRow>

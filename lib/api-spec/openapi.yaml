@@ -156,6 +156,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365IntuneData"
 
+  /m365/intune/device/{deviceId}/compliance:
+    get:
+      operationId: getM365IntuneDeviceCompliance
+      tags: [m365]
+      summary: Per-device compliance drill-down — which specific policy rules are failing
+      parameters:
+        - in: path
+          name: deviceId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Device compliance detail with failing rules per policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceComplianceDetail"
+
   /m365/apps:
     get:
       operationId: getM365Apps
@@ -1404,6 +1423,52 @@ components:
           type: array
           items:
             type: string
+
+    DeviceComplianceRuleState:
+      type: object
+      properties:
+        settingName:
+          type: string
+        state:
+          type: string
+        errorDescription:
+          type: string
+      required: [settingName, state, errorDescription]
+
+    DeviceCompliancePolicyDetail:
+      type: object
+      properties:
+        policyId:
+          type: string
+        policyName:
+          type: string
+        platformType:
+          type: string
+        state:
+          type: string
+        lastReportedDateTime:
+          type: string
+          nullable: true
+        failingRules:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeviceComplianceRuleState"
+      required: [policyId, policyName, platformType, state, failingRules]
+
+    DeviceComplianceDetail:
+      type: object
+      properties:
+        deviceId:
+          type: string
+        totalPolicies:
+          type: integer
+        nonCompliantPolicies:
+          type: integer
+        policies:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeviceCompliancePolicyDetail"
+      required: [deviceId, totalPolicies, nonCompliantPolicies, policies]
 
     M365ServicePrincipalsData:
       type: object

@@ -442,4 +442,75 @@ router.get("/m365/intune", async (req, res) => {
   }
 });
 
+// ── Per-device compliance drill-down ─────────────────────────────────────────
+router.get("/m365/intune/device/:deviceId/compliance", async (req, res) => {
+  const { deviceId } = req.params;
+  try {
+    const token = await getToken();
+    const encodedId = encodeURIComponent(deviceId);
+
+    // Fetch all compliance policy states for this device
+    const policyStatesResult = await fetchAllPages(
+      `https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/${encodedId}/deviceCompliancePolicyStates`,
+      token
+    );
+
+    if (policyStatesResult.permissionDenied) {
+      return res.status(403).json({ error: "Permission denied" });
+    }
+
+    const policyStates = policyStatesResult.items;
+    const NON_COMPLIANT = new Set(["noncompliant", "nonCompliant", "error"]);
+
+    // For each non-compliant policy fetch its setting-level states in parallel
+    const policies = await Promise.all(
+      policyStates.map(async (policy: any) => {
+        const isNonCompliant = NON_COMPLIANT.has(policy.state);
+        let failingRules: Array<{
+          settingName: string;
+          state: string;
+          errorDescription: string;
+        }> = [];
+
+        if (isNonCompliant) {
+          try {
+            const settingResult = await fetchAllPages(
+              `https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/${encodedId}/deviceCompliancePolicyStates/${encodeURIComponent(policy.id)}/settingStates`,
+              token
+            );
+            failingRules = settingResult.items
+              .filter((s: any) => NON_COMPLIANT.has(s.state))
+              .map((s: any) => ({
+                settingName: s.settingName || "",
+                state: s.state || "unknown",
+                errorDescription: s.errorDescription || "",
+              }));
+          } catch {
+            // setting states unavailable for this policy — skip gracefully
+          }
+        }
+
+        return {
+          policyId: policy.id as string,
+          policyName: (policy.displayName || "Unknown Policy") as string,
+          platformType: (policy.platformType || "unknown") as string,
+          state: (policy.state || "unknown") as string,
+          lastReportedDateTime: (policy.lastReportedDateTime || null) as string | null,
+          failingRules,
+        };
+      })
+    );
+
+    res.json({
+      deviceId,
+      totalPolicies: policies.length,
+      nonCompliantPolicies: policies.filter((p) => NON_COMPLIANT.has(p.state)).length,
+      policies,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Device compliance detail error");
+    res.status(500).json({ error: String(err.message) });
+  }
+});
+
 export default router;

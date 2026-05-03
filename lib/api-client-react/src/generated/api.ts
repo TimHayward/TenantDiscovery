@@ -14,6 +14,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  DeviceComplianceDetail,
   HealthStatus,
   M365AppsData,
   M365ComplianceData,
@@ -855,6 +856,102 @@ export function useGetM365Intune<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetM365IntuneQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Per-device compliance drill-down — which specific policy rules are failing
+ */
+export const getGetM365IntuneDeviceComplianceUrl = (deviceId: string) => {
+  return `/api/m365/intune/device/${deviceId}/compliance`;
+};
+
+export const getM365IntuneDeviceCompliance = async (
+  deviceId: string,
+  options?: RequestInit,
+): Promise<DeviceComplianceDetail> => {
+  return customFetch<DeviceComplianceDetail>(
+    getGetM365IntuneDeviceComplianceUrl(deviceId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetM365IntuneDeviceComplianceQueryKey = (deviceId: string) => {
+  return [`/api/m365/intune/device/${deviceId}/compliance`] as const;
+};
+
+export const getGetM365IntuneDeviceComplianceQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365IntuneDeviceCompliance>>,
+  TError = ErrorType<unknown>,
+>(
+  deviceId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getM365IntuneDeviceCompliance>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetM365IntuneDeviceComplianceQueryKey(deviceId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getM365IntuneDeviceCompliance>>
+  > = ({ signal }) =>
+    getM365IntuneDeviceCompliance(deviceId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!deviceId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365IntuneDeviceCompliance>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365IntuneDeviceComplianceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365IntuneDeviceCompliance>>
+>;
+export type GetM365IntuneDeviceComplianceQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Per-device compliance drill-down — which specific policy rules are failing
+ */
+
+export function useGetM365IntuneDeviceCompliance<
+  TData = Awaited<ReturnType<typeof getM365IntuneDeviceCompliance>>,
+  TError = ErrorType<unknown>,
+>(
+  deviceId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getM365IntuneDeviceCompliance>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365IntuneDeviceComplianceQueryOptions(
+    deviceId,
+    options,
+  );
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

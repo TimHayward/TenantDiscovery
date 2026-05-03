@@ -447,6 +447,35 @@ export const GetM365IntuneResponse = zod.object({
 });
 
 /**
+ * @summary Per-device compliance drill-down — which specific policy rules are failing
+ */
+export const GetM365IntuneDeviceComplianceParams = zod.object({
+  deviceId: zod.coerce.string(),
+});
+
+export const GetM365IntuneDeviceComplianceResponse = zod.object({
+  deviceId: zod.string(),
+  totalPolicies: zod.number(),
+  nonCompliantPolicies: zod.number(),
+  policies: zod.array(
+    zod.object({
+      policyId: zod.string(),
+      policyName: zod.string(),
+      platformType: zod.string(),
+      state: zod.string(),
+      lastReportedDateTime: zod.string().nullish(),
+      failingRules: zod.array(
+        zod.object({
+          settingName: zod.string(),
+          state: zod.string(),
+          errorDescription: zod.string(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
  * @summary Enterprise application registrations with security assessment
  */
 export const GetM365AppsResponse = zod.object({

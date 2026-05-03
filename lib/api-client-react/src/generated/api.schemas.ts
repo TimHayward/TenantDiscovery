@@ -522,6 +522,28 @@ export interface ServicePrincipalItem {
   riskFactors: string[];
 }
 
+export interface DeviceComplianceRuleState {
+  settingName: string;
+  state: string;
+  errorDescription: string;
+}
+
+export interface DeviceCompliancePolicyDetail {
+  policyId: string;
+  policyName: string;
+  platformType: string;
+  state: string;
+  lastReportedDateTime?: string | null;
+  failingRules: DeviceComplianceRuleState[];
+}
+
+export interface DeviceComplianceDetail {
+  deviceId: string;
+  totalPolicies: number;
+  nonCompliantPolicies: number;
+  policies: DeviceCompliancePolicyDetail[];
+}
+
 export interface M365ServicePrincipalsData {
   total: number;
   applicationCount: number;
