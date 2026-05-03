@@ -78,6 +78,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365SecurityData"
 
+  /m365/security/estate:
+    get:
+      operationId: getM365SecurityEstate
+      tags: [m365]
+      summary: Discovered devices, SaaS apps, and OAuth apps in the estate
+      responses:
+        "200":
+          description: Security estate data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityEstateData"
+
   /m365/exchange:
     get:
       operationId: getM365Exchange
@@ -578,6 +591,10 @@ components:
                 type: string
                 nullable: true
             required: [id, displayName, userPrincipalName, riskLevel, riskState, riskLastUpdatedDateTime]
+        secureScoreControls:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecureScoreControl"
       required:
         - secureScore
         - secureScoreMax
@@ -598,6 +615,139 @@ components:
         - mfaMethodsBreakdown
         - riskDetectionTimeline
         - riskyUsersDetail
+        - secureScoreControls
+
+    SecureScoreControl:
+      type: object
+      properties:
+        controlName:
+          type: string
+        controlCategory:
+          type: string
+        description:
+          type: string
+        score:
+          type: number
+        scoreInPercentage:
+          type: number
+        implementationStatus:
+          type: string
+        lastSynced:
+          type: string
+          nullable: true
+        status:
+          type: string
+      required: [controlName, controlCategory, description, score, scoreInPercentage, implementationStatus, lastSynced, status]
+
+    DeviceEstateItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        operatingSystem:
+          type: string
+        operatingSystemVersion:
+          type: string
+          nullable: true
+        trustType:
+          type: string
+          nullable: true
+        isManaged:
+          type: boolean
+        isCompliant:
+          type: boolean
+          nullable: true
+        managementType:
+          type: string
+          nullable: true
+        approximateLastSignInDateTime:
+          type: string
+          nullable: true
+      required: [id, displayName, operatingSystem, operatingSystemVersion, trustType, isManaged, isCompliant, managementType, approximateLastSignInDateTime]
+
+    SaasAppItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        publisherName:
+          type: string
+          nullable: true
+        appOwnerOrganizationId:
+          type: string
+          nullable: true
+        isFirstParty:
+          type: boolean
+        createdDateTime:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+      required: [id, displayName, publisherName, appOwnerOrganizationId, isFirstParty, createdDateTime, tags]
+
+    OAuthAppItem:
+      type: object
+      properties:
+        clientId:
+          type: string
+        displayName:
+          type: string
+        consentType:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        isOrgWide:
+          type: boolean
+      required: [clientId, displayName, consentType, scopes, isOrgWide]
+
+    SecurityEstateData:
+      type: object
+      properties:
+        deviceSummary:
+          type: object
+          properties:
+            total:
+              type: integer
+            managed:
+              type: integer
+            unmanaged:
+              type: integer
+            mde:
+              type: integer
+            azureAdJoined:
+              type: integer
+            hybridJoined:
+              type: integer
+            registered:
+              type: integer
+            unknown:
+              type: integer
+            byOs:
+              type: object
+              additionalProperties:
+                type: integer
+          required: [total, managed, unmanaged, mde, azureAdJoined, hybridJoined, registered, unknown, byOs]
+        deviceList:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeviceEstateItem"
+        saasApps:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaasAppItem"
+        oauthApps:
+          type: array
+          items:
+            $ref: "#/components/schemas/OAuthAppItem"
+      required: [deviceSummary, deviceList, saasApps, oauthApps]
 
     M365ExchangeData:
       type: object

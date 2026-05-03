@@ -28,6 +28,7 @@ import type {
   M365SharePointData,
   M365TeamsData,
   M365UsersData,
+  SecurityEstateData,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -406,6 +407,81 @@ export function useGetM365Security<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetM365SecurityQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Discovered devices, SaaS apps, and OAuth apps in the estate
+ */
+export const getGetM365SecurityEstateUrl = () => {
+  return `/api/m365/security/estate`;
+};
+
+export const getM365SecurityEstate = async (
+  options?: RequestInit,
+): Promise<SecurityEstateData> => {
+  return customFetch<SecurityEstateData>(getGetM365SecurityEstateUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetM365SecurityEstateQueryKey = () => {
+  return [`/api/m365/security/estate`] as const;
+};
+
+export const getGetM365SecurityEstateQueryOptions = <
+  TData = Awaited<ReturnType<typeof getM365SecurityEstate>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365SecurityEstate>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetM365SecurityEstateQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getM365SecurityEstate>>
+  > = ({ signal }) => getM365SecurityEstate({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getM365SecurityEstate>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetM365SecurityEstateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getM365SecurityEstate>>
+>;
+export type GetM365SecurityEstateQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Discovered devices, SaaS apps, and OAuth apps in the estate
+ */
+
+export function useGetM365SecurityEstate<
+  TData = Awaited<ReturnType<typeof getM365SecurityEstate>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getM365SecurityEstate>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetM365SecurityEstateQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

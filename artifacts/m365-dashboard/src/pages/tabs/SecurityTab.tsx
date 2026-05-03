@@ -11,6 +11,7 @@ import { CSVLink } from "react-csv";
 import {
   Download, ChevronDown, ChevronUp,
   CheckCircle2, XCircle, ShieldCheck, ShieldAlert, AlertTriangle,
+  Settings2,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatDate } from "@/lib/utils";
@@ -30,6 +31,7 @@ import type {
   ConditionalAccessPolicyItem,
   MfaUserItem,
   MfaMethodStrengthItem,
+  SecureScoreControl,
 } from "@workspace/api-client-react/src/generated/api.schemas";
 
 // ── constants ─────────────────────────────────────────────────────────────────
@@ -187,6 +189,70 @@ const mfaUserColumns: ColumnDef<MfaUserItem>[] = [
   },
 ];
 
+const SETTING_STATUS_COLORS: Record<string, string> = {
+  configured:    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  partial:       "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  notConfigured: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+};
+
+function SettingStatusBadge({ status }: { status: string }) {
+  const labels: Record<string, string> = { configured: "Configured", partial: "Partial", notConfigured: "Not Configured" };
+  return (
+    <Badge className={`${SETTING_STATUS_COLORS[status] ?? ""} font-normal text-xs border-0`}>
+      {labels[status] ?? status}
+    </Badge>
+  );
+}
+
+function ScoreBar({ pct }: { pct: number }) {
+  const color = pct >= 80 ? "#009118" : pct > 0 ? "#eab308" : "#A60808";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-20 h-2 rounded-full bg-muted overflow-hidden flex-shrink-0">
+        <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }} />
+      </div>
+      <span className="text-xs text-muted-foreground w-8 text-right">{Math.round(pct)}%</span>
+    </div>
+  );
+}
+
+const secureScoreControlColumns: ColumnDef<SecureScoreControl>[] = [
+  {
+    accessorKey: "controlName",
+    header: "Control",
+    cell: ({ row }) => <span className="font-medium text-sm">{row.original.controlName}</span>,
+  },
+  {
+    accessorKey: "controlCategory",
+    header: "Category",
+    cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.controlCategory}</span>,
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => <SettingStatusBadge status={row.original.status} />,
+  },
+  {
+    accessorKey: "scoreInPercentage",
+    header: "Score",
+    cell: ({ row }) => <ScoreBar pct={row.original.scoreInPercentage} />,
+  },
+  {
+    accessorKey: "implementationStatus",
+    header: "Details",
+    cell: ({ row }) => (
+      <span className="text-xs text-muted-foreground line-clamp-2 max-w-xs">{row.original.implementationStatus || "—"}</span>
+    ),
+  },
+  {
+    accessorKey: "lastSynced",
+    header: "Last Synced",
+    cell: ({ row }) => (
+      <span className="text-xs text-muted-foreground">{row.original.lastSynced ? formatDate(row.original.lastSynced) : "—"}</span>
+    ),
+  },
+];
+
 const methodColumns: ColumnDef<MfaMethodStrengthItem>[] = [
   {
     accessorKey: "strengthLevel",
@@ -302,6 +368,39 @@ export function SecurityTab() {
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 20 } },
   });
+
+  // ── Security Settings (Secure Score Controls) state ──
+  const [settingsFilter, setSettingsFilter] = useState("");
+  const [settingsSorting, setSettingsSorting] = useState<SortingState>([{ id: "scoreInPercentage", desc: false }]);
+  const [settingsCategoryFilter, setSettingsCategoryFilter] = useState("All");
+  const [settingsStatusFilter, setSettingsStatusFilter] = useState("All");
+
+  const controls = data?.secureScoreControls ?? [];
+  const categories = useMemo(() => ["All", ...Array.from(new Set(controls.map((c) => c.controlCategory))).sort()], [controls]);
+
+  const filteredControls = useMemo(() => {
+    let c = controls;
+    if (settingsCategoryFilter !== "All") c = c.filter((x) => x.controlCategory === settingsCategoryFilter);
+    if (settingsStatusFilter !== "All") c = c.filter((x) => x.status === settingsStatusFilter);
+    return c;
+  }, [controls, settingsCategoryFilter, settingsStatusFilter]);
+
+  const settingsTable = useReactTable({
+    data: filteredControls,
+    columns: secureScoreControlColumns,
+    state: { sorting: settingsSorting, globalFilter: settingsFilter },
+    onSortingChange: setSettingsSorting,
+    onGlobalFilterChange: setSettingsFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 20 } },
+  });
+
+  const configuredCount   = controls.filter((c) => c.status === "configured").length;
+  const partialCount      = controls.filter((c) => c.status === "partial").length;
+  const notConfiguredCount = controls.filter((c) => c.status === "notConfigured").length;
 
   // ── CA policy table state ──
   const [caSorting, setCaSorting] = useState<SortingState>([{ id: "state", desc: false }]);
@@ -862,6 +961,162 @@ export function SecurityTab() {
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => caTable.previousPage()} disabled={!caTable.getCanPreviousPage()}>Previous</Button>
                   <Button variant="outline" size="sm" onClick={() => caTable.nextPage()} disabled={!caTable.getCanNextPage()}>Next</Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Security Settings (Secure Score Controls) ───────────────────────── */}
+      <Card>
+        <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Settings2 className="w-4 h-4 text-muted-foreground" />
+              Security Settings
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {controls.length > 0 ? `${controls.length} Secure Score controls evaluated by Microsoft` : "Secure Score control data"}
+            </p>
+          </div>
+          <ExportBtn
+            filename="security-settings.csv"
+            csvData={controls.map((c) => ({
+              Control: c.controlName,
+              Category: c.controlCategory,
+              Status: c.status,
+              "Score %": c.scoreInPercentage,
+              Details: c.implementationStatus,
+              "Last Synced": c.lastSynced ?? "",
+            }))}
+          />
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-3">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+              </div>
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+          ) : controls.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 gap-2">
+              <ShieldAlert className="w-8 h-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">No Secure Score control data available.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Status KPIs */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "Configured", count: configuredCount, statusKey: "configured", color: "#009118" },
+                  { label: "Partial", count: partialCount, statusKey: "partial", color: "#eab308" },
+                  { label: "Not Configured", count: notConfiguredCount, statusKey: "notConfigured", color: "#A60808" },
+                ].map((item) => (
+                  <button
+                    key={item.statusKey}
+                    onClick={() => setSettingsStatusFilter(settingsStatusFilter === item.statusKey ? "All" : item.statusKey)}
+                    className={`p-3 rounded-md border text-left transition-all ${
+                      settingsStatusFilter === item.statusKey
+                        ? "ring-2 ring-primary border-primary"
+                        : "hover:bg-muted/40"
+                    }`}
+                  >
+                    <p className="text-2xl font-bold" style={{ color: item.color }}>{item.count}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.label}</p>
+                    <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${controls.length > 0 ? (item.count / controls.length) * 100 : 0}%`, backgroundColor: item.color }}
+                      />
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Filters */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <Input
+                  placeholder="Search controls…"
+                  value={settingsFilter}
+                  onChange={(e) => setSettingsFilter(e.target.value)}
+                  className="max-w-xs"
+                />
+                <select
+                  value={settingsCategoryFilter}
+                  onChange={(e) => setSettingsCategoryFilter(e.target.value)}
+                  className="text-sm border rounded px-2 py-1.5 bg-background text-foreground"
+                >
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                {(settingsStatusFilter !== "All" || settingsCategoryFilter !== "All" || settingsFilter) && (
+                  <button
+                    onClick={() => { setSettingsStatusFilter("All"); setSettingsCategoryFilter("All"); setSettingsFilter(""); }}
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+
+              {/* Table */}
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    {settingsTable.getHeaderGroups().map((hg) => (
+                      <TableRow key={hg.id}>
+                        {hg.headers.map((header) => (
+                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
+                            <div className="flex items-center gap-1">
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                              {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                            </div>
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {settingsTable.getRowModel().rows.length > 0 ? (
+                      settingsTable.getRowModel().rows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          className={
+                            row.original.status === "notConfigured"
+                              ? "bg-red-50/30 dark:bg-red-950/10"
+                              : row.original.status === "partial"
+                              ? "bg-yellow-50/20 dark:bg-yellow-950/10"
+                              : ""
+                          }
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} className="py-2 align-top">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={secureScoreControlColumns.length} className="h-16 text-center text-muted-foreground">
+                          No controls match the filters.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {settingsTable.getFilteredRowModel().rows.length} of {controls.length} controls
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => settingsTable.previousPage()} disabled={!settingsTable.getCanPreviousPage()}>Previous</Button>
+                  <Button variant="outline" size="sm" onClick={() => settingsTable.nextPage()} disabled={!settingsTable.getCanNextPage()}>Next</Button>
                 </div>
               </div>
             </div>

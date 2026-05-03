@@ -250,6 +250,21 @@ router.get("/m365/security", async (req, res): Promise<void> => {
         modifiedDateTime: p.modifiedDateTime ?? null,
       }));
 
+      const secureScoreControls = (latestScore?.controlScores ?? []).map((ctrl: any) => {
+        const pct: number = ctrl.scoreInPercentage ?? 0;
+        const status = pct >= 80 ? "configured" : pct > 0 ? "partial" : "notConfigured";
+        return {
+          controlName: ctrl.controlName ?? "",
+          controlCategory: ctrl.controlCategory ?? "Other",
+          description: ctrl.description ?? "",
+          score: ctrl.score ?? 0,
+          scoreInPercentage: pct,
+          implementationStatus: ctrl.implementationStatus ?? "",
+          lastSynced: ctrl.lastSynced ?? null,
+          status,
+        };
+      });
+
       return {
         secureScore,
         secureScoreMax,
@@ -270,6 +285,7 @@ router.get("/m365/security", async (req, res): Promise<void> => {
         mfaMethodsBreakdown,
         riskDetectionTimeline,
         riskyUsersDetail,
+        secureScoreControls,
       };
     });
 
@@ -277,6 +293,129 @@ router.get("/m365/security", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err }, "Failed to fetch M365 security data");
     res.status(500).json({ error: "Failed to fetch M365 security data" });
+  }
+});
+
+// ── /m365/security/estate — discovered devices, SaaS apps, OAuth apps ─────────
+
+const MICROSOFT_TENANT_ID = "f8cdef31-a31e-4b4a-93e4-5f571e91255a";
+
+router.get("/m365/security/estate", async (req, res): Promise<void> => {
+  try {
+    const data = await getCached("m365-security-estate", async () => {
+      const [devicesRaw, servicePrincipalsRaw, oauthGrantsRaw] = await Promise.all([
+        fetchAllPages(
+          "https://graph.microsoft.com/v1.0/devices" +
+          "?$select=id,displayName,operatingSystem,operatingSystemVersion,trustType,isManaged,isCompliant,managementType,approximateLastSignInDateTime" +
+          "&$top=999"
+        ),
+        fetchAllPages(
+          "https://graph.microsoft.com/v1.0/servicePrincipals" +
+          "?$select=id,displayName,appId,publisherName,servicePrincipalType,appOwnerOrganizationId,createdDateTime,tags" +
+          "&$top=999"
+        ),
+        fetchAllPages(
+          "https://graph.microsoft.com/v1.0/oauth2PermissionGrants" +
+          "?$select=clientId,consentType,principalId,scope" +
+          "&$top=999"
+        ),
+      ]);
+
+      // Build SP name map for resolving OAuth client names
+      const spNameMap = new Map<string, string>();
+      for (const sp of servicePrincipalsRaw) {
+        spNameMap.set(sp.id as string, (sp.displayName as string) ?? sp.id);
+      }
+
+      // ── Devices ──────────────────────────────────────────────────────────────
+      const deviceList = devicesRaw.map((d: any) => ({
+        id: d.id as string,
+        displayName: (d.displayName as string) ?? "Unknown",
+        operatingSystem: (d.operatingSystem as string) ?? "Unknown",
+        operatingSystemVersion: (d.operatingSystemVersion as string) ?? null,
+        trustType: (d.trustType as string) ?? null,
+        isManaged: (d.isManaged as boolean) ?? false,
+        isCompliant: d.isCompliant as boolean | null ?? null,
+        managementType: (d.managementType as string) ?? null,
+        approximateLastSignInDateTime: (d.approximateLastSignInDateTime as string) ?? null,
+      }));
+
+      const managed = deviceList.filter((d) => d.isManaged || !!d.managementType).length;
+      const mde     = deviceList.filter((d) => d.managementType === "MicrosoftSense").length;
+      const azureAdJoined = deviceList.filter((d) => d.trustType === "AzureAd").length;
+      const hybridJoined  = deviceList.filter((d) => d.trustType === "ServerAd").length;
+      const registered    = deviceList.filter((d) => d.trustType === "Workplace").length;
+      const unknownTrust  = deviceList.filter((d) => !d.trustType).length;
+
+      // OS breakdown
+      const osCounts: Record<string, number> = {};
+      for (const d of deviceList) {
+        const os = d.operatingSystem ?? "Unknown";
+        osCounts[os] = (osCounts[os] ?? 0) + 1;
+      }
+
+      const deviceSummary = {
+        total: deviceList.length,
+        managed,
+        unmanaged: deviceList.length - managed,
+        mde,
+        azureAdJoined,
+        hybridJoined,
+        registered,
+        unknown: unknownTrust,
+        byOs: osCounts,
+      };
+
+      // ── SaaS Apps ─────────────────────────────────────────────────────────────
+      const saasApps = servicePrincipalsRaw
+        .filter((sp: any) => sp.servicePrincipalType === "Application")
+        .map((sp: any) => ({
+          id: sp.id as string,
+          displayName: (sp.displayName as string) ?? "Unknown",
+          publisherName: (sp.publisherName as string) ?? null,
+          appOwnerOrganizationId: (sp.appOwnerOrganizationId as string) ?? null,
+          isFirstParty: (sp.appOwnerOrganizationId as string) === MICROSOFT_TENANT_ID,
+          createdDateTime: (sp.createdDateTime as string) ?? null,
+          tags: (sp.tags as string[]) ?? [],
+        }))
+        .sort((a: any, b: any) => (a.isFirstParty === b.isFirstParty ? 0 : a.isFirstParty ? 1 : -1));
+
+      // ── OAuth Apps ────────────────────────────────────────────────────────────
+      const oauthMap = new Map<string, {
+        clientId: string; displayName: string; consentType: string; scopes: string[]; isOrgWide: boolean;
+      }>();
+      for (const grant of oauthGrantsRaw) {
+        const clientId = grant.clientId as string;
+        const scopeWords = ((grant.scope as string) ?? "").split(/\s+/).filter(Boolean);
+        const existing = oauthMap.get(clientId);
+        if (existing) {
+          for (const s of scopeWords) {
+            if (!existing.scopes.includes(s)) existing.scopes.push(s);
+          }
+          if (grant.consentType === "AllPrincipals") {
+            existing.consentType = "AllPrincipals";
+            existing.isOrgWide = true;
+          }
+        } else {
+          oauthMap.set(clientId, {
+            clientId,
+            displayName: spNameMap.get(clientId) ?? clientId,
+            consentType: (grant.consentType as string) ?? "Unknown",
+            scopes: scopeWords,
+            isOrgWide: grant.consentType === "AllPrincipals",
+          });
+        }
+      }
+      const oauthApps = Array.from(oauthMap.values())
+        .sort((a, b) => (a.isOrgWide === b.isOrgWide ? 0 : a.isOrgWide ? -1 : 1));
+
+      return { deviceSummary, deviceList, saasApps, oauthApps };
+    });
+
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch M365 security estate data");
+    res.status(500).json({ error: "Failed to fetch M365 security estate data" });
   }
 });
 

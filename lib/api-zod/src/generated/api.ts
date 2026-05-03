@@ -172,6 +172,68 @@ export const GetM365SecurityResponse = zod.object({
       riskLastUpdatedDateTime: zod.string().nullable(),
     }),
   ),
+  secureScoreControls: zod.array(
+    zod.object({
+      controlName: zod.string(),
+      controlCategory: zod.string(),
+      description: zod.string(),
+      score: zod.number(),
+      scoreInPercentage: zod.number(),
+      implementationStatus: zod.string(),
+      lastSynced: zod.string().nullable(),
+      status: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Discovered devices, SaaS apps, and OAuth apps in the estate
+ */
+export const GetM365SecurityEstateResponse = zod.object({
+  deviceSummary: zod.object({
+    total: zod.number(),
+    managed: zod.number(),
+    unmanaged: zod.number(),
+    mde: zod.number(),
+    azureAdJoined: zod.number(),
+    hybridJoined: zod.number(),
+    registered: zod.number(),
+    unknown: zod.number(),
+    byOs: zod.record(zod.string(), zod.number()),
+  }),
+  deviceList: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      operatingSystem: zod.string(),
+      operatingSystemVersion: zod.string().nullable(),
+      trustType: zod.string().nullable(),
+      isManaged: zod.boolean(),
+      isCompliant: zod.boolean().nullable(),
+      managementType: zod.string().nullable(),
+      approximateLastSignInDateTime: zod.string().nullable(),
+    }),
+  ),
+  saasApps: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      publisherName: zod.string().nullable(),
+      appOwnerOrganizationId: zod.string().nullable(),
+      isFirstParty: zod.boolean(),
+      createdDateTime: zod.string().nullable(),
+      tags: zod.array(zod.string()),
+    }),
+  ),
+  oauthApps: zod.array(
+    zod.object({
+      clientId: zod.string(),
+      displayName: zod.string(),
+      consentType: zod.string(),
+      scopes: zod.array(zod.string()),
+      isOrgWide: zod.boolean(),
+    }),
+  ),
 });
 
 /**

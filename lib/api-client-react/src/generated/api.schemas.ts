@@ -149,6 +149,17 @@ export type M365SecurityDataRiskyUsersDetailItem = {
   riskLastUpdatedDateTime: string | null;
 };
 
+export interface SecureScoreControl {
+  controlName: string;
+  controlCategory: string;
+  description: string;
+  score: number;
+  scoreInPercentage: number;
+  implementationStatus: string;
+  lastSynced: string | null;
+  status: string;
+}
+
 export interface M365SecurityData {
   secureScore: number;
   secureScoreMax: number;
@@ -169,6 +180,58 @@ export interface M365SecurityData {
   mfaMethodsBreakdown: MfaMethodStrengthItem[];
   riskDetectionTimeline: M365SecurityDataRiskDetectionTimelineItem[];
   riskyUsersDetail: M365SecurityDataRiskyUsersDetailItem[];
+  secureScoreControls: SecureScoreControl[];
+}
+
+export interface DeviceEstateItem {
+  id: string;
+  displayName: string;
+  operatingSystem: string;
+  operatingSystemVersion: string | null;
+  trustType: string | null;
+  isManaged: boolean;
+  isCompliant: boolean | null;
+  managementType: string | null;
+  approximateLastSignInDateTime: string | null;
+}
+
+export interface SaasAppItem {
+  id: string;
+  displayName: string;
+  publisherName: string | null;
+  appOwnerOrganizationId: string | null;
+  isFirstParty: boolean;
+  createdDateTime: string | null;
+  tags: string[];
+}
+
+export interface OAuthAppItem {
+  clientId: string;
+  displayName: string;
+  consentType: string;
+  scopes: string[];
+  isOrgWide: boolean;
+}
+
+export type SecurityEstateDataDeviceSummaryByOs = { [key: string]: number };
+
+export type SecurityEstateDataDeviceSummary = {
+  total: number;
+  managed: number;
+  unmanaged: number;
+  mde: number;
+  azureAdJoined: number;
+  hybridJoined: number;
+  registered: number;
+  unknown: number;
+  byOs: SecurityEstateDataDeviceSummaryByOs;
+};
+
+export interface SecurityEstateData {
+  deviceSummary: SecurityEstateDataDeviceSummary;
+  deviceList: DeviceEstateItem[];
+  saasApps: SaasAppItem[];
+  oauthApps: OAuthAppItem[];
 }
 
 export type M365ExchangeDataMailboxSizeDistributionItem = {

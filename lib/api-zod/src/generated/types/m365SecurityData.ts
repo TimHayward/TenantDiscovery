@@ -12,6 +12,7 @@ import type { M365SecurityDataRiskyUsersDetailItem } from "./m365SecurityDataRis
 import type { M365SecurityDataSecureScoreHistoryItem } from "./m365SecurityDataSecureScoreHistoryItem";
 import type { MfaMethodStrengthItem } from "./mfaMethodStrengthItem";
 import type { MfaUserItem } from "./mfaUserItem";
+import type { SecureScoreControl } from "./secureScoreControl";
 
 export interface M365SecurityData {
   secureScore: number;
@@ -33,4 +34,5 @@ export interface M365SecurityData {
   mfaMethodsBreakdown: MfaMethodStrengthItem[];
   riskDetectionTimeline: M365SecurityDataRiskDetectionTimelineItem[];
   riskyUsersDetail: M365SecurityDataRiskyUsersDetailItem[];
+  secureScoreControls: SecureScoreControl[];
 }
