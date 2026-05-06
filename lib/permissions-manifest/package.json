@@ -1,0 +1,13 @@
+{
+  "name": "@workspace/permissions-manifest",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./manifest.json": "./src/generated/permissions.manifest.json"
+  },
+  "scripts": {
+    "generate:json": "node --experimental-strip-types ./scripts/generate-json.ts"
+  }
+}

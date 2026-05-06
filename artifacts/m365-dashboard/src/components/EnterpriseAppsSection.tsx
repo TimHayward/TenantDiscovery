@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { useGetM365Apps } from "@workspace/api-client-react";
+import { useGetM365Apps, useGetM365DataSources } from "@workspace/api-client-react";
 import type { AppRegistration, AppCredential, AppPermission } from "@workspace/api-client-react";
+import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,8 @@ import {
   Building2, Key, Lock, Globe, CheckCircle2, XCircle, AlertCircle,
   ChevronDown, ChevronUp, ShieldAlert, Info, AlertTriangle,
 } from "lucide-react";
+import { PermissionCodeList } from "@/components/PermissionCodeList";
+import { ENTERPRISE_APPS_PERMISSIONS } from "@/lib/permissions";
 import { formatDate } from "@/lib/utils";
 
 // ── high-risk scopes (mirrored from backend for inline highlighting) ──────────
@@ -289,7 +292,20 @@ function AppDetailPanel({ app, usersCanRegisterApps }: { app: AppRegistration; u
 
 export function EnterpriseAppsSection() {
   const { data, isLoading, isFetching } = useGetM365Apps();
+  const { data: dataSources } = useGetM365DataSources({ tab: "enterprise-apps" });
   const loading = isLoading || isFetching;
+
+  const registryItems =
+    (dataSources as {
+      items?: Array<{
+        metricId: string;
+        confidenceLabel: ConfidenceLabel;
+        evidenceStatus: EvidenceStatus;
+      }>;
+    } | undefined)?.items ?? [];
+
+  const getMetricMeta = (metricId: string) =>
+    registryItems.find((item) => item.metricId === metricId);
 
   const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
   const [appFilter, setAppFilter]         = useState("");
@@ -539,10 +555,13 @@ export function EnterpriseAppsSection() {
           <div>
             <p className="font-medium">Additional permissions required</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-md">
-              Grant{" "}
-              <code className="bg-muted px-1 rounded text-xs">Application.Read.All</code> and{" "}
-              <code className="bg-muted px-1 rounded text-xs">Policy.Read.All</code>{" "}
-              to your Azure app registration, then refresh.
+              Grant <PermissionCodeList permissions={ENTERPRISE_APPS_PERMISSIONS.requiredPermissions.map((permission) => permission.name)} codeClassName="bg-muted px-1 rounded text-xs" />
+              {" "}to your Azure app registration, then refresh.
+              {ENTERPRISE_APPS_PERMISSIONS.optionalPermissions.length > 0 ? (
+                <>
+                  {" "}Optional: <PermissionCodeList permissions={ENTERPRISE_APPS_PERMISSIONS.optionalPermissions.map((permission) => permission.name)} codeClassName="bg-muted px-1 rounded text-xs" /> improves policy-based app governance context.
+                </>
+              ) : null}
             </p>
           </div>
         </div>
@@ -572,12 +591,53 @@ export function EnterpriseAppsSection() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard title="App Registrations"  value={data?.totalApps}                    loading={loading} />
-        <KPICard title="No Owner"           value={data?.appsWithNoOwner}              loading={loading} valueColor={(data?.appsWithNoOwner ?? 0) > 0 ? C.red : C.green} />
-        <KPICard title="High Risk"          value={data?.appsWithHighRisk}             loading={loading} valueColor={(data?.appsWithHighRisk ?? 0) > 0 ? C.red : C.green} />
-        <KPICard title="Expired Creds"      value={data?.appsWithExpiredCredentials}   loading={loading} valueColor={(data?.appsWithExpiredCredentials ?? 0) > 0 ? C.red : C.green} />
-        <KPICard title="Long-lived Secrets" value={data?.appsWithLongLivedSecrets}     loading={loading} valueColor={(data?.appsWithLongLivedSecrets ?? 0) > 0 ? C.yellow : C.green} />
-        <KPICard title="Multi-tenant"       value={data?.multiTenantApps}             loading={loading} valueColor={(data?.multiTenantApps ?? 0) > 0 ? C.yellow : C.green} />
+        <KPICard
+          title="App Registrations"
+          value={data?.totalApps}
+          loading={loading}
+          evidenceStatus={getMetricMeta("apps.totalApps")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("apps.totalApps")?.confidenceLabel}
+        />
+        <KPICard
+          title="No Owner"
+          value={data?.appsWithNoOwner}
+          loading={loading}
+          valueColor={(data?.appsWithNoOwner ?? 0) > 0 ? C.red : C.green}
+          evidenceStatus={getMetricMeta("apps.appsWithNoOwner")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("apps.appsWithNoOwner")?.confidenceLabel}
+        />
+        <KPICard
+          title="High Risk"
+          value={data?.appsWithHighRisk}
+          loading={loading}
+          valueColor={(data?.appsWithHighRisk ?? 0) > 0 ? C.red : C.green}
+          evidenceStatus={getMetricMeta("apps.appsWithHighRisk")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("apps.appsWithHighRisk")?.confidenceLabel}
+        />
+        <KPICard
+          title="Expired Creds"
+          value={data?.appsWithExpiredCredentials}
+          loading={loading}
+          valueColor={(data?.appsWithExpiredCredentials ?? 0) > 0 ? C.red : C.green}
+          evidenceStatus={getMetricMeta("apps.appsWithExpiredCredentials")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("apps.appsWithExpiredCredentials")?.confidenceLabel}
+        />
+        <KPICard
+          title="Long-lived Secrets"
+          value={data?.appsWithLongLivedSecrets}
+          loading={loading}
+          valueColor={(data?.appsWithLongLivedSecrets ?? 0) > 0 ? C.yellow : C.green}
+          evidenceStatus={getMetricMeta("apps.appsWithLongLivedSecrets")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("apps.appsWithLongLivedSecrets")?.confidenceLabel}
+        />
+        <KPICard
+          title="Multi-tenant"
+          value={data?.multiTenantApps}
+          loading={loading}
+          valueColor={(data?.multiTenantApps ?? 0) > 0 ? C.yellow : C.green}
+          evidenceStatus={getMetricMeta("apps.multiTenantApps")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("apps.multiTenantApps")?.confidenceLabel}
+        />
       </div>
 
       {/* Warning: users can register apps */}

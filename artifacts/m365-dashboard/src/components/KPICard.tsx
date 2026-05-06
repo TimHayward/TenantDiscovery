@@ -1,6 +1,23 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { ArrowUpIcon, ArrowDownIcon } from "lucide-react";
+import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
+
+const EVIDENCE_STATUS_LABELS: Record<EvidenceStatus, string> = {
+  apiBacked: "API-backed",
+  partial: "Partial",
+  manual: "Manual",
+  automationCandidate: "Automation candidate",
+  notAssessed: "Not assessed",
+};
+
+const CONFIDENCE_LABELS: Record<ConfidenceLabel, string> = {
+  high: "High confidence",
+  medium: "Medium confidence",
+  low: "Low confidence",
+  unknown: "Unknown confidence",
+};
 
 interface KPICardProps {
   title: string;
@@ -9,9 +26,20 @@ interface KPICardProps {
   trend?: "up" | "down" | "neutral";
   loading?: boolean;
   valueColor?: string;
+  evidenceStatus?: EvidenceStatus;
+  confidenceLabel?: ConfidenceLabel;
 }
 
-export function KPICard({ title, value, change, trend, loading, valueColor = "#0079F2" }: KPICardProps) {
+export function KPICard({
+  title,
+  value,
+  change,
+  trend,
+  loading,
+  valueColor = "#0079F2",
+  evidenceStatus,
+  confidenceLabel,
+}: KPICardProps) {
   const isPositive = trend === "up";
   const isNegative = trend === "down";
 
@@ -40,6 +68,20 @@ export function KPICard({ title, value, change, trend, loading, valueColor = "#0
             {change && trend === "neutral" && (
               <div className="flex items-center gap-1 mt-1">
                 <span className="text-sm text-muted-foreground">{change}</span>
+              </div>
+            )}
+            {(evidenceStatus || confidenceLabel) && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {evidenceStatus && (
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    {EVIDENCE_STATUS_LABELS[evidenceStatus]}
+                  </Badge>
+                )}
+                {confidenceLabel && (
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    {CONFIDENCE_LABELS[confidenceLabel]}
+                  </Badge>
+                )}
               </div>
             )}
           </>

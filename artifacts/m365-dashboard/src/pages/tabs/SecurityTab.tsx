@@ -1,4 +1,4 @@
-import { useGetM365Security } from "@workspace/api-client-react";
+import { useGetM365SecurityWithMetadata } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +33,8 @@ import type {
   MfaUserItem,
   MfaMethodStrengthItem,
   SecureScoreControl,
-} from "@workspace/api-client-react/src/generated/api.schemas";
+} from "@workspace/api-client-react";
+import { getMetricDataSourceEntry } from "@workspace/permissions-manifest";
 
 const C = {
   blue:   "#0079F2",
@@ -270,10 +271,26 @@ const methodColumns: ColumnDef<MfaMethodStrengthItem>[] = [
 ];
 
 export function SecurityTab() {
-  const { data, isLoading, isFetching } = useGetM365Security();
+  const { data: securityWithMetadata, isLoading, isFetching } = useGetM365SecurityWithMetadata();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const loading = isLoading || isFetching;
+  const data = securityWithMetadata?.data;
+  const fieldMetadata = securityWithMetadata?.fieldMetadata ?? {};
+
+  const metricToFieldMap: Record<string, string> = {
+    "security.secureScore": "secureScore",
+    "security.secureScorePercent": "secureScorePercent",
+    "security.mfaCoverage": "mfaEnabledUsers",
+    "security.enabledCAPs": "conditionalAccessPolicies",
+    "security.riskyUsers": "riskyUsersDetail",
+    "security.mfaDisabledUsers": "mfaDisabledUsers",
+  };
+
+  const getMetricMeta = (metricId: string) => {
+    const field = metricToFieldMap[metricId];
+    return field ? fieldMetadata[field] : undefined;
+  };
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
@@ -325,6 +342,121 @@ export function SecurityTab() {
   const configuredCount   = controls.filter((c) => c.status === "configured").length;
   const partialCount      = controls.filter((c) => c.status === "partial").length;
   const notConfiguredCount = controls.filter((c) => c.status === "notConfigured").length;
+  const phishingResistantCount = data?.mfaMethodsBreakdown?.find((method) => method.strength === "Phishing-resistant")?.count ?? 0;
+
+  const getChecklistMeta = (metricId: string) => getMetricDataSourceEntry(metricId);
+
+  const securityChecklist: ChecklistGroup[] = [
+    {
+      id: "6.1",
+      title: "6.1 Secure Score is monitored and benchmarked",
+      items: [{
+        label: "Secure Score remains above minimum posture target",
+        status: (data?.secureScorePercent ?? 0) >= 70 ? "pass" : (data?.secureScorePercent ?? 0) >= 50 ? "warning" : "fail",
+        detail: data ? `${data.secureScorePercent}%` : undefined,
+        metricId: "security.checklist.6.1.secureScore",
+        evidenceStatus: getChecklistMeta("security.checklist.6.1.secureScore")?.evidenceStatus,
+        confidenceLabel: getChecklistMeta("security.checklist.6.1.secureScore")?.confidenceLabel,
+        sourceLabel: "Secure Score",
+      }],
+    },
+    {
+      id: "6.2",
+      title: "6.2 MFA coverage for users is maintained",
+      items: [{
+        label: "MFA registration coverage for users is at acceptable level",
+        status: (data?.mfaEnabledPercent ?? 0) >= 90 ? "pass" : (data?.mfaEnabledPercent ?? 0) >= 75 ? "warning" : "fail",
+        detail: data ? `${data.mfaEnabledPercent}% coverage` : undefined,
+        metricId: "security.checklist.6.2.mfaCoverage",
+        evidenceStatus: getChecklistMeta("security.checklist.6.2.mfaCoverage")?.evidenceStatus,
+        confidenceLabel: getChecklistMeta("security.checklist.6.2.mfaCoverage")?.confidenceLabel,
+        sourceLabel: "Registration report",
+      }],
+    },
+    {
+      id: "6.3",
+      title: "6.3 Conditional Access baseline policies are active",
+      items: [{
+        label: "Conditional Access baseline controls are enabled",
+        status: (data?.enabledCAPs ?? 0) >= 3 ? "pass" : (data?.enabledCAPs ?? 0) > 0 ? "warning" : "fail",
+        detail: data ? `${data.enabledCAPs} enabled policy${data.enabledCAPs === 1 ? "" : "ies"}` : undefined,
+        metricId: "security.checklist.6.3.conditionalAccess",
+        evidenceStatus: getChecklistMeta("security.checklist.6.3.conditionalAccess")?.evidenceStatus,
+        confidenceLabel: getChecklistMeta("security.checklist.6.3.conditionalAccess")?.confidenceLabel,
+        sourceLabel: "Conditional Access",
+      }],
+    },
+    {
+      id: "6.4",
+      title: "6.4 Risky users are identified and remediated",
+      items: [{
+        label: "Risky user backlog is managed",
+        status: (data?.riskyUsers ?? 0) === 0 ? "pass" : (data?.riskyUsers ?? 0) <= 5 ? "warning" : "fail",
+        detail: data ? `${data.riskyUsers} risky user${data.riskyUsers === 1 ? "" : "s"}` : undefined,
+        metricId: "security.checklist.6.4.riskyUsers",
+        evidenceStatus: getChecklistMeta("security.checklist.6.4.riskyUsers")?.evidenceStatus,
+        confidenceLabel: getChecklistMeta("security.checklist.6.4.riskyUsers")?.confidenceLabel,
+        sourceLabel: "Identity Protection",
+      }],
+    },
+    {
+      id: "6.5",
+      title: "6.5 Risk detections are triaged within agreed SLA",
+      items: [{
+        label: "SOC triage SLA for identity risk detections is evidenced",
+        status: "manual",
+        metricId: "security.checklist.6.5.riskDetectionResponse",
+        evidenceStatus: getChecklistMeta("security.checklist.6.5.riskDetectionResponse")?.evidenceStatus,
+        confidenceLabel: getChecklistMeta("security.checklist.6.5.riskDetectionResponse")?.confidenceLabel,
+      }],
+    },
+    {
+      id: "6.6",
+      title: "6.6 Phishing-resistant authentication is adopted",
+      items: [{
+        label: "Privileged users use phishing-resistant methods",
+        status: phishingResistantCount > 0 ? "warning" : "manual",
+        detail: phishingResistantCount > 0 ? `${phishingResistantCount} users registered` : "Manual Check Required",
+        metricId: "security.checklist.6.6.phishingResistantMfa",
+        evidenceStatus: getChecklistMeta("security.checklist.6.6.phishingResistantMfa")?.evidenceStatus,
+        confidenceLabel: getChecklistMeta("security.checklist.6.6.phishingResistantMfa")?.confidenceLabel,
+      }],
+    },
+    {
+      id: "6.7",
+      title: "6.7 Legacy authentication paths are blocked",
+      items: [{
+        label: "Legacy authentication protocols are effectively blocked",
+        status: "manual",
+        metricId: "security.checklist.6.7.legacyAuthBlocked",
+        evidenceStatus: getChecklistMeta("security.checklist.6.7.legacyAuthBlocked")?.evidenceStatus,
+        confidenceLabel: getChecklistMeta("security.checklist.6.7.legacyAuthBlocked")?.confidenceLabel,
+      }],
+    },
+    {
+      id: "6.8",
+      title: "6.8 Secure Score control backlog is tracked",
+      items: [{
+        label: "Not-configured Secure Score controls are actively reduced",
+        status: notConfiguredCount === 0 ? "pass" : notConfiguredCount <= 10 ? "warning" : "fail",
+        detail: `${notConfiguredCount} control${notConfiguredCount === 1 ? "" : "s"} not configured`,
+        metricId: "security.checklist.6.8.controlBacklog",
+        evidenceStatus: getChecklistMeta("security.checklist.6.8.controlBacklog")?.evidenceStatus,
+        confidenceLabel: getChecklistMeta("security.checklist.6.8.controlBacklog")?.confidenceLabel,
+      }],
+    },
+    {
+      id: "6.9",
+      title: "6.9 Incident response runbooks are validated",
+      items: [{
+        label: "Security incident-response runbooks are current and tested",
+        status: "manual",
+        metricId: "security.checklist.6.9.incidentResponse",
+        evidenceStatus: getChecklistMeta("security.checklist.6.9.incidentResponse")?.evidenceStatus,
+        confidenceLabel: getChecklistMeta("security.checklist.6.9.incidentResponse")?.confidenceLabel,
+      }],
+    },
+  ];
 
   const [caSorting, setCaSorting] = useState<SortingState>([{ id: "state", desc: false }]);
   const [caFilter, setCaFilter] = useState("");
@@ -370,28 +502,354 @@ export function SecurityTab() {
   };
 
   const resetSecuritySections = () => {
-    ["security-mfa-strength", "security-ca-policies", "security-settings"].forEach((key) => {
-      try {
-        localStorage.removeItem(`m365-section:${key}`);
-      } catch {}
+    ["security-mfa-strength", "security-ca-policies", "security-settings", "security-mfa-users", "security-risky-users", "security-risk-timeline"].forEach((key) => {
+      try { localStorage.removeItem(`m365-section:${key}`); } catch {}
     });
     window.location.reload();
   };
 
+  // ── helper to render a generic table with sorting + pagination ──
+  function renderTable<T>(table: ReturnType<typeof useReactTable<T>>, emptyMsg = "No data.") {
+    return (
+      <div className="rounded-md border overflow-x-auto">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((hg) => (
+              <TableRow key={hg.id}>
+                {hg.headers.map((header) => (
+                  <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                    </div>
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="py-2">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={table.getAllColumns().length} className="h-16 text-center text-muted-foreground">
+                  {emptyMsg}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold">Security</h2>
-        </div>
-        <Button variant="outline" size="sm" onClick={resetSecuritySections}>Collapse All / Expand All</Button>
+        <h2 className="text-xl font-semibold">Security &amp; Identity</h2>
+        <Button variant="outline" size="sm" onClick={resetSecuritySections}>Reset Sections</Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Secure Score" value={data ? `${data.secureScore} / ${data.secureScoreMax}` : undefined} loading={loading} />
-        <KPICard title="Secure Score %" value={data ? `${data.secureScorePercent}%` : undefined} loading={loading} valueColor={data && data.secureScorePercent < 70 ? C.red : C.green} />
-        <KPICard title="MFA Coverage" value={data ? `${data.mfaEnabledPercent}%` : undefined} loading={loading} />
-        <KPICard title="CA Policies (Enabled)" value={data?.enabledCAPs} loading={loading} />
+
+      {/* ── KPIs ───────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <KPICard
+          title="Secure Score"
+          value={data ? `${data.secureScore} / ${data.secureScoreMax}` : undefined}
+          loading={loading}
+          evidenceStatus={getMetricMeta("security.secureScore")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("security.secureScore")?.confidenceLabel}
+        />
+        <KPICard
+          title="Score %"
+          value={data ? `${data.secureScorePercent}%` : undefined}
+          loading={loading}
+          valueColor={data && data.secureScorePercent < 70 ? C.red : C.green}
+          evidenceStatus={getMetricMeta("security.secureScorePercent")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("security.secureScorePercent")?.confidenceLabel}
+        />
+        <KPICard
+          title="MFA Coverage"
+          value={data ? `${data.mfaEnabledPercent}%` : undefined}
+          loading={loading}
+          valueColor={data && data.mfaEnabledPercent < 80 ? C.red : C.green}
+          evidenceStatus={getMetricMeta("security.mfaCoverage")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("security.mfaCoverage")?.confidenceLabel}
+        />
+        <KPICard
+          title="CA Policies (Active)"
+          value={data?.enabledCAPs}
+          loading={loading}
+          valueColor={C.blue}
+          evidenceStatus={getMetricMeta("security.enabledCAPs")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("security.enabledCAPs")?.confidenceLabel}
+        />
+        <KPICard
+          title="Risky Users"
+          value={data?.riskyUsers}
+          loading={loading}
+          valueColor={(data?.riskyUsers ?? 0) > 0 ? C.red : C.green}
+          evidenceStatus={getMetricMeta("security.riskyUsers")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("security.riskyUsers")?.confidenceLabel}
+        />
+        <KPICard
+          title="MFA Not Registered"
+          value={data?.mfaDisabledUsers}
+          loading={loading}
+          valueColor={(data?.mfaDisabledUsers ?? 0) > 0 ? C.orange : C.green}
+          evidenceStatus={getMetricMeta("security.mfaDisabledUsers")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("security.mfaDisabledUsers")?.confidenceLabel}
+        />
       </div>
+
+      {/* ── Secure Score History + Control Categories ──────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Secure Score Trend */}
+        <Card>
+          <CardHeader className="px-4 pt-4 pb-2 space-y-0">
+            <CardTitle className="text-base">Secure Score Trend</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">Last 30 days</p>
+          </CardHeader>
+          <CardContent>
+            {loading ? <Skeleton className="w-full h-[200px]" /> : (
+              <ResponsiveContainer width="100%" height={200} debounce={0}>
+                <AreaChart data={data?.secureScoreHistory ?? []} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={C.blue} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={C.blue} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickColor }} stroke={tickColor} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 10, fill: tickColor }} stroke={tickColor} domain={[0, "dataMax"]} />
+                  <Tooltip isAnimationActive={false} formatter={(v: number) => [v, "Score"]} />
+                  <Area type="monotone" dataKey="score" stroke={C.blue} fill="url(#scoreGradient)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Score by Category */}
+        <Card>
+          <CardHeader className="px-4 pt-4 pb-2 space-y-0">
+            <CardTitle className="text-base">Score by Category</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">Control score distribution</p>
+          </CardHeader>
+          <CardContent>
+            {loading ? <Skeleton className="w-full h-[200px]" /> : (
+              <ResponsiveContainer width="100%" height={200} debounce={0}>
+                <BarChart data={data?.controlCategories ?? []} layout="vertical" margin={{ left: 8, right: 40, top: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
+                  <YAxis type="category" dataKey="category" tick={{ fontSize: 11, fill: tickColor }} stroke="none" width={120} />
+                  <Tooltip isAnimationActive={false} />
+                  <Bar dataKey="score" name="Score" fill={C.blue} fillOpacity={0.85} radius={[0, 3, 3, 0]} isAnimationActive={false} />
+                  <Bar dataKey="maxScore" name="Max Score" fill={C.gray} fillOpacity={0.35} radius={[0, 3, 3, 0]} isAnimationActive={false} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Risk Detection Timeline ─────────────────────────────────────────── */}
+      {(data?.riskDetectionTimeline?.length ?? 0) > 0 && (
+        <CollapsibleSection
+          title="Risk Detection Timeline"
+          description={`${data!.riskDetectionTimeline.length} days with detections`}
+          storageKey="security-risk-timeline"
+          defaultOpen={true}
+          actions={<ExportBtn filename="risk-detections.csv" csvData={data?.riskDetectionTimeline ?? []} />}
+        >
+          {loading ? <Skeleton className="w-full h-[200px]" /> : (
+            <ResponsiveContainer width="100%" height={200} debounce={0}>
+              <BarChart data={data?.riskDetectionTimeline ?? []} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickColor }} stroke={tickColor} tickFormatter={(v) => v.slice(5)} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: tickColor }} stroke={tickColor} />
+                <Tooltip isAnimationActive={false} content={<RiskTooltip />} />
+                <Legend />
+                <Bar dataKey="high" name="high" stackId="a" fill={C.red} isAnimationActive={false} />
+                <Bar dataKey="medium" name="medium" stackId="a" fill={C.orange} isAnimationActive={false} />
+                <Bar dataKey="low" name="low" stackId="a" fill={C.yellow} isAnimationActive={false} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CollapsibleSection>
+      )}
+
+      {/* ── Risky Users ────────────────────────────────────────────────────── */}
+      {(data?.riskyUsersDetail?.length ?? 0) > 0 && (
+        <CollapsibleSection
+          title={<span>Risky Users <Badge className="ml-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 font-normal text-xs border-0">{data!.riskyUsersDetail.length}</Badge></span>}
+          description="Users currently flagged as at-risk or compromised"
+          storageKey="security-risky-users"
+          defaultOpen={true}
+          actions={<ExportBtn filename="risky-users.csv" csvData={data?.riskyUsersDetail ?? []} />}
+        >
+          {loading ? <Skeleton className="w-full h-32" /> : (
+            <div className="space-y-3">
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Risk Level</TableHead>
+                      <TableHead>Risk State</TableHead>
+                      <TableHead>Last Updated</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(data?.riskyUsersDetail ?? []).map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell>
+                          <p className="font-medium text-sm">{u.displayName}</p>
+                          <p className="text-xs text-muted-foreground">{u.userPrincipalName}</p>
+                        </TableCell>
+                        <TableCell><RiskBadge level={u.riskLevel} /></TableCell>
+                        <TableCell><span className="text-sm capitalize">{u.riskState}</span></TableCell>
+                        <TableCell><span className="text-xs text-muted-foreground">{u.riskLastUpdatedDateTime ? formatDate(u.riskLastUpdatedDateTime) : "—"}</span></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </CollapsibleSection>
+      )}
+
+      {/* ── MFA Method Strength ────────────────────────────────────────────── */}
+      <CollapsibleSection
+        title="MFA Method Strength"
+        description={loading ? undefined : `${data?.mfaMethodsBreakdown?.length ?? 0} authentication methods in use`}
+        storageKey="security-mfa-strength"
+        defaultOpen={true}
+        actions={<ExportBtn filename="mfa-methods.csv" csvData={data?.mfaMethodsBreakdown ?? []} />}
+      >
+        {loading ? <Skeleton className="w-full h-32" /> : renderTable(methodTable, "No MFA method data available.")}
+      </CollapsibleSection>
+
+      {/* ── Conditional Access Policies ────────────────────────────────────── */}
+      <CollapsibleSection
+        title="Conditional Access Policies"
+        description={loading ? undefined : `${data?.conditionalAccessPolicies ?? 0} total — ${data?.enabledCAPs ?? 0} enabled, ${data?.reportOnlyCAPs ?? 0} report-only, ${data?.disabledCAPs ?? 0} disabled`}
+        storageKey="security-ca-policies"
+        defaultOpen={true}
+        actions={<ExportBtn filename="ca-policies.csv" csvData={data?.caPolicies ?? []} />}
+      >
+        {loading ? <Skeleton className="w-full h-32" /> : (
+          <div className="space-y-3">
+            <div className="flex gap-2 flex-wrap">
+              <Input
+                placeholder="Filter policies…"
+                value={caFilter}
+                onChange={(e) => setCaFilter(e.target.value)}
+                className="h-8 w-60 text-sm"
+              />
+            </div>
+            {renderTable(caTable, "No conditional access policies found.")}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">{caTable.getFilteredRowModel().rows.length} policies</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => caTable.previousPage()} disabled={!caTable.getCanPreviousPage()}>Previous</Button>
+                <Button variant="outline" size="sm" onClick={() => caTable.nextPage()} disabled={!caTable.getCanNextPage()}>Next</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </CollapsibleSection>
+
+      {/* ── Secure Score Controls ──────────────────────────────────────────── */}
+      <CollapsibleSection
+        title="Secure Score Controls"
+        description={loading ? undefined : `${configuredCount} configured · ${partialCount} partial · ${notConfiguredCount} not configured`}
+        storageKey="security-settings"
+        defaultOpen={false}
+        actions={<ExportBtn filename="secure-score-controls.csv" csvData={filteredControls} />}
+      >
+        {loading ? <Skeleton className="w-full h-32" /> : (
+          <div className="space-y-3">
+            <div className="flex gap-2 flex-wrap">
+              <Input
+                placeholder="Filter controls…"
+                value={settingsFilter}
+                onChange={(e) => setSettingsFilter(e.target.value)}
+                className="h-8 w-60 text-sm"
+              />
+              <select
+                value={settingsCategoryFilter}
+                onChange={(e) => setSettingsCategoryFilter(e.target.value)}
+                className="h-8 rounded-md border bg-background px-2 text-sm"
+              >
+                {categories.map((c) => <option key={c}>{c}</option>)}
+              </select>
+              <select
+                value={settingsStatusFilter}
+                onChange={(e) => setSettingsStatusFilter(e.target.value)}
+                className="h-8 rounded-md border bg-background px-2 text-sm"
+              >
+                {["All", "configured", "partial", "notConfigured"].map((s) => (
+                  <option key={s} value={s}>{s === "All" ? "All Statuses" : s === "notConfigured" ? "Not Configured" : s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+            {renderTable(settingsTable, "No controls match the filters.")}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">{settingsTable.getFilteredRowModel().rows.length} controls</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => settingsTable.previousPage()} disabled={!settingsTable.getCanPreviousPage()}>Previous</Button>
+                <Button variant="outline" size="sm" onClick={() => settingsTable.nextPage()} disabled={!settingsTable.getCanNextPage()}>Next</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </CollapsibleSection>
+
+      {/* ── MFA User Registration ──────────────────────────────────────────── */}
+      <CollapsibleSection
+        title="MFA User Registration"
+        description={loading ? undefined : `${data?.mfaEnabledUsers ?? 0} registered · ${data?.mfaDisabledUsers ?? 0} not registered`}
+        storageKey="security-mfa-users"
+        defaultOpen={false}
+        actions={<ExportBtn filename="mfa-users.csv" csvData={data?.mfaUsersList ?? []} />}
+      >
+        {loading ? <Skeleton className="w-full h-32" /> : (
+          <div className="space-y-3">
+            <div className="flex gap-2 flex-wrap">
+              <Input
+                placeholder="Filter users…"
+                value={mfaUserFilter}
+                onChange={(e) => setMfaUserFilter(e.target.value)}
+                className="h-8 w-60 text-sm"
+              />
+            </div>
+            {renderTable(mfaUserTable, "No users found.")}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">{mfaUserTable.getFilteredRowModel().rows.length} users</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => mfaUserTable.previousPage()} disabled={!mfaUserTable.getCanPreviousPage()}>Previous</Button>
+                <Button variant="outline" size="sm" onClick={() => mfaUserTable.nextPage()} disabled={!mfaUserTable.getCanNextPage()}>Next</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </CollapsibleSection>
+
+      <ChecklistTable sectionTitle="Security" groups={securityChecklist} loading={loading} />
+
     </div>
   );
 }

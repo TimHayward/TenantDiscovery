@@ -1,4 +1,4 @@
-import { useGetM365Exchange } from "@workspace/api-client-react";
+import { useGetM365ExchangeWithMetadata, useGetM365DataSources } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { CSVLink } from "react-csv";
 import { Download } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatCompact } from "@/lib/utils";
+import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
 const CHART_COLORS = {
   blue: "#0079F2",
@@ -19,39 +20,110 @@ const CHART_COLORS = {
 const CHART_COLOR_LIST = [CHART_COLORS.blue, CHART_COLORS.purple, CHART_COLORS.green, CHART_COLORS.red, CHART_COLORS.pink];
 
 export function ExchangeTab() {
-  const { data, isLoading, isFetching } = useGetM365Exchange();
+  const { data: exchangeWithMetadata, isLoading, isFetching } = useGetM365ExchangeWithMetadata();
+  const { data: dataSources } = useGetM365DataSources({ tab: "exchange" });
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   const loading = isLoading || isFetching;
+  const data = exchangeWithMetadata?.data;
+  const fieldMetadata = exchangeWithMetadata?.fieldMetadata ?? {};
+
+  const registryItems =
+    (dataSources as {
+      items?: Array<{
+        metricId: string;
+        confidenceLabel: ConfidenceLabel;
+        evidenceStatus: EvidenceStatus;
+      }>;
+    } | undefined)?.items ?? [];
+
+  const getMetricMeta = (metricId: string) =>
+    registryItems.find((item) => item.metricId === metricId);
+
+  const metricToFieldMap: Record<string, string> = {
+    "exchange.totalMailboxes": "totalMailboxes",
+    "exchange.activeMailboxes": "activeMailboxes",
+    "exchange.sharedMailboxes": "sharedMailboxes",
+    "exchange.roomMailboxes": "roomMailboxes",
+    "exchange.storageUsedGB": "totalStorageUsedGB",
+    "exchange.storageUtilizationPercent": "storageUtilizationPercent",
+  };
+
+  const getMetricMetaWithFieldFallback = (metricId: string) => {
+    const field = metricToFieldMap[metricId];
+    if (field) {
+      const meta = fieldMetadata[field];
+      if (meta) return meta;
+    }
+    return getMetricMeta(metricId);
+  };
 
   const exchangeChecklist: ChecklistGroup[] = [
     { id: "2.1", title: "2.1 SPF, DKIM and DMARC records are set up for every domain", items: [
-      { label: "Ensure SPF records are published for all Exchange domains", status: "manual" },
-      { label: "Ensure DMARC records are published", status: "manual" },
-      { label: "Ensure DKIM is enabled for Exchange Online domains", status: "manual" },
+      { label: "Ensure SPF records are published for all Exchange domains", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.1.spfDkim")?.evidenceStatus,
+        confidenceLabel: getMetricMeta("exchange.checklist.2.1.spfDkim")?.confidenceLabel,
+        metricId: "exchange.checklist.2.1.spfDkim",
+      },
+      { label: "Ensure DMARC records are published", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.1.dmarc")?.evidenceStatus,
+        metricId: "exchange.checklist.2.1.dmarc",
+      },
+      { label: "Ensure DKIM is enabled for Exchange Online domains", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.1.dkim")?.evidenceStatus,
+        metricId: "exchange.checklist.2.1.dkim",
+      },
     ]},
     { id: "2.2", title: "2.2 Anti-spam policies are configured", items: [
-      { label: "Inbound anti-spam protections are enabled", status: "manual" },
+      { label: "Inbound anti-spam protections are enabled", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.2.antiSpam")?.evidenceStatus,
+        confidenceLabel: getMetricMeta("exchange.checklist.2.2.antiSpam")?.confidenceLabel,
+        metricId: "exchange.checklist.2.2.antiSpam",
+        sourceLabel: "Exchange Admin Center",
+      },
     ]},
     { id: "2.3", title: "2.3 Anti-phishing policies are configured", items: [
-      { label: "Anti-phishing policy exists and is active", status: "manual" },
+      { label: "Anti-phishing policy exists and is active", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.3.antiPhishing")?.evidenceStatus,
+        confidenceLabel: getMetricMeta("exchange.checklist.2.3.antiPhishing")?.confidenceLabel,
+        metricId: "exchange.checklist.2.3.antiPhishing",
+      },
     ]},
     { id: "2.4", title: "2.4 Anti-malware policies are configured", items: [
-      { label: "Zero-hour auto purge (ZAP) enabled", status: "manual" },
-      { label: "Common Attachment Type Filter enabled", status: "manual" },
+      { label: "Zero-hour auto purge (ZAP) enabled", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.4.antiMalware")?.evidenceStatus,
+        metricId: "exchange.checklist.2.4.zap",
+      },
+      { label: "Common Attachment Type Filter enabled", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.4.attachmentFilter")?.evidenceStatus,
+        metricId: "exchange.checklist.2.4.attachmentFilter",
+      },
     ]},
     { id: "2.5", title: "2.5 Automatic forwarding to external domains SHALL be disabled", items: [
-      { label: "Automatic forwarding to external domains is blocked", status: "manual" },
+      { label: "Automatic forwarding to external domains is blocked", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.5.autoForwarding")?.evidenceStatus,
+        metricId: "exchange.checklist.2.5.autoForwarding",
+        sourceLabel: "Transport Rules",
+      },
     ]},
     { id: "2.6", title: "2.6 Mailbox Auditing SHALL be Enabled", items: [
-      { label: "Mailbox logging is enabled", status: "manual" },
+      { label: "Mailbox logging is enabled", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.6.mailboxAuditing")?.evidenceStatus,
+        metricId: "exchange.checklist.2.6.mailboxAuditing",
+      },
     ]},
     { id: "2.7", title: "2.7 Calendar and Contact Sharing Shall Be Restricted", items: [
-      { label: "External sharing of calendars is restricted", status: "manual" },
+      { label: "External sharing of calendars is restricted", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.7.calendarSharing")?.evidenceStatus,
+        metricId: "exchange.checklist.2.7.calendarSharing",
+      },
     ]},
     { id: "2.8", title: "2.8 External Sender Warnings are implemented", items: [
-      { label: "Email from external senders is visually identified", status: "manual" },
+      { label: "Email from external senders is visually identified", status: "manual",
+        evidenceStatus: getMetricMeta("exchange.checklist.2.8.externalSenderWarnings")?.evidenceStatus,
+        metricId: "exchange.checklist.2.8.externalSenderWarnings",
+      },
     ]},
   ];
 
@@ -67,12 +139,49 @@ export function ExchangeTab() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <KPICard title="Total Mailboxes" value={data?.totalMailboxes} loading={loading} />
-        <KPICard title="Active" value={data?.activeMailboxes} loading={loading} />
-        <KPICard title="Shared" value={data?.sharedMailboxes} loading={loading} />
-        <KPICard title="Room" value={data?.roomMailboxes} loading={loading} />
-        <KPICard title="Storage Used (GB)" value={data ? formatCompact(data.totalStorageUsedGB) : undefined} loading={loading} />
-        <KPICard title="Storage %" value={data ? `${data.storageUtilizationPercent}%` : undefined} loading={loading} valueColor={data && data.storageUtilizationPercent > 85 ? CHART_COLORS.red : CHART_COLORS.blue} />
+        <KPICard
+          title="Total Mailboxes"
+          value={data?.totalMailboxes}
+          loading={loading}
+          evidenceStatus={getMetricMetaWithFieldFallback("exchange.totalMailboxes")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("exchange.totalMailboxes")?.confidenceLabel}
+        />
+        <KPICard
+          title="Active"
+          value={data?.activeMailboxes}
+          loading={loading}
+          evidenceStatus={getMetricMetaWithFieldFallback("exchange.activeMailboxes")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("exchange.activeMailboxes")?.confidenceLabel}
+        />
+        <KPICard
+          title="Shared"
+          value={data?.sharedMailboxes}
+          loading={loading}
+          evidenceStatus={getMetricMetaWithFieldFallback("exchange.sharedMailboxes")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("exchange.sharedMailboxes")?.confidenceLabel}
+        />
+        <KPICard
+          title="Room"
+          value={data?.roomMailboxes}
+          loading={loading}
+          evidenceStatus={getMetricMetaWithFieldFallback("exchange.roomMailboxes")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("exchange.roomMailboxes")?.confidenceLabel}
+        />
+        <KPICard
+          title="Storage Used (GB)"
+          value={data ? formatCompact(data.totalStorageUsedGB) : undefined}
+          loading={loading}
+          evidenceStatus={getMetricMetaWithFieldFallback("exchange.storageUsedGB")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("exchange.storageUsedGB")?.confidenceLabel}
+        />
+        <KPICard
+          title="Storage %"
+          value={data ? `${data.storageUtilizationPercent}%` : undefined}
+          loading={loading}
+          valueColor={data && data.storageUtilizationPercent > 85 ? CHART_COLORS.red : CHART_COLORS.blue}
+          evidenceStatus={getMetricMetaWithFieldFallback("exchange.storageUtilizationPercent")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("exchange.storageUtilizationPercent")?.confidenceLabel}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

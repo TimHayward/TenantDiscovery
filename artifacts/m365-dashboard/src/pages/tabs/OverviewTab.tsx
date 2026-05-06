@@ -1,4 +1,8 @@
-import { useGetM365Overview, useGetM365Licenses, useGetM365ServiceHealth } from "@workspace/api-client-react";
+import {
+  useGetM365OverviewWithMetadata,
+  useGetM365LicensesWithMetadata,
+  useGetM365ServiceHealthWithMetadata,
+} from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,9 +21,9 @@ const CHART_COLORS = {
 };
 
 export function OverviewTab() {
-  const { data: overview, isLoading: isOverviewLoading, isFetching: isOverviewFetching } = useGetM365Overview();
-  const { data: licenses, isLoading: isLicensesLoading, isFetching: isLicensesFetching } = useGetM365Licenses();
-  const { data: health, isLoading: isHealthLoading, isFetching: isHealthFetching } = useGetM365ServiceHealth();
+  const { data: overviewWithMetadata, isLoading: isOverviewLoading, isFetching: isOverviewFetching } = useGetM365OverviewWithMetadata();
+  const { data: licensesWithMetadata, isLoading: isLicensesLoading, isFetching: isLicensesFetching } = useGetM365LicensesWithMetadata();
+  const { data: healthWithMetadata, isLoading: isHealthLoading, isFetching: isHealthFetching } = useGetM365ServiceHealthWithMetadata();
   
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -29,17 +33,76 @@ export function OverviewTab() {
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
 
+  const overview = overviewWithMetadata?.data;
+  const licenses = licensesWithMetadata?.data;
+  const health = healthWithMetadata?.data;
+
   const licenseData = licenses?.licenses.slice(0, 5) || [];
+
+  const metricToFieldMap: Record<string, { source: "overview" | "licenses" | "health"; field: string }> = {
+    "overview.totalUsers": { source: "overview", field: "totalUsers" },
+    "overview.activeUsers": { source: "overview", field: "activeUsers" },
+    "overview.licenseUtilization": { source: "overview", field: "assignedLicenses" },
+    "overview.secureScore": { source: "overview", field: "secureScore" },
+    "overview.mfaCoverage": { source: "overview", field: "mfaEnabledPercent" },
+    "overview.servicesHealthy": { source: "overview", field: "activeServices" },
+  };
+
+  const getMetricMeta = (metricId: string) => {
+    const mapping = metricToFieldMap[metricId];
+    if (!mapping) return undefined;
+    if (mapping.source === "overview") return overviewWithMetadata?.fieldMetadata?.[mapping.field];
+    if (mapping.source === "licenses") return licensesWithMetadata?.fieldMetadata?.[mapping.field];
+    return healthWithMetadata?.fieldMetadata?.[mapping.field];
+  };
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <KPICard title="Total Users" value={overview?.totalUsers} loading={loading} />
-        <KPICard title="Active Users" value={overview?.activeUsers} loading={loading} />
-        <KPICard title="License Utilization" value={overview ? `${Math.round((overview.assignedLicenses / overview.totalLicenses) * 100)}%` : undefined} loading={loading} />
-        <KPICard title="Secure Score" value={overview ? `${overview.secureScore} / ${overview.secureScoreMax}` : undefined} loading={loading} />
-        <KPICard title="MFA Coverage" value={overview ? `${overview.mfaEnabledPercent}%` : undefined} loading={loading} valueColor={overview && overview.mfaEnabledPercent < 80 ? CHART_COLORS.red : CHART_COLORS.green} />
-        <KPICard title="Services Healthy" value={overview ? `${overview.activeServices} / ${overview.totalServices}` : undefined} loading={loading} valueColor={overview && overview.activeServices < overview.totalServices ? CHART_COLORS.red : CHART_COLORS.green} />
+        <KPICard
+          title="Total Users"
+          value={overview?.totalUsers}
+          loading={loading}
+          evidenceStatus={getMetricMeta("overview.totalUsers")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("overview.totalUsers")?.confidenceLabel}
+        />
+        <KPICard
+          title="Active Users"
+          value={overview?.activeUsers}
+          loading={loading}
+          evidenceStatus={getMetricMeta("overview.activeUsers")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("overview.activeUsers")?.confidenceLabel}
+        />
+        <KPICard
+          title="License Utilization"
+          value={overview ? `${Math.round((overview.assignedLicenses / overview.totalLicenses) * 100)}%` : undefined}
+          loading={loading}
+          evidenceStatus={getMetricMeta("overview.licenseUtilization")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("overview.licenseUtilization")?.confidenceLabel}
+        />
+        <KPICard
+          title="Secure Score"
+          value={overview ? `${overview.secureScore} / ${overview.secureScoreMax}` : undefined}
+          loading={loading}
+          evidenceStatus={getMetricMeta("overview.secureScore")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("overview.secureScore")?.confidenceLabel}
+        />
+        <KPICard
+          title="MFA Coverage"
+          value={overview ? `${overview.mfaEnabledPercent}%` : undefined}
+          loading={loading}
+          valueColor={overview && overview.mfaEnabledPercent < 80 ? CHART_COLORS.red : CHART_COLORS.green}
+          evidenceStatus={getMetricMeta("overview.mfaCoverage")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("overview.mfaCoverage")?.confidenceLabel}
+        />
+        <KPICard
+          title="Services Healthy"
+          value={overview ? `${overview.activeServices} / ${overview.totalServices}` : undefined}
+          loading={loading}
+          valueColor={overview && overview.activeServices < overview.totalServices ? CHART_COLORS.red : CHART_COLORS.green}
+          evidenceStatus={getMetricMeta("overview.servicesHealthy")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("overview.servicesHealthy")?.confidenceLabel}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -1,5 +1,5 @@
 import React from "react";
-import { useGetM365Intune, useGetM365IntuneApps } from "@workspace/api-client-react";
+import { useGetM365IntuneWithMetadata, useGetM365IntuneApps, useGetM365DataSources } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,15 @@ import {
   Package, PackageCheck, PackageX, Layers,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { PermissionCodeList } from "@/components/PermissionCodeList";
+import {
+  INTUNE_APP_INSTALL_PERMISSION,
+  INTUNE_APP_INSTALL_PERMISSIONS,
+  INTUNE_DEVICE_DETAIL_PERMISSION,
+  INTUNE_DEVICE_PERMISSIONS,
+  INTUNE_DISCOVERED_APPS_PERMISSION,
+  INTUNE_DISCOVERED_APPS_PERMISSIONS,
+} from "@/lib/permissions";
 import { formatDate } from "@/lib/utils";
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
@@ -35,7 +44,8 @@ import type {
   IntuneAssessmentItem,
   IntuneAppInstallItem,
   IntuneDiscoveredAppItem,
-} from "@workspace/api-client-react/src/generated/api.schemas";
+} from "@workspace/api-client-react";
+import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
 // ── palette ───────────────────────────────────────────────────────────────────
 
@@ -735,10 +745,43 @@ function ComplianceDrillDownPanel({
 // ── component ─────────────────────────────────────────────────────────────────
 
 export function IntuneTab() {
-  const { data, isLoading, isFetching } = useGetM365Intune();
+  const { data: intuneWithMetadata, isLoading, isFetching } = useGetM365IntuneWithMetadata();
+  const { data: dataSources } = useGetM365DataSources({ tab: "intune" });
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const loading = isLoading || isFetching;
+  const data = intuneWithMetadata?.data;
+
+  const registryItems =
+    (dataSources as {
+      items?: Array<{
+        metricId: string;
+        confidenceLabel: ConfidenceLabel;
+        evidenceStatus: EvidenceStatus;
+      }>;
+    } | undefined)?.items ?? [];
+
+  const getMetricMeta = (metricId: string) =>
+    registryItems.find((item) => item.metricId === metricId);
+
+  const intuneMetricToFieldMap: Record<string, string> = {
+    "intune.totalDevices": "totalDevices",
+    "intune.compliantDevices": "compliantDevices",
+    "intune.nonCompliantDevices": "nonCompliantDevices",
+    "intune.overallCompliancePercent": "overallCompliancePercent",
+    "intune.totalCompliancePolicies": "totalCompliancePolicies",
+    "intune.totalConfigProfiles": "totalConfigProfiles",
+    "intune.staleDevices": "staleDevices",
+  };
+
+  const getMetricMetaWithFieldFallback = (metricId: string) => {
+    const field = intuneMetricToFieldMap[metricId];
+    if (field) {
+      const meta = intuneWithMetadata?.fieldMetadata?.[field];
+      if (meta) return meta;
+    }
+    return getMetricMeta(metricId);
+  };
 
   // ── AVD & Windows 365 encryption exclusions ────────────────────────────────
   const [avdGroupId, setAvdGroupIdState] = useState<string>(() => localStorage.getItem("avdGroupId") ?? "");
@@ -1102,7 +1145,10 @@ export function IntuneTab() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 justify-center mt-2">
-          {["DeviceManagementManagedDevices.Read.All", "DeviceManagementConfiguration.Read.All"].map((p) => (
+          {[
+            ...INTUNE_DEVICE_PERMISSIONS.requiredPermissions.map((permission) => permission.name),
+            ...INTUNE_DEVICE_PERMISSIONS.optionalPermissions.map((permission) => permission.name),
+          ].map((p) => (
             <code key={p} className="bg-muted px-2 py-1 rounded text-xs">{p}</code>
           ))}
         </div>
@@ -1120,7 +1166,7 @@ export function IntuneTab() {
           <div className="text-sm text-blue-700 dark:text-blue-300">
             <span className="font-semibold">Partial data — per-device details unavailable.</span>{" "}
             Compliance summaries, policies, and profiles are loaded from available permissions. To enable the full device list, grant{" "}
-            <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded text-xs">DeviceManagementManagedDevices.Read.All</code>{" "}
+            <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded text-xs">{INTUNE_DEVICE_DETAIL_PERMISSION}</code>{" "}
             on your Azure app registration and refresh.
           </div>
         </div>
@@ -1128,17 +1174,58 @@ export function IntuneTab() {
 
       {/* ── KPIs ────────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        <KPICard title="Total Devices"       value={data?.totalDevices}               loading={loading} />
-        <KPICard title="Compliant"           value={data?.compliantDevices}            loading={loading} valueColor={C.green} />
-        <KPICard title="Non-Compliant"       value={data?.nonCompliantDevices}         loading={loading} valueColor={data && data.nonCompliantDevices > 0 ? C.red : C.green} />
-        <KPICard title="Compliance %"        value={data ? `${data.overallCompliancePercent}%` : undefined} loading={loading} valueColor={data && data.overallCompliancePercent < 80 ? C.red : C.green} />
-        <KPICard title="Compliance Policies" value={data?.totalCompliancePolicies}     loading={loading} />
-        <KPICard title="Config Profiles"     value={data?.totalConfigProfiles}         loading={loading} />
+        <KPICard
+          title="Total Devices"
+          value={data?.totalDevices}
+          loading={loading}
+          evidenceStatus={getMetricMetaWithFieldFallback("intune.totalDevices")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("intune.totalDevices")?.confidenceLabel}
+        />
+        <KPICard
+          title="Compliant"
+          value={data?.compliantDevices}
+          loading={loading}
+          valueColor={C.green}
+          evidenceStatus={getMetricMetaWithFieldFallback("intune.compliantDevices")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("intune.compliantDevices")?.confidenceLabel}
+        />
+        <KPICard
+          title="Non-Compliant"
+          value={data?.nonCompliantDevices}
+          loading={loading}
+          valueColor={data && data.nonCompliantDevices > 0 ? C.red : C.green}
+          evidenceStatus={getMetricMetaWithFieldFallback("intune.nonCompliantDevices")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("intune.nonCompliantDevices")?.confidenceLabel}
+        />
+        <KPICard
+          title="Compliance %"
+          value={data ? `${data.overallCompliancePercent}%` : undefined}
+          loading={loading}
+          valueColor={data && data.overallCompliancePercent < 80 ? C.red : C.green}
+          evidenceStatus={getMetricMetaWithFieldFallback("intune.overallCompliancePercent")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("intune.overallCompliancePercent")?.confidenceLabel}
+        />
+        <KPICard
+          title="Compliance Policies"
+          value={data?.totalCompliancePolicies}
+          loading={loading}
+          evidenceStatus={getMetricMetaWithFieldFallback("intune.totalCompliancePolicies")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("intune.totalCompliancePolicies")?.confidenceLabel}
+        />
+        <KPICard
+          title="Config Profiles"
+          value={data?.totalConfigProfiles}
+          loading={loading}
+          evidenceStatus={getMetricMetaWithFieldFallback("intune.totalConfigProfiles")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("intune.totalConfigProfiles")?.confidenceLabel}
+        />
         <KPICard
           title="Stale Devices"
           value={loading ? undefined : staleDevices.length}
           loading={loading}
           valueColor={staleDevices.length > 0 ? C.red : C.green}
+          evidenceStatus={getMetricMetaWithFieldFallback("intune.staleDevices")?.evidenceStatus}
+          confidenceLabel={getMetricMetaWithFieldFallback("intune.staleDevices")?.confidenceLabel}
         />
       </div>
 
@@ -1154,7 +1241,7 @@ export function IntuneTab() {
               <div className="flex flex-col items-center justify-center h-[220px] gap-2 text-center">
                 <Info className="w-8 h-8 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">Per-device OS breakdown unavailable</p>
-                <p className="text-xs text-muted-foreground/70">Requires <code className="bg-muted px-1 rounded">DeviceManagementManagedDevices.Read.All</code></p>
+                <p className="text-xs text-muted-foreground/70">Requires <code className="bg-muted px-1 rounded">{INTUNE_DEVICE_DETAIL_PERMISSION}</code></p>
               </div>
             ) : (
               <div className="flex flex-col items-center">
@@ -1370,7 +1457,7 @@ export function IntuneTab() {
               <p>No {policyTab === "compliance" ? "compliance policies" : policyTab === "config" ? "configuration profiles" : "app protection policies"} found.</p>
               {policyTab === "app" && (
                 <p className="text-xs max-w-sm text-center">App protection policies require the
-                  <code className="bg-muted px-1 rounded mx-1">DeviceManagementApps.Read.All</code> permission.</p>
+                  <code className="bg-muted px-1 rounded mx-1">{INTUNE_APP_INSTALL_PERMISSION}</code> permission.</p>
               )}
             </div>
           ) : (
@@ -1431,7 +1518,7 @@ export function IntuneTab() {
             <Info className="w-4 h-4 mt-0.5 text-blue-500 flex-shrink-0" />
             <p className="text-sm text-blue-700 dark:text-blue-300">
               Per-device staleness analysis requires{" "}
-              <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded text-xs">DeviceManagementManagedDevices.Read.All</code>{" "}
+              <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded text-xs">{INTUNE_DEVICE_DETAIL_PERMISSION}</code>{" "}
               to access individual device sync dates.
             </p>
           </div>
@@ -1703,7 +1790,7 @@ export function IntuneTab() {
                 {(data?.totalDevices ?? 0) > 0
                   ? `${data!.totalDevices} devices detected via compliance summary (${data!.compliantDevices} compliant / ${data!.nonCompliantDevices} non-compliant).`
                   : ""}{" "}
-                Grant <code className="bg-muted px-1 rounded">DeviceManagementManagedDevices.Read.All</code> to see individual device details.
+                Grant <code className="bg-muted px-1 rounded">{INTUNE_DEVICE_DETAIL_PERMISSION}</code> to see individual device details.
               </p>
             </div>
           ) : (
@@ -1993,18 +2080,59 @@ export function IntuneTab() {
             <Info className="w-4 h-4 mt-0.5 text-amber-500 flex-shrink-0" />
             <div className="text-sm text-amber-700 dark:text-amber-300">
               <span className="font-semibold">Permissions required for app install data.</span>{" "}
-              Grant <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded text-xs">DeviceManagementApps.Read.All</code> to see app installation status.
+              Grant <PermissionCodeList permissions={INTUNE_APP_INSTALL_PERMISSIONS.optionalPermissions.map((permission) => permission.name)} codeClassName="bg-amber-100 dark:bg-amber-900 px-1 rounded text-xs" /> to see app installation status.
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <KPICard title="Assigned Apps"  value={appsData?.totalAssignedApps}   loading={appEstateLoading} />
-          <KPICard title="Installed"      value={appsData?.totalInstalled}      loading={appEstateLoading} valueColor={C.green} />
-          <KPICard title="Failed"         value={appsData?.totalFailed}         loading={appEstateLoading} valueColor={appsData && appsData.totalFailed > 0 ? C.red : C.green} />
-          <KPICard title="Pending"        value={appsData?.totalPending}        loading={appEstateLoading} valueColor={appsData && appsData.totalPending > 0 ? C.yellow : undefined} />
-          <KPICard title="Not Installed"  value={appsData?.totalNotInstalled}   loading={appEstateLoading} valueColor={C.gray} />
-          <KPICard title="Not Applicable" value={appsData?.totalNotApplicable}  loading={appEstateLoading} valueColor={C.gray} />
+          <KPICard
+            title="Assigned Apps"
+            value={appsData?.totalAssignedApps}
+            loading={appEstateLoading}
+            evidenceStatus={getMetricMeta("intuneApps.totalAssignedApps")?.evidenceStatus}
+            confidenceLabel={getMetricMeta("intuneApps.totalAssignedApps")?.confidenceLabel}
+          />
+          <KPICard
+            title="Installed"
+            value={appsData?.totalInstalled}
+            loading={appEstateLoading}
+            valueColor={C.green}
+            evidenceStatus={getMetricMeta("intuneApps.totalInstalled")?.evidenceStatus}
+            confidenceLabel={getMetricMeta("intuneApps.totalInstalled")?.confidenceLabel}
+          />
+          <KPICard
+            title="Failed"
+            value={appsData?.totalFailed}
+            loading={appEstateLoading}
+            valueColor={appsData && appsData.totalFailed > 0 ? C.red : C.green}
+            evidenceStatus={getMetricMeta("intuneApps.totalFailed")?.evidenceStatus}
+            confidenceLabel={getMetricMeta("intuneApps.totalFailed")?.confidenceLabel}
+          />
+          <KPICard
+            title="Pending"
+            value={appsData?.totalPending}
+            loading={appEstateLoading}
+            valueColor={appsData && appsData.totalPending > 0 ? C.yellow : undefined}
+            evidenceStatus={getMetricMeta("intuneApps.totalPending")?.evidenceStatus}
+            confidenceLabel={getMetricMeta("intuneApps.totalPending")?.confidenceLabel}
+          />
+          <KPICard
+            title="Not Installed"
+            value={appsData?.totalNotInstalled}
+            loading={appEstateLoading}
+            valueColor={C.gray}
+            evidenceStatus={getMetricMeta("intuneApps.totalNotInstalled")?.evidenceStatus}
+            confidenceLabel={getMetricMeta("intuneApps.totalNotInstalled")?.confidenceLabel}
+          />
+          <KPICard
+            title="Not Applicable"
+            value={appsData?.totalNotApplicable}
+            loading={appEstateLoading}
+            valueColor={C.gray}
+            evidenceStatus={getMetricMeta("intuneApps.totalNotApplicable")?.evidenceStatus}
+            confidenceLabel={getMetricMeta("intuneApps.totalNotApplicable")?.confidenceLabel}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -2134,7 +2262,7 @@ export function IntuneTab() {
                     {appInstallTable.getRowModel().rows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          {appsData?.installPermissionRequired ? "Requires DeviceManagementApps.Read.All permission" : "No apps found"}
+                          {appsData?.installPermissionRequired ? `Requires ${INTUNE_APP_INSTALL_PERMISSION} permission` : "No apps found"}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -2178,15 +2306,35 @@ export function IntuneTab() {
             <Info className="w-4 h-4 mt-0.5 text-amber-500 flex-shrink-0" />
             <div className="text-sm text-amber-700 dark:text-amber-300">
               <span className="font-semibold">Permissions required for discovered apps.</span>{" "}
-              Grant <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded text-xs">DeviceManagementManagedDevices.Read.All</code> to see discovered apps.
+              Grant <PermissionCodeList permissions={INTUNE_DISCOVERED_APPS_PERMISSIONS.optionalPermissions.map((permission) => permission.name)} codeClassName="bg-amber-100 dark:bg-amber-900 px-1 rounded text-xs" /> to see discovered apps.
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <KPICard title="Total Discovered"  value={appsData?.totalDiscoveredApps}     loading={appEstateLoading} />
-          <KPICard title="Managed"           value={appsData?.managedDiscoveredApps}   loading={appEstateLoading} valueColor={C.blue} />
-          <KPICard title="Unmanaged"         value={appsData?.unmanagedDiscoveredApps} loading={appEstateLoading} valueColor={appsData && appsData.unmanagedDiscoveredApps > 0 ? C.orange : C.green} />
+          <KPICard
+            title="Total Discovered"
+            value={appsData?.totalDiscoveredApps}
+            loading={appEstateLoading}
+            evidenceStatus={getMetricMeta("intuneDiscovered.totalDiscoveredApps")?.evidenceStatus}
+            confidenceLabel={getMetricMeta("intuneDiscovered.totalDiscoveredApps")?.confidenceLabel}
+          />
+          <KPICard
+            title="Managed"
+            value={appsData?.managedDiscoveredApps}
+            loading={appEstateLoading}
+            valueColor={C.blue}
+            evidenceStatus={getMetricMeta("intuneDiscovered.managed")?.evidenceStatus}
+            confidenceLabel={getMetricMeta("intuneDiscovered.managed")?.confidenceLabel}
+          />
+          <KPICard
+            title="Unmanaged"
+            value={appsData?.unmanagedDiscoveredApps}
+            loading={appEstateLoading}
+            valueColor={appsData && appsData.unmanagedDiscoveredApps > 0 ? C.orange : C.green}
+            evidenceStatus={getMetricMeta("intuneDiscovered.unmanaged")?.evidenceStatus}
+            confidenceLabel={getMetricMeta("intuneDiscovered.unmanaged")?.confidenceLabel}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -2329,7 +2477,7 @@ export function IntuneTab() {
                     {discoveredAppTable.getRowModel().rows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                          {appsData?.discoveryPermissionRequired ? "Requires DeviceManagementManagedDevices.Read.All permission" : "No apps found"}
+                          {appsData?.discoveryPermissionRequired ? `Requires ${INTUNE_DISCOVERED_APPS_PERMISSION} permission` : "No apps found"}
                         </TableCell>
                       </TableRow>
                     ) : (

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { withMetadata } from "../lib/metadata.js";
 
 const router = Router();
 
@@ -39,7 +40,7 @@ router.get("/m365/groups", async (req, res) => {
       return res.json({ groups: [] });
     }
 
-    const data = await resp.json();
+    const data = await resp.json() as any;
     let groups: Array<{
       id: string;
       displayName: string;
@@ -65,6 +66,82 @@ router.get("/m365/groups", async (req, res) => {
   }
 });
 
+router.get("/m365/groups/with-metadata", async (req, res): Promise<void> => {
+  try {
+    const token = await getToken();
+    const q = ((req.query.q as string) ?? "").toLowerCase().trim();
+
+    const url =
+      "https://graph.microsoft.com/v1.0/groups" +
+      "?$select=id,displayName,description,groupTypes,securityEnabled" +
+      "&$top=999" +
+      "&$count=true";
+
+    const resp = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ConsistencyLevel: "eventual",
+      },
+    });
+
+    if (!resp.ok) {
+      req.log.warn({ status: resp.status }, "Graph API groups error");
+      res.json(
+        withMetadata(
+          { groups: [] },
+          {
+            groups: {
+              evidenceStatus: "partial",
+              confidenceLabel: "low",
+              sourceLabel: "Group.Read.All",
+              notes: ["Graph request failed; returning fallback empty list"],
+            },
+          }
+        )
+      );
+      return;
+    }
+
+    const data = await resp.json() as any;
+    let groups: Array<{
+      id: string;
+      displayName: string;
+      description?: string;
+      groupTypes: string[];
+      securityEnabled: boolean;
+    }> = data.value ?? [];
+
+    if (q) {
+      groups = groups.filter(
+        (g) =>
+          g.displayName?.toLowerCase().includes(q) ||
+          g.description?.toLowerCase().includes(q)
+      );
+    }
+
+    groups.sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+    res.json(
+      withMetadata(
+        { groups: groups.slice(0, 100) },
+        {
+          groups: {
+            evidenceStatus: "apiBacked",
+            confidenceLabel: "high",
+            sourceLabel: "Group.Read.All",
+            notes: ["Groups list from Graph /groups endpoint with optional in-memory query filter"],
+          },
+        }
+      )
+    );
+    return;
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch groups with metadata");
+    res.status(500).json({ groups: [], error: "Failed to fetch groups" });
+    return;
+  }
+});
+
 // GET /api/m365/groups/:id/device-members
 // Returns the displayName (computer name) of every device object in the group
 router.get("/m365/groups/:id/device-members", async (req, res) => {
@@ -87,7 +164,7 @@ router.get("/m365/groups/:id/device-members", async (req, res) => {
         return res.json({ deviceNames: [] });
       }
 
-      const data = await resp.json();
+      const data = await resp.json() as any;
       for (const device of data.value ?? []) {
         if (device.displayName) deviceNames.push(device.displayName as string);
       }

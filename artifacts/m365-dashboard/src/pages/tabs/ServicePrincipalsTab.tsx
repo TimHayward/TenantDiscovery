@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useGetM365ServicePrincipals } from "@workspace/api-client-react";
+import { useGetM365ServicePrincipalsWithMetadata } from "@workspace/api-client-react";
 import type { ServicePrincipalItem, SpConsentGrant } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,8 @@ import {
   ChevronDown, ChevronUp, Globe, Users, Clock, Shield, Layers,
   ExternalLink,
 } from "lucide-react";
+import { PermissionCodeList } from "@/components/PermissionCodeList";
+import { SERVICE_PRINCIPALS_PERMISSIONS } from "@/lib/permissions";
 import { formatDate } from "@/lib/utils";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ const HIGH_RISK_SCOPES = new Set([
   "DeviceManagementConfiguration.ReadWrite.All",
 ]);
 
-function daysSince(iso: string | null): number | null {
+function daysSince(iso: string | null | undefined): number | null {
   if (!iso) return null;
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 }
@@ -202,8 +204,24 @@ type ViewFilter = "all" | "thirdParty" | "microsoft" | "managedIdentity";
 type RiskFilter = "all" | "high" | "medium" | "low";
 
 export function ServicePrincipalsTab() {
-  const { data, isLoading, isFetching } = useGetM365ServicePrincipals();
+  const { data: spWithMetadata, isLoading, isFetching } = useGetM365ServicePrincipalsWithMetadata();
   const loading = isLoading || isFetching;
+  const data = spWithMetadata?.data;
+  const fieldMetadata = spWithMetadata?.fieldMetadata ?? {};
+
+  const metricToFieldMap: Record<string, string> = {
+    "sp.total": "total",
+    "sp.applicationCount": "applicationCount",
+    "sp.managedIdentityCount": "managedIdentityCount",
+    "sp.microsoftOwnedCount": "servicePrincipals",
+    "sp.disabledCount": "servicePrincipals",
+    "sp.withHighRiskGrants": "withHighRiskGrants",
+  };
+
+  const getMetricMeta = (metricId: string) => {
+    const field = metricToFieldMap[metricId];
+    return field ? fieldMetadata[field] : undefined;
+  };
 
   const [expandedId, setExpandedId]     = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -405,11 +423,13 @@ export function ServicePrincipalsTab() {
           <div>
             <p className="font-medium">Additional permissions required</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-md">
-              Grant{" "}
-              <code className="bg-muted px-1 rounded text-xs">Application.Read.All</code>{" "}
-              and optionally{" "}
-              <code className="bg-muted px-1 rounded text-xs">AuditLog.Read.All</code>{" "}
-              (for sign-in activity) to your Azure app registration.
+              Grant <PermissionCodeList permissions={SERVICE_PRINCIPALS_PERMISSIONS.requiredPermissions.map((permission) => permission.name)} codeClassName="bg-muted px-1 rounded text-xs" />
+              {SERVICE_PRINCIPALS_PERMISSIONS.optionalPermissions.length > 0 ? (
+                <>
+                  {" "}and optionally <PermissionCodeList permissions={SERVICE_PRINCIPALS_PERMISSIONS.optionalPermissions.map((permission) => permission.name)} codeClassName="bg-muted px-1 rounded text-xs" /> for sign-in activity enrichment.
+                </>
+              ) : null}
+              {" "}to your Azure app registration.
             </p>
           </div>
         </div>
@@ -432,12 +452,52 @@ export function ServicePrincipalsTab() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard title="Total SPs"          value={data?.total}               loading={loading} />
-        <KPICard title="Third-party Apps"   value={data?.thirdPartyCount}     loading={loading} valueColor={C.blue} />
-        <KPICard title="Managed Identities" value={data?.managedIdentityCount} loading={loading} valueColor={C.blue} />
-        <KPICard title="Microsoft-owned"    value={data?.microsoftOwnedCount} loading={loading} />
-        <KPICard title="Disabled"           value={data?.disabledCount}       loading={loading} valueColor={(data?.disabledCount ?? 0) > 0 ? C.yellow : C.green} />
-        <KPICard title="High-risk Grants"   value={data?.withHighRiskGrants}  loading={loading} valueColor={(data?.withHighRiskGrants ?? 0) > 0 ? C.red : C.green} />
+        <KPICard
+          title="Total SPs"
+          value={data?.total}
+          loading={loading}
+          evidenceStatus={getMetricMeta("sp.total")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("sp.total")?.confidenceLabel}
+        />
+        <KPICard
+          title="Third-party Apps"
+          value={data?.thirdPartyCount}
+          loading={loading}
+          valueColor={C.blue}
+          evidenceStatus={getMetricMeta("sp.applicationCount")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("sp.applicationCount")?.confidenceLabel}
+        />
+        <KPICard
+          title="Managed Identities"
+          value={data?.managedIdentityCount}
+          loading={loading}
+          valueColor={C.blue}
+          evidenceStatus={getMetricMeta("sp.managedIdentityCount")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("sp.managedIdentityCount")?.confidenceLabel}
+        />
+        <KPICard
+          title="Microsoft-owned"
+          value={data?.microsoftOwnedCount}
+          loading={loading}
+          evidenceStatus={getMetricMeta("sp.microsoftOwnedCount")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("sp.microsoftOwnedCount")?.confidenceLabel}
+        />
+        <KPICard
+          title="Disabled"
+          value={data?.disabledCount}
+          loading={loading}
+          valueColor={(data?.disabledCount ?? 0) > 0 ? C.yellow : C.green}
+          evidenceStatus={getMetricMeta("sp.disabledCount")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("sp.disabledCount")?.confidenceLabel}
+        />
+        <KPICard
+          title="High-risk Grants"
+          value={data?.withHighRiskGrants}
+          loading={loading}
+          valueColor={(data?.withHighRiskGrants ?? 0) > 0 ? C.red : C.green}
+          evidenceStatus={getMetricMeta("sp.withHighRiskGrants")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("sp.withHighRiskGrants")?.confidenceLabel}
+        />
       </div>
 
       {/* Main table card */}

@@ -1,4 +1,4 @@
-import { useGetM365Teams, useGetM365SharePoint } from "@workspace/api-client-react";
+import { useGetM365TeamsWithMetadata, useGetM365SharePointWithMetadata, useGetM365DataSources } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,8 +23,9 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { SharePointSiteItem } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { SharePointSiteItem } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
+import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
 const CHART_COLORS = {
   blue: "#0079F2",
@@ -77,46 +78,131 @@ const spColumns: ColumnDef<SharePointSiteItem>[] = [
 ];
 
 export function TeamsSharePointTab() {
-  const { data: teamsData, isLoading: isTeamsLoading, isFetching: isTeamsFetching } = useGetM365Teams();
-  const { data: spData, isLoading: isSpLoading, isFetching: isSpFetching } = useGetM365SharePoint();
+  const { data: teamsWithMetadata, isLoading: isTeamsLoading, isFetching: isTeamsFetching } = useGetM365TeamsWithMetadata();
+  const { data: spWithMetadata, isLoading: isSpLoading, isFetching: isSpFetching } = useGetM365SharePointWithMetadata();
+  const { data: dataSources } = useGetM365DataSources({ tab: "teams-sharepoint" });
   
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   const teamsLoading = isTeamsLoading || isTeamsFetching;
   const spLoading = isSpLoading || isSpFetching;
+  const teamsData = teamsWithMetadata?.data;
+  const spData = spWithMetadata?.data;
+
+  const registryItems =
+    (dataSources as {
+      items?: Array<{
+        metricId: string;
+        confidenceLabel: ConfidenceLabel;
+        evidenceStatus: EvidenceStatus;
+      }>;
+    } | undefined)?.items ?? [];
+
+  const getMetricMeta = (metricId: string) =>
+    registryItems.find((item) => item.metricId === metricId);
+
+  const teamsMetricToFieldMap: Record<string, string> = {
+    "teams.totalTeams": "totalTeams",
+    "teams.activeTeams": "activeTeams",
+    "teams.privateTeams": "privateTeams",
+    "teams.publicTeams": "publicTeams",
+    "teams.archivedTeams": "archivedTeams",
+    "teams-sharepoint.checklist.3.1.externalAccess": "externalAccessEnabled",
+    "teams-sharepoint.checklist.5.1.guestSharing": "guestAccessEnabled",
+  };
+
+  const sharePointMetricToFieldMap: Record<string, string> = {
+    "sharepoint.totalSites": "totalSites",
+    "sharepoint.activeSites": "activeSites",
+    "sharepoint.totalStorageUsedGB": "totalStorageUsedGB",
+    "sharepoint.totalFiles": "totalFiles",
+  };
+
+  const getMetricMetaWithFieldFallback = (metricId: string) => {
+    const field = teamsMetricToFieldMap[metricId];
+    if (field) {
+      const meta = teamsWithMetadata?.fieldMetadata?.[field];
+      if (meta) return meta;
+    }
+    return getMetricMeta(metricId);
+  };
+
+  const getSharePointMetricMetaWithFieldFallback = (metricId: string) => {
+    const field = sharePointMetricToFieldMap[metricId];
+    if (field) {
+      const meta = spWithMetadata?.fieldMetadata?.[field];
+      if (meta) return meta;
+    }
+    return getMetricMeta(metricId);
+  };
 
   const externalAccessEnabled = teamsData?.externalAccessEnabled ?? null;
   const guestAccessEnabled = teamsData?.guestAccessEnabled ?? null;
 
   const teamsChecklist: ChecklistGroup[] = [
     { id: "3.1", title: "3.1 External User Access SHALL Be Restricted", items: [
-      { label: "External domains restricted in Teams admin centre", status: externalAccessEnabled === null ? "manual" : externalAccessEnabled ? "fail" : "pass", detail: externalAccessEnabled === null ? "Manual Check Required" : externalAccessEnabled ? "Not Restricted" : "Restricted" },
+      { label: "External domains restricted in Teams admin centre", status: externalAccessEnabled === null ? "manual" : externalAccessEnabled ? "fail" : "pass", detail: externalAccessEnabled === null ? "Manual Check Required" : externalAccessEnabled ? "Not Restricted" : "Restricted",
+        evidenceStatus: getMetricMetaWithFieldFallback("teams-sharepoint.checklist.3.1.externalAccess")?.evidenceStatus,
+        confidenceLabel: getMetricMetaWithFieldFallback("teams-sharepoint.checklist.3.1.externalAccess")?.confidenceLabel,
+        metricId: "teams-sharepoint.checklist.3.1.externalAccess",
+        sourceLabel: "Teams Settings",
+      },
     ]},
     { id: "3.2", title: "3.2 External Participants SHOULD NOT be Enabled to Request Control of Shared Desktops", items: [
-      { label: "External participants cannot request desktop control", status: "manual" },
+      { label: "External participants cannot request desktop control", status: "manual",
+        evidenceStatus: getMetricMeta("teams-sharepoint.checklist.3.2.desktopControl")?.evidenceStatus,
+        metricId: "teams-sharepoint.checklist.3.2.desktopControl",
+      },
     ]},
     { id: "3.3", title: "3.3 Anonymous Users SHALL NOT be Enabled to Start Meetings", items: [
-      { label: "Anonymous users cannot start meetings", status: "manual" },
+      { label: "Anonymous users cannot start meetings", status: "manual",
+        evidenceStatus: getMetricMeta("teams-sharepoint.checklist.3.3.anonMeetingStart")?.evidenceStatus,
+        metricId: "teams-sharepoint.checklist.3.3.anonMeetingStart",
+      },
     ]},
     { id: "3.4", title: "3.4 Automatic Admittance to Meeting SHOULD Be Restricted", items: [
-      { label: "Only internal users bypass lobby (external users wait)", status: "manual" },
+      { label: "Only internal users bypass lobby (external users wait)", status: "manual",
+        evidenceStatus: getMetricMeta("teams-sharepoint.checklist.3.4.lobbyRestriction")?.evidenceStatus,
+        metricId: "teams-sharepoint.checklist.3.4.lobbyRestriction",
+      },
     ]},
     { id: "3.5", title: "3.5 Unmanaged users SHALL NOT be enabled to initiate contact with internal users", items: [
-      { label: "Unmanaged users cannot initiate contact with internal users", status: "manual" },
+      { label: "Unmanaged users cannot initiate contact with internal users", status: "manual",
+        evidenceStatus: getMetricMeta("teams-sharepoint.checklist.3.5.unmanagedContact")?.evidenceStatus,
+        metricId: "teams-sharepoint.checklist.3.5.unmanagedContact",
+      },
     ]},
     { id: "3.6", title: "3.6 Contact with Skype Users SHALL be Blocked", items: [
-      { label: "Communication with Skype (consumer) users is blocked", status: "manual" },
+      { label: "Communication with Skype (consumer) users is blocked", status: "manual",
+        evidenceStatus: getMetricMeta("teams-sharepoint.checklist.3.6.skypeBlock")?.evidenceStatus,
+        metricId: "teams-sharepoint.checklist.3.6.skypeBlock",
+      },
     ]},
     { id: "3.7", title: "3.7 File Sharing and File Storage Options shall be blocked", items: [
-      { label: "Third-party file sharing restricted in Teams", status: "manual" },
+      { label: "Third-party file sharing restricted in Teams", status: "manual",
+        evidenceStatus: getMetricMeta("teams-sharepoint.checklist.3.7.fileSharing")?.evidenceStatus,
+        metricId: "teams-sharepoint.checklist.3.7.fileSharing",
+      },
     ]},
     { id: "5.1", title: "5.1 Default sharing settings are set for New and Existing Guest", items: [
-      { label: "External sharing managed via whitelist/blacklist", status: "manual" },
-      { label: "Link sharing restricted to specific people or organisation", status: "manual" },
+      { label: "External sharing managed via whitelist/blacklist", status: "manual",
+        evidenceStatus: getMetricMetaWithFieldFallback("teams-sharepoint.checklist.5.1.guestSharing")?.evidenceStatus,
+        confidenceLabel: getMetricMetaWithFieldFallback("teams-sharepoint.checklist.5.1.guestSharing")?.confidenceLabel,
+        metricId: "teams-sharepoint.checklist.5.1.guestSharing",
+        sourceLabel: "SharePoint Admin Center",
+      },
+      { label: "Link sharing restricted to specific people or organisation", status: "manual",
+        evidenceStatus: getMetricMeta("teams-sharepoint.checklist.5.1.linkSharing")?.evidenceStatus,
+        metricId: "teams-sharepoint.checklist.5.1.linkSharing",
+      },
     ]},
     { id: "5.2", title: "5.2 Expiration Dates are set for Anyone links", items: [
-      { label: "Expiration date is set for anonymous sharing links", status: "manual" },
+      { label: "Expiration date is set for anonymous sharing links", status: "manual",
+        evidenceStatus: getMetricMeta("teams-sharepoint.checklist.5.2.anonLinkExpiration")?.evidenceStatus,
+        confidenceLabel: getMetricMeta("teams-sharepoint.checklist.5.2.anonLinkExpiration")?.confidenceLabel,
+        metricId: "teams-sharepoint.checklist.5.2.anonLinkExpiration",
+      },
     ]},
   ];
 
@@ -146,11 +232,41 @@ export function TeamsSharePointTab() {
         <h2 className="text-xl font-semibold border-b pb-2">Microsoft Teams</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <KPICard title="Total Teams" value={teamsData?.totalTeams} loading={teamsLoading} />
-          <KPICard title="Active Teams" value={teamsData?.activeTeams} loading={teamsLoading} />
-          <KPICard title="Private Teams" value={teamsData?.privateTeams} loading={teamsLoading} />
-          <KPICard title="Public Teams" value={teamsData?.publicTeams} loading={teamsLoading} />
-          <KPICard title="Archived Teams" value={teamsData?.archivedTeams} loading={teamsLoading} />
+          <KPICard
+            title="Total Teams"
+            value={teamsData?.totalTeams}
+            loading={teamsLoading}
+            evidenceStatus={getMetricMetaWithFieldFallback("teams.totalTeams")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("teams.totalTeams")?.confidenceLabel}
+          />
+          <KPICard
+            title="Active Teams"
+            value={teamsData?.activeTeams}
+            loading={teamsLoading}
+            evidenceStatus={getMetricMetaWithFieldFallback("teams.activeTeams")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("teams.activeTeams")?.confidenceLabel}
+          />
+          <KPICard
+            title="Private Teams"
+            value={teamsData?.privateTeams}
+            loading={teamsLoading}
+            evidenceStatus={getMetricMetaWithFieldFallback("teams.privateTeams")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("teams.privateTeams")?.confidenceLabel}
+          />
+          <KPICard
+            title="Public Teams"
+            value={teamsData?.publicTeams}
+            loading={teamsLoading}
+            evidenceStatus={getMetricMetaWithFieldFallback("teams.publicTeams")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("teams.publicTeams")?.confidenceLabel}
+          />
+          <KPICard
+            title="Archived Teams"
+            value={teamsData?.archivedTeams}
+            loading={teamsLoading}
+            evidenceStatus={getMetricMetaWithFieldFallback("teams.archivedTeams")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("teams.archivedTeams")?.confidenceLabel}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -220,10 +336,34 @@ export function TeamsSharePointTab() {
         <h2 className="text-xl font-semibold border-b pb-2">SharePoint Online</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard title="Total Sites" value={spData?.totalSites} loading={spLoading} />
-          <KPICard title="Active Sites" value={spData?.activeSites} loading={spLoading} />
-          <KPICard title="Storage Used (GB)" value={spData?.totalStorageUsedGB.toFixed(1)} loading={spLoading} />
-          <KPICard title="Total Files" value={spData ? formatCompact(spData.totalFiles) : undefined} loading={spLoading} />
+          <KPICard
+            title="Total Sites"
+            value={spData?.totalSites}
+            loading={spLoading}
+            evidenceStatus={getSharePointMetricMetaWithFieldFallback("sharepoint.totalSites")?.evidenceStatus}
+            confidenceLabel={getSharePointMetricMetaWithFieldFallback("sharepoint.totalSites")?.confidenceLabel}
+          />
+          <KPICard
+            title="Active Sites"
+            value={spData?.activeSites}
+            loading={spLoading}
+            evidenceStatus={getSharePointMetricMetaWithFieldFallback("sharepoint.activeSites")?.evidenceStatus}
+            confidenceLabel={getSharePointMetricMetaWithFieldFallback("sharepoint.activeSites")?.confidenceLabel}
+          />
+          <KPICard
+            title="Storage Used (GB)"
+            value={spData?.totalStorageUsedGB.toFixed(1)}
+            loading={spLoading}
+            evidenceStatus={getSharePointMetricMetaWithFieldFallback("sharepoint.totalStorageUsedGB")?.evidenceStatus}
+            confidenceLabel={getSharePointMetricMetaWithFieldFallback("sharepoint.totalStorageUsedGB")?.confidenceLabel}
+          />
+          <KPICard
+            title="Total Files"
+            value={spData ? formatCompact(spData.totalFiles) : undefined}
+            loading={spLoading}
+            evidenceStatus={getSharePointMetricMetaWithFieldFallback("sharepoint.totalFiles")?.evidenceStatus}
+            confidenceLabel={getSharePointMetricMetaWithFieldFallback("sharepoint.totalFiles")?.confidenceLabel}
+          />
         </div>
 
         <CollapsibleSection title="Top SharePoint Sites" storageKey="teams-sharepoint-sites">

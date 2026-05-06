@@ -21,7 +21,7 @@ const authProvider = new TokenCredentialAuthenticationProvider(credential, {
 
 export const graphClient = Client.initWithMiddleware({ authProvider });
 
-export const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
+export const cache = new NodeCache({ stdTTL: 300, checkperiod: 60, useClones: false });
 
 export async function getCached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   const cached = cache.get<T>(key);

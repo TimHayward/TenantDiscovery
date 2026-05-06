@@ -1,4 +1,4 @@
-import { useGetM365Licenses } from "@workspace/api-client-react";
+import { useGetM365LicensesWithMetadata } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import type { LicenseItem } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { LicenseItem } from "@workspace/api-client-react";
 
 const CHART_COLORS = {
   blue: "#0079F2",
@@ -86,11 +86,24 @@ const columns: ColumnDef<LicenseItem>[] = [
 ];
 
 export function LicensesTab() {
-  const { data, isLoading, isFetching } = useGetM365Licenses();
+  const { data: licensesWithMetadata, isLoading, isFetching } = useGetM365LicensesWithMetadata();
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   const loading = isLoading || isFetching;
+  const data = licensesWithMetadata?.data;
+
+  const metricToFieldMap: Record<string, string> = {
+    "licenses.totalLicenses": "totalLicenses",
+    "licenses.assignedLicenses": "assignedLicenses",
+    "licenses.availableLicenses": "availableLicenses",
+    "licenses.utilizationPercent": "utilizationPercent",
+  };
+
+  const getMetricMeta = (metricId: string) => {
+    const field = metricToFieldMap[metricId];
+    return field ? licensesWithMetadata?.fieldMetadata?.[field] : undefined;
+  };
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
@@ -162,10 +175,36 @@ export function LicensesTab() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Total Licenses" value={loading ? undefined : filteredStats.totalLicenses.toLocaleString()} loading={loading} />
-        <KPICard title="Assigned Licenses" value={loading ? undefined : filteredStats.assignedLicenses.toLocaleString()} loading={loading} valueColor={CHART_COLORS.blue} />
-        <KPICard title="Available Licenses" value={loading ? undefined : filteredStats.availableLicenses.toLocaleString()} loading={loading} />
-        <KPICard title="Utilization" value={loading ? undefined : `${filteredStats.utilizationPercent}%`} loading={loading} valueColor={filteredStats.utilizationPercent > 90 ? CHART_COLORS.red : filteredStats.utilizationPercent > 70 ? CHART_COLORS.green : CHART_COLORS.blue} />
+        <KPICard
+          title="Total Licenses"
+          value={loading ? undefined : filteredStats.totalLicenses.toLocaleString()}
+          loading={loading}
+          evidenceStatus={getMetricMeta("licenses.totalLicenses")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("licenses.totalLicenses")?.confidenceLabel}
+        />
+        <KPICard
+          title="Assigned Licenses"
+          value={loading ? undefined : filteredStats.assignedLicenses.toLocaleString()}
+          loading={loading}
+          valueColor={CHART_COLORS.blue}
+          evidenceStatus={getMetricMeta("licenses.assignedLicenses")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("licenses.assignedLicenses")?.confidenceLabel}
+        />
+        <KPICard
+          title="Available Licenses"
+          value={loading ? undefined : filteredStats.availableLicenses.toLocaleString()}
+          loading={loading}
+          evidenceStatus={getMetricMeta("licenses.availableLicenses")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("licenses.availableLicenses")?.confidenceLabel}
+        />
+        <KPICard
+          title="Utilization"
+          value={loading ? undefined : `${filteredStats.utilizationPercent}%`}
+          loading={loading}
+          valueColor={filteredStats.utilizationPercent > 90 ? CHART_COLORS.red : filteredStats.utilizationPercent > 70 ? CHART_COLORS.green : CHART_COLORS.blue}
+          evidenceStatus={getMetricMeta("licenses.utilizationPercent")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("licenses.utilizationPercent")?.confidenceLabel}
+        />
       </div>
 
       <Card>

@@ -781,19 +781,19 @@ Stabilise the existing proof of concept so it can support repeatable tenant disc
 |---|---|---|
 |Repository clean-up|Confirm naming, structure, build process and environment configuration|MVP foundation|
 |API route inventory|Document every existing `/m365/*` route and map it to dashboard sections|MVP foundation|
-|Permission manifest|Create a single app-registration permissions manifest with required, optional and future permissions|MVP foundation|
-|Data source registry|Create a data-source catalogue for every metric, including endpoint, permission, licence dependency and confidence label|MVP foundation|
-|Evidence status framework|Add `apiBacked`, `partial`, `manual`, `automationCandidate`, `notAssessed` status fields|MVP foundation|
+|Permission manifest|Create a single app-registration permissions manifest with required, optional and future permissions|Implemented in `lib/permissions-manifest` |
+|Data source registry|Create a data-source catalogue for every metric, including endpoint, permission, licence dependency and confidence label|Implemented via `lib/permissions-manifest/src/manifest.ts` and `/api/m365/data-sources`|
+|Evidence status framework|Add `apiBacked`, `partial`, `manual`, `automationCandidate`, `notAssessed` status fields|Implemented in metric registry and surfaced in KPI cards|
 |Error and permission handling|Replace silent nulls with visible permission, licence or API errors|MVP foundation|
-|Manual check framework|Standardise “Manual Check Required” as a first-class result, not a gap or failure|MVP foundation|
+|Manual check framework|Standardise “Manual Check Required” as a first-class result, not a gap or failure|Implemented via manifest-backed manual-check metadata and checklist rendering|
 
 ## Deliverables
 
 |Deliverable|Detail|
 |---|---|
 |API coverage matrix|Dashboard section, metric, endpoint, permission, status|
-|App registration permissions list|Required permissions and consent notes|
-|Manual check schema|Standard object model for non-API checks|
+|App registration permissions list|Manifest-backed required, optional and future permissions with consent notes in `lib/permissions-manifest/src/manifest.ts`|
+|Manual check schema|Standard object model for non-API checks (implemented in `lib/permissions-manifest/src/manifest.ts` as `manualCheck` metadata)|
 |Data freshness indicator|Cached time, last successful collection, failed collection reason|
 |Tenant connection test|Validate Graph token, tenant, organisation and permissions|
 
@@ -1262,8 +1262,8 @@ Turn the dashboard into a usable client-facing report and architect evidence pac
 |Findings register|ID, domain, severity, finding, evidence, source, status, recommendation|
 |Manual check register|Section, check, why manual, evidence required, future automation route|
 |Collection log|Endpoint, status, permission, last run, record count, error|
-|Permission matrix|Permission, purpose, required or optional, admin consent, section dependent|
-|Export manifest|File, included sections, generated date|
+|Permission matrix|Permission, provider, purpose, required or optional, admin consent, section dependent|
+|Export manifest|File, included sections, generated date, source manifest path|
 
 ## Acceptance criteria
 

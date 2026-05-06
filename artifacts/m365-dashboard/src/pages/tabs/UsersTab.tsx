@@ -1,4 +1,4 @@
-import { useGetM365Users, useGetM365Security } from "@workspace/api-client-react";
+import { useGetM365UsersWithMetadata, useGetM365Security } from "@workspace/api-client-react";
 import { EnterpriseAppsSection } from "@/components/EnterpriseAppsSection";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import type { UserItem } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { UserItem } from "@workspace/api-client-react";
 
 // ── palette ───────────────────────────────────────────────────────────────────
 
@@ -212,11 +212,30 @@ const allColumns: ColumnDef<UserItem>[] = [
 // ── component ─────────────────────────────────────────────────────────────────
 
 export function UsersTab() {
-  const { data, isLoading, isFetching } = useGetM365Users();
+  const { data: usersWithMetadata, isLoading, isFetching } = useGetM365UsersWithMetadata();
   const { data: sec } = useGetM365Security();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const loading = isLoading || isFetching;
+
+  const data = usersWithMetadata?.data;
+  const fieldMetadata = usersWithMetadata?.fieldMetadata ?? {};
+
+  const getFieldMeta = (field: string) => fieldMetadata[field];
+
+  const CHECKLIST_FIELD_MAP: Record<string, string> = {
+    "users.checklist.1.1.mfaAllUsers": "mfaEnabled",
+    "users.checklist.1.2.mfaAdmins": "mfaEnabled",
+    "users.checklist.1.12.staleAccounts": "neverSignedIn",
+    "users.checklist.2.1.globalAdminCount": "memberUsers",
+    "users.checklist.2.2.globalAdminCloudOnly": "memberUsers",
+    "users.checklist.1.4.breakGlassUsers": "users",
+  };
+
+  const getChecklistMeta = (metricId: string) => {
+    const field = CHECKLIST_FIELD_MAP[metricId];
+    return field ? getFieldMeta(field) : undefined;
+  };
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
@@ -337,96 +356,199 @@ export function UsersTab() {
     return [
       { id: "1.1", title: "1.1 Multi-factor authentication is enforced for all users", items: [
         { label: "MFA is enforced for all users", status: hasMFAAllUsersEnabled ? "pass" : allUsersMFA ? "warning" : "fail",
-          detail: hasMFAAllUsersEnabled ? "Enforced" : allUsersMFA ? "Policy exists but verify enforcement" : `${mfaDisabledCount} user${mfaDisabledCount !== 1 ? "s" : ""} not enrolled` },
+          detail: hasMFAAllUsersEnabled ? "Enforced" : allUsersMFA ? "Policy exists but verify enforcement" : `${mfaDisabledCount} user${mfaDisabledCount !== 1 ? "s" : ""} not enrolled`,
+          evidenceStatus: getChecklistMeta("users.checklist.1.1.mfaAllUsers")?.evidenceStatus,
+          confidenceLabel: getChecklistMeta("users.checklist.1.1.mfaAllUsers")?.confidenceLabel,
+          metricId: "users.checklist.1.1.mfaAllUsers",
+          sourceLabel: "Conditional Access",
+        },
         { label: "MFA is enforced for Azure Management", status: hasAzureMgmtMFA ? "warning" : "manual",
-          detail: hasAzureMgmtMFA ? "Report Only – not yet enforced" : "Manual Check Required" },
+          detail: hasAzureMgmtMFA ? "Report Only – not yet enforced" : "Manual Check Required",
+          evidenceStatus: getChecklistMeta("users.checklist.1.1.azureMgmtMFA")?.evidenceStatus,
+          metricId: "users.checklist.1.1.azureMgmtMFA",
+        },
         { label: "Users are enrolled in MFA and covered by a policy", status: allUsersMFA ? "pass" : "fail",
-          detail: allUsersMFA ? "All users enrolled" : `${mfaDisabledCount} user${mfaDisabledCount !== 1 ? "s" : ""} not enrolled` },
+          detail: allUsersMFA ? "All users enrolled" : `${mfaDisabledCount} user${mfaDisabledCount !== 1 ? "s" : ""} not enrolled`,
+          evidenceStatus: getChecklistMeta("users.checklist.1.1.mfaEnrollment")?.evidenceStatus,
+          confidenceLabel: "high",
+          metricId: "users.checklist.1.1.mfaEnrollment",
+          sourceLabel: "Graph API",
+        },
       ]},
       { id: "1.2", title: "1.2 MFA is required for all Admins", items: [
         { label: "MFA is enforced on accounts with highly privileged roles",
           status: hasMFAAdminsEnabled && adminsWithoutMfa === 0 ? "pass" : hasMFAAdminsEnabled ? "warning" : "fail",
-          detail: hasMFAAdminsEnabled && adminsWithoutMfa === 0 ? "Enforced" : hasMFAAdminsEnabled ? `${adminsWithoutMfa} admin${adminsWithoutMfa !== 1 ? "s" : ""} not registered` : "Not Enforced" },
+          detail: hasMFAAdminsEnabled && adminsWithoutMfa === 0 ? "Enforced" : hasMFAAdminsEnabled ? `${adminsWithoutMfa} admin${adminsWithoutMfa !== 1 ? "s" : ""} not registered` : "Not Enforced",
+          evidenceStatus: getChecklistMeta("users.checklist.1.2.mfaAdmins")?.evidenceStatus,
+          confidenceLabel: getChecklistMeta("users.checklist.1.2.mfaAdmins")?.confidenceLabel,
+          metricId: "users.checklist.1.2.mfaAdmins",
+          sourceLabel: "Conditional Access",
+        },
       ]},
       { id: "1.3", title: "1.3 Legacy Authentication is blocked", items: [
         { label: "Legacy Authentication shall be blocked",
           status: hasLegacyAuthEnabled ? "pass" : hasLegacyAuthPolicy ? "warning" : "fail",
-          detail: hasLegacyAuthEnabled ? "Enforced" : hasLegacyAuthPolicy ? "Report Only – not yet enforced" : "Not Configured" },
+          detail: hasLegacyAuthEnabled ? "Enforced" : hasLegacyAuthPolicy ? "Report Only – not yet enforced" : "Not Configured",
+          evidenceStatus: getChecklistMeta("users.checklist.1.3.legacyAuth")?.evidenceStatus,
+          metricId: "users.checklist.1.3.legacyAuth",
+          sourceLabel: "Conditional Access",
+        },
       ]},
       { id: "1.4", title: "1.4 Break Glass users are created for emergency access", items: [
         { label: "Break Glass users are created for emergency access",
-          status: breakGlassPresent ? "pass" : "fail", detail: breakGlassPresent ? "Present" : "Not Found" },
+          status: breakGlassPresent ? "pass" : "fail", detail: breakGlassPresent ? "Present" : "Not Found",
+          evidenceStatus: getChecklistMeta("users.checklist.1.4.breakGlassUsers")?.evidenceStatus,
+          confidenceLabel: getChecklistMeta("users.checklist.1.4.breakGlassUsers")?.confidenceLabel,
+          metricId: "users.checklist.1.4.breakGlassUsers",
+          sourceLabel: "Heuristic",
+          notes: "Detected by naming pattern; manual verification recommended.",
+        },
       ]},
       { id: "1.5", title: "1.5 Ensure that between two and four global admins are designated", items: [
-        { label: "Between 2 and 4 global admins designated", status: "manual" },
+        { label: "Between 2 and 4 global admins designated", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.2.1.globalAdminCount")?.evidenceStatus,
+          confidenceLabel: getChecklistMeta("users.checklist.2.1.globalAdminCount")?.confidenceLabel,
+          metricId: "users.checklist.2.1.globalAdminCount",
+          sourceLabel: "Directory Roles",
+        },
       ]},
       { id: "1.6", title: "1.6 Highly privileged accounts shall be cloud-only", items: [
-        { label: "All Global Admins are cloud-only accounts", status: "manual" },
+        { label: "All Global Admins are cloud-only accounts", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.2.2.globalAdminCloudOnly")?.evidenceStatus,
+          confidenceLabel: getChecklistMeta("users.checklist.2.2.globalAdminCloudOnly")?.confidenceLabel,
+          metricId: "users.checklist.2.2.globalAdminCloudOnly",
+          sourceLabel: "Directory Roles",
+        },
       ]},
       { id: "1.7", title: "1.7 Non-admin users shall be prevented from providing consent to 3rd party applications", items: [
-        { label: "Only Admins shall be allowed to register 3rd party applications", status: "manual" },
-        { label: "Non-admin users prevented from providing consent to 3rd party applications", status: "manual" },
+        { label: "Only Admins shall be allowed to register 3rd party applications", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.7.appRegistrationPolicy")?.evidenceStatus,
+          metricId: "users.checklist.1.7.appRegistrationPolicy",
+        },
+        { label: "Non-admin users prevented from providing consent to 3rd party applications", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.7.consentPolicy")?.evidenceStatus,
+          metricId: "users.checklist.1.7.consentPolicy",
+        },
       ]},
       { id: "1.8", title: "1.8 Guest users have limited access to properties and memberships of directory objects", items: [
-        { label: "Guest user access restricted to limited directory properties", status: "manual" },
+        { label: "Guest user access restricted to limited directory properties", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.8.guestAccess")?.evidenceStatus,
+          metricId: "users.checklist.1.8.guestAccess",
+        },
       ]},
       { id: "1.9", title: "1.9 Passwords shall not expire", items: [
-        { label: "Password expiration policy is disabled (passwords do not expire)", status: "manual" },
+        { label: "Password expiration policy is disabled (passwords do not expire)", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.9.passwordPolicy")?.evidenceStatus,
+          metricId: "users.checklist.1.9.passwordPolicy",
+        },
       ]},
       { id: "1.10", title: "1.10 MFA shall be required to enrol devices to Azure AD", items: [
-        { label: "MFA required for device enrollment", status: "manual" },
+        { label: "MFA required for device enrollment", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.10.deviceEnrollmentMfa")?.evidenceStatus,
+          metricId: "users.checklist.1.10.deviceEnrollmentMfa",
+        },
       ]},
       { id: "1.11", title: "1.11 Local Administrator settings are configured for device joins", items: [
-        { label: "Local administrator settings configured for device joins", status: "manual" },
+        { label: "Local administrator settings configured for device joins", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.11.localAdminSettings")?.evidenceStatus,
+          metricId: "users.checklist.1.11.localAdminSettings",
+        },
       ]},
       { id: "1.12", title: "1.12 Dormant Accounts are disabled with 45 days of inactivity", items: [
         { label: "Accounts without sign-in for 45+ days are disabled",
           status: neverSignedIn === 0 ? "pass" : "warning",
-          detail: neverSignedIn === 0 ? "No stale accounts detected" : `${neverSignedIn} account${neverSignedIn !== 1 ? "s" : ""} never signed in` },
+          detail: neverSignedIn === 0 ? "No stale accounts detected" : `${neverSignedIn} account${neverSignedIn !== 1 ? "s" : ""} never signed in`,
+          evidenceStatus: getChecklistMeta("users.checklist.1.12.staleAccounts")?.evidenceStatus,
+          confidenceLabel: getChecklistMeta("users.checklist.1.12.staleAccounts")?.confidenceLabel,
+          metricId: "users.checklist.1.12.staleAccounts",
+          sourceLabel: "Graph API",
+        },
       ]},
       { id: "1.13", title: "1.13 Browser Sessions are limited for Privileged Users", items: [
         { label: "Browser session persistence limited for privileged users",
           status: hasBrowserSessionPolicy ? "warning" : "manual",
-          detail: hasBrowserSessionPolicy ? "Report Only – not yet enforced" : "Manual Check Required" },
+          detail: hasBrowserSessionPolicy ? "Report Only – not yet enforced" : "Manual Check Required",
+          evidenceStatus: getChecklistMeta("users.checklist.1.13.browserSession")?.evidenceStatus,
+          metricId: "users.checklist.1.13.browserSession",
+          sourceLabel: "Conditional Access",
+        },
       ]},
       { id: "1.14", title: "1.14 Devices shall be deleted that haven't checked in for over 30 days", items: [
-        { label: "Stale devices automatically removed or flagged after 30 days", status: "manual" },
+        { label: "Stale devices automatically removed or flagged after 30 days", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.14.staleDevices")?.evidenceStatus,
+          metricId: "users.checklist.1.14.staleDevices",
+        },
       ]},
       { id: "1.15", title: "1.15 All corporate approved applications are catalogued and periodically reviewed", items: [
-        { label: "Enterprise applications catalogued and periodically reviewed", status: "manual" },
+        { label: "Enterprise applications catalogued and periodically reviewed", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.15.appCatalog")?.evidenceStatus,
+          metricId: "users.checklist.1.15.appCatalog",
+        },
       ]},
       { id: "1.16", title: "1.16 Dynamic Groups are leveraged for automated group management", items: [
-        { label: "Dynamic groups configured for automated user assignment", status: "manual" },
+        { label: "Dynamic groups configured for automated user assignment", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.16.dynamicGroups")?.evidenceStatus,
+          metricId: "users.checklist.1.16.dynamicGroups",
+        },
       ]},
       { id: "1.17", title: "1.17 MFA shall be required for Intune Enrolment", items: [
-        { label: "MFA required for Intune device enrollment", status: "manual" },
+        { label: "MFA required for Intune device enrollment", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.17.intuneEnrollmentMfa")?.evidenceStatus,
+          metricId: "users.checklist.1.17.intuneEnrollmentMfa",
+        },
       ]},
       { id: "1.18", title: "1.18 Require Managed Devices for Sign in", items: [
         { label: "Managed device required for sign-in",
           status: hasCompliantDevicePolicy ? "warning" : "manual",
-          detail: hasCompliantDevicePolicy ? "Report Only – not yet enforced" : "Manual Check Required" },
+          detail: hasCompliantDevicePolicy ? "Report Only – not yet enforced" : "Manual Check Required",
+          evidenceStatus: getChecklistMeta("users.checklist.1.18.managedDevice")?.evidenceStatus,
+          metricId: "users.checklist.1.18.managedDevice",
+          sourceLabel: "Conditional Access",
+        },
       ]},
       { id: "1.19", title: "1.19 Device Compliance is required for access to resources", items: [
         { label: "Device compliance required for resource access",
           status: hasCompliantDevicePolicy ? "warning" : "manual",
-          detail: hasCompliantDevicePolicy ? "Report Only – not yet enforced" : "Manual Check Required" },
+          detail: hasCompliantDevicePolicy ? "Report Only – not yet enforced" : "Manual Check Required",
+          evidenceStatus: getChecklistMeta("users.checklist.1.19.deviceCompliance")?.evidenceStatus,
+          metricId: "users.checklist.1.19.deviceCompliance",
+          sourceLabel: "Conditional Access",
+        },
       ]},
       { id: "1.20", title: "1.20 Require Phishing Resistant MFA for Admins", items: [
         { label: "Phishing-resistant MFA required for admins",
           status: hasPhishingResistantAdmin ? "pass" : "fail",
-          detail: hasPhishingResistantAdmin ? "Enforced" : "Not Configured" },
+          detail: hasPhishingResistantAdmin ? "Enforced" : "Not Configured",
+          evidenceStatus: getChecklistMeta("users.checklist.1.20.phishingResistantMfa")?.evidenceStatus,
+          confidenceLabel: "high",
+          metricId: "users.checklist.1.20.phishingResistantMfa",
+          sourceLabel: "Conditional Access",
+        },
       ]},
       { id: "1.21", title: "1.21 High risk users and signins are blocked", items: [
         { label: "High risk sign-ins blocked by Conditional Access",
           status: hasHighRiskBlock ? "warning" : "manual",
-          detail: hasHighRiskBlock ? "Report Only – not yet enforced" : "Manual Check Required" },
+          detail: hasHighRiskBlock ? "Report Only – not yet enforced" : "Manual Check Required",
+          evidenceStatus: getChecklistMeta("users.checklist.1.21.riskBlock")?.evidenceStatus,
+          metricId: "users.checklist.1.21.riskBlock",
+          sourceLabel: "Conditional Access",
+        },
       ]},
       { id: "1.22", title: "1.22 Privileged Identity Management (PIM) is configured for JIT access", items: [
-        { label: "PIM used to manage privileged roles", status: "manual" },
-        { label: "Approval required for Global Administrator activation", status: "manual" },
+        { label: "PIM used to manage privileged roles", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.22.pim")?.evidenceStatus,
+          metricId: "users.checklist.1.22.pim",
+        },
+        { label: "Approval required for Global Administrator activation", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.22.pimApproval")?.evidenceStatus,
+          metricId: "users.checklist.1.22.pimApproval",
+        },
       ]},
       { id: "1.23", title: "1.23 Microsoft Sentinel is configured to ingest logs from Entra and Defender", items: [
-        { label: "Microsoft Sentinel ingesting logs from Entra ID and Microsoft Defender", status: "manual" },
+        { label: "Microsoft Sentinel ingesting logs from Entra ID and Microsoft Defender", status: "manual",
+          evidenceStatus: getChecklistMeta("users.checklist.1.23.sentinel")?.evidenceStatus,
+          metricId: "users.checklist.1.23.sentinel",
+        },
       ]},
     ];
   }, [sec, data]);
@@ -436,11 +558,41 @@ export function UsersTab() {
 
       {/* ── KPIs ────────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <KPICard title="Total Users"    value={data?.totalUsers}   loading={loading} />
-        <KPICard title="Active Users"   value={data?.activeUsers}  loading={loading} />
-        <KPICard title="Disabled Users" value={data?.disabledUsers} loading={loading} />
-        <KPICard title="Guest Users"    value={data?.guestUsers}   loading={loading} />
-        <KPICard title="MFA Enabled"    value={data ? `${Math.round((data.mfaEnabled / (data.totalUsers || 1)) * 100)}%` : undefined} loading={loading} />
+        <KPICard
+          title="Total Users"
+          value={data?.totalUsers}
+          loading={loading}
+          evidenceStatus={getFieldMeta("totalUsers")?.evidenceStatus}
+          confidenceLabel={getFieldMeta("totalUsers")?.confidenceLabel}
+        />
+        <KPICard
+          title="Active Users"
+          value={data?.activeUsers}
+          loading={loading}
+          evidenceStatus={getFieldMeta("activeUsers")?.evidenceStatus}
+          confidenceLabel={getFieldMeta("activeUsers")?.confidenceLabel}
+        />
+        <KPICard
+          title="Disabled Users"
+          value={data?.disabledUsers}
+          loading={loading}
+          evidenceStatus={getFieldMeta("disabledUsers")?.evidenceStatus}
+          confidenceLabel={getFieldMeta("disabledUsers")?.confidenceLabel}
+        />
+        <KPICard
+          title="Guest Users"
+          value={data?.guestUsers}
+          loading={loading}
+          evidenceStatus={getFieldMeta("guestUsers")?.evidenceStatus}
+          confidenceLabel={getFieldMeta("guestUsers")?.confidenceLabel}
+        />
+        <KPICard
+          title="MFA Enabled"
+          value={data ? `${Math.round((data.mfaEnabled / (data.totalUsers || 1)) * 100)}%` : undefined}
+          loading={loading}
+          evidenceStatus={getFieldMeta("mfaEnabled")?.evidenceStatus}
+          confidenceLabel={getFieldMeta("mfaEnabled")?.confidenceLabel}
+        />
       </div>
 
       {/* ── Type donut + Dept bar ────────────────────────────────────────────── */}
@@ -516,7 +668,7 @@ export function UsersTab() {
                 key={b}
                 onClick={() => setStaleBucketFilter((prev) => prev === b ? "all" : b)}
                 className={`text-left rounded-lg border p-4 transition-all hover:shadow-sm ${staleBucketFilter === b ? "ring-2 ring-offset-1" : ""}`}
-                style={{ ringColor: meta.color }}
+                style={{ '--tw-ring-color': meta.color } as React.CSSProperties}
               >
                 {loading ? (
                   <Skeleton className="h-10 w-16" />
@@ -604,8 +756,8 @@ export function UsersTab() {
                         {actions.map(({ icon: Icon, action, detail }) => (
                           <div key={action} className="flex items-start gap-3 p-2.5 rounded-md border bg-muted/30">
                             <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
-                              style={{ backgroundColor: `${BUCKET_META[bucket].color}20` }}>
-                              <Icon className="w-3.5 h-3.5" style={{ color: BUCKET_META[bucket].color }} />
+                              style={{ backgroundColor: `${BUCKET_META[bucket].color}20`, color: BUCKET_META[bucket].color }}>
+                              <Icon className="w-3.5 h-3.5" />
                             </div>
                             <div>
                               <p className="text-sm font-medium leading-none mb-0.5">{action}</p>

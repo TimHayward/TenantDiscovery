@@ -1,4 +1,4 @@
-import { useGetM365Compliance, useGetM365ServiceHealth } from "@workspace/api-client-react";
+import { useGetM365ComplianceWithMetadata, useGetM365ServiceHealthWithMetadata, useGetM365DataSources } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
+import { PermissionCodeList } from "@/components/PermissionCodeList";
+import { COMPLIANCE_SENSITIVITY_LABELS_PERMISSIONS } from "@/lib/permissions";
 import { AlertTriangle, CheckCircle, Info, Lock, Tag } from "lucide-react";
 import { useState } from "react";
 import {
@@ -24,7 +26,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CSVLink } from "react-csv";
 import { Download } from "lucide-react";
-import type { SensitivityLabelItem } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { SensitivityLabelItem } from "@workspace/api-client-react";
+import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
 const CHART_COLORS = {
   blue: "#0079F2",
@@ -109,14 +112,60 @@ const labelColumns: ColumnDef<SensitivityLabelItem>[] = [
 ];
 
 export function ComplianceTab() {
-  const { data: compliance, isLoading: isComplianceLoading, isFetching: isComplianceFetching } = useGetM365Compliance();
-  const { data: health, isLoading: isHealthLoading, isFetching: isHealthFetching } = useGetM365ServiceHealth();
+  const { data: complianceWithMetadata, isLoading: isComplianceLoading, isFetching: isComplianceFetching } = useGetM365ComplianceWithMetadata();
+  const { data: healthWithMetadata, isLoading: isHealthLoading, isFetching: isHealthFetching } = useGetM365ServiceHealthWithMetadata();
+  const { data: dataSources } = useGetM365DataSources({ tab: "compliance" });
 
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   const compLoading = isComplianceLoading || isComplianceFetching;
   const healthLoading = isHealthLoading || isHealthFetching;
+  const compliance = complianceWithMetadata?.data;
+  const health = healthWithMetadata?.data;
+
+  const registryItems =
+    (dataSources as {
+      items?: Array<{
+        metricId: string;
+        confidenceLabel: ConfidenceLabel;
+        evidenceStatus: EvidenceStatus;
+      }>;
+    } | undefined)?.items ?? [];
+
+  const getMetricMeta = (metricId: string) =>
+    registryItems.find((item) => item.metricId === metricId);
+
+  const serviceHealthMetricToFieldMap: Record<string, string> = {
+    "serviceHealth.totalServices": "totalServices",
+    "serviceHealth.activeIncidents": "activeIncidents",
+    "serviceHealth.activeAdvisories": "activeAdvisories",
+  };
+
+  const complianceMetricToFieldMap: Record<string, string> = {
+    "compliance.dlpPolicies": "dlpPolicies",
+    "compliance.activeDlpPolicies": "activeDlpPolicies",
+    "compliance.retentionPolicies": "retentionPolicies",
+    "compliance.sensitivityLabels": "sensitivityLabels",
+    "compliance.checklist.7.3.retentionPolicies": "retentionPolicies",
+    "compliance.checklist.7.4.sensitivityLabels": "sensitivityLabels",
+    "compliance.checklist.7.5.dlpPolicies": "dlpPolicies",
+  };
+
+  const getMetricMetaWithFieldFallback = (metricId: string) => {
+    const complianceField = complianceMetricToFieldMap[metricId];
+    if (complianceField) {
+      const meta = complianceWithMetadata?.fieldMetadata?.[complianceField];
+      if (meta) return meta;
+    }
+
+    const field = serviceHealthMetricToFieldMap[metricId];
+    if (field) {
+      const meta = healthWithMetadata?.fieldMetadata?.[field];
+      if (meta) return meta;
+    }
+    return getMetricMeta(metricId);
+  };
 
   // ── Section 7: Purview / Compliance checklist ────────────────────────────────
   const auditEnabled = (compliance?.auditLogEnabled && compliance?.unifiedAuditLogEnabled) ?? false;
@@ -126,31 +175,66 @@ export function ComplianceTab() {
   const hasRetention = (compliance?.retentionPolicies ?? 0) > 0;
   const complianceChecklist: ChecklistGroup[] = [
     { id: "7.1", title: "7.1 Data Backups are configured and tested", items: [
-      { label: "Microsoft 365 backup or 3rd party backup solution is configured", status: "manual" },
-      { label: "Backup restoration has been tested", status: "manual" },
+      { label: "Microsoft 365 backup or 3rd party backup solution is configured", status: "manual",
+        evidenceStatus: getMetricMeta("compliance.checklist.7.1.backup")?.evidenceStatus,
+        metricId: "compliance.checklist.7.1.backup",
+      },
+      { label: "Backup restoration has been tested", status: "manual",
+        evidenceStatus: getMetricMeta("compliance.checklist.7.1.backupTest")?.evidenceStatus,
+        metricId: "compliance.checklist.7.1.backupTest",
+      },
     ]},
     { id: "7.2", title: "7.2 Audit Logging is enabled", items: [
       { label: "Unified Audit Log is enabled",
         status: auditEnabled ? "pass" : "fail",
-        detail: auditEnabled ? "Enabled" : "Not Enabled" },
-      { label: "Audit log data is retained for an appropriate period", status: "manual" },
+        detail: auditEnabled ? "Enabled" : "Not Enabled",
+        evidenceStatus: getMetricMeta("compliance.checklist.7.2.auditLogging")?.evidenceStatus,
+        confidenceLabel: getMetricMetaWithFieldFallback("compliance.checklist.7.2.auditLogging")?.confidenceLabel,
+        metricId: "compliance.checklist.7.2.auditLogging",
+        sourceLabel: "Graph API",
+      },
+      { label: "Audit log data is retained for an appropriate period", status: "manual",
+        evidenceStatus: getMetricMeta("compliance.checklist.7.2.auditRetention")?.evidenceStatus,
+        metricId: "compliance.checklist.7.2.auditRetention",
+      },
     ]},
     { id: "7.3", title: "7.3 Retention Policies are configured", items: [
       { label: "Retention policies are configured for key data sources",
         status: hasRetention ? "pass" : "fail",
-        detail: hasRetention ? `${compliance?.retentionPolicies} policies configured` : "No retention policies found" },
+        detail: hasRetention ? `${compliance?.retentionPolicies} policies configured` : "No retention policies found",
+        evidenceStatus: getMetricMetaWithFieldFallback("compliance.checklist.7.3.retentionPolicies")?.evidenceStatus,
+        confidenceLabel: getMetricMetaWithFieldFallback("compliance.checklist.7.3.retentionPolicies")?.confidenceLabel,
+        metricId: "compliance.checklist.7.3.retentionPolicies",
+        sourceLabel: "Graph API",
+      },
     ]},
     { id: "7.4", title: "7.4 Sensitivity Labels are implemented", items: [
       { label: "Sensitivity labels are published for users",
         status: hasLabels ? "pass" : "fail",
-        detail: hasLabels ? `${compliance?.sensitivityLabels} labels configured` : "No sensitivity labels found" },
-      { label: "Labels applied automatically based on content scanning", status: "manual" },
+        detail: hasLabels ? `${compliance?.sensitivityLabels} labels configured` : "No sensitivity labels found",
+        evidenceStatus: getMetricMetaWithFieldFallback("compliance.checklist.7.4.sensitivityLabels")?.evidenceStatus,
+        confidenceLabel: getMetricMetaWithFieldFallback("compliance.checklist.7.4.sensitivityLabels")?.confidenceLabel,
+        metricId: "compliance.checklist.7.4.sensitivityLabels",
+        sourceLabel: "Graph API",
+      },
+      { label: "Labels applied automatically based on content scanning", status: "manual",
+        evidenceStatus: getMetricMeta("compliance.checklist.7.4.autoLabeling")?.evidenceStatus,
+        metricId: "compliance.checklist.7.4.autoLabeling",
+      },
     ]},
     { id: "7.5", title: "7.5 Data Loss Prevention (DLP) policies are implemented", items: [
       { label: "DLP policies exist for sensitive data types",
         status: hasDlp ? (hasActiveDlp ? "pass" : "warning") : "fail",
-        detail: hasDlp ? (hasActiveDlp ? `${compliance?.activeDlpPolicies} active DLP policies` : `${compliance?.dlpPolicies} policies (none active)`) : "No DLP policies found" },
-      { label: "DLP policies cover Exchange, SharePoint, Teams, and endpoints", status: "manual" },
+        detail: hasDlp ? (hasActiveDlp ? `${compliance?.activeDlpPolicies} active DLP policies` : `${compliance?.dlpPolicies} policies (none active)`) : "No DLP policies found",
+        evidenceStatus: getMetricMetaWithFieldFallback("compliance.checklist.7.5.dlpPolicies")?.evidenceStatus,
+        confidenceLabel: getMetricMetaWithFieldFallback("compliance.checklist.7.5.dlpPolicies")?.confidenceLabel,
+        metricId: "compliance.checklist.7.5.dlpPolicies",
+        sourceLabel: "Graph API",
+      },
+      { label: "DLP policies cover Exchange, SharePoint, Teams, and endpoints", status: "manual",
+        evidenceStatus: getMetricMeta("compliance.checklist.7.5.dlpCoverage")?.evidenceStatus,
+        metricId: "compliance.checklist.7.5.dlpCoverage",
+      },
     ]},
   ];
 
@@ -186,10 +270,36 @@ export function ComplianceTab() {
         <h2 className="text-xl font-semibold border-b pb-2">Compliance Overview</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard title="DLP Policies" value={compliance?.dlpPolicies} loading={compLoading} />
-          <KPICard title="Active DLP" value={compliance?.activeDlpPolicies} loading={compLoading} valueColor={CHART_COLORS.green} />
-          <KPICard title="Retention Policies" value={compliance?.retentionPolicies} loading={compLoading} />
-          <KPICard title="Sensitivity Labels" value={compliance?.sensitivityLabels} loading={compLoading} valueColor={CHART_COLORS.blue} />
+          <KPICard
+            title="DLP Policies"
+            value={compliance?.dlpPolicies}
+            loading={compLoading}
+            evidenceStatus={getMetricMetaWithFieldFallback("compliance.dlpPolicies")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("compliance.dlpPolicies")?.confidenceLabel}
+          />
+          <KPICard
+            title="Active DLP"
+            value={compliance?.activeDlpPolicies}
+            loading={compLoading}
+            valueColor={CHART_COLORS.green}
+            evidenceStatus={getMetricMetaWithFieldFallback("compliance.activeDlpPolicies")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("compliance.activeDlpPolicies")?.confidenceLabel}
+          />
+          <KPICard
+            title="Retention Policies"
+            value={compliance?.retentionPolicies}
+            loading={compLoading}
+            evidenceStatus={getMetricMetaWithFieldFallback("compliance.retentionPolicies")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("compliance.retentionPolicies")?.confidenceLabel}
+          />
+          <KPICard
+            title="Sensitivity Labels"
+            value={compliance?.sensitivityLabels}
+            loading={compLoading}
+            valueColor={CHART_COLORS.blue}
+            evidenceStatus={getMetricMetaWithFieldFallback("compliance.sensitivityLabels")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("compliance.sensitivityLabels")?.confidenceLabel}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -287,7 +397,7 @@ export function ComplianceTab() {
                 <Lock className="w-10 h-10 text-muted-foreground" />
                 <p className="font-medium">Additional permission required</p>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  To display sensitivity labels, add the <code className="bg-muted px-1 rounded text-xs">InformationProtection.ReadWrite.All</code> application permission to your Azure app registration and grant admin consent.
+                  To display sensitivity labels, add <PermissionCodeList permissions={COMPLIANCE_SENSITIVITY_LABELS_PERMISSIONS.optionalPermissions.map((permission) => permission.name)} codeClassName="bg-muted px-1 rounded text-xs" /> application permission to your Azure app registration and grant admin consent.
                 </p>
               </div>
             </CardContent>
@@ -402,9 +512,29 @@ export function ComplianceTab() {
         <h2 className="text-xl font-semibold border-b pb-2">Service Health</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <KPICard title="Total Services" value={health?.totalServices} loading={healthLoading} />
-          <KPICard title="Active Incidents" value={health?.activeIncidents} loading={healthLoading} valueColor={health && health.activeIncidents > 0 ? CHART_COLORS.red : CHART_COLORS.green} />
-          <KPICard title="Active Advisories" value={health?.activeAdvisories} loading={healthLoading} valueColor={health && health.activeAdvisories > 0 ? CHART_COLORS.yellow : CHART_COLORS.green} />
+          <KPICard
+            title="Total Services"
+            value={health?.totalServices}
+            loading={healthLoading}
+            evidenceStatus={getMetricMetaWithFieldFallback("serviceHealth.totalServices")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("serviceHealth.totalServices")?.confidenceLabel}
+          />
+          <KPICard
+            title="Active Incidents"
+            value={health?.activeIncidents}
+            loading={healthLoading}
+            valueColor={health && health.activeIncidents > 0 ? CHART_COLORS.red : CHART_COLORS.green}
+            evidenceStatus={getMetricMetaWithFieldFallback("serviceHealth.activeIncidents")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("serviceHealth.activeIncidents")?.confidenceLabel}
+          />
+          <KPICard
+            title="Active Advisories"
+            value={health?.activeAdvisories}
+            loading={healthLoading}
+            valueColor={health && health.activeAdvisories > 0 ? CHART_COLORS.yellow : CHART_COLORS.green}
+            evidenceStatus={getMetricMetaWithFieldFallback("serviceHealth.activeAdvisories")?.evidenceStatus}
+            confidenceLabel={getMetricMetaWithFieldFallback("serviceHealth.activeAdvisories")?.confidenceLabel}
+          />
         </div>
 
         <CollapsibleSection title="All Services Status" storageKey="compliance-service-health">

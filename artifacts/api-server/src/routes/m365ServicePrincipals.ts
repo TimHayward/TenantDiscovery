@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { getCached } from "../lib/graphClient.js";
+import { getPermissionMetadataForFeature } from "../lib/permissionMetadata.js";
+import { withMetadata } from "../lib/metadata.js";
 
 const router = Router();
 
@@ -89,165 +91,227 @@ async function pLimit<T>(tasks: (() => Promise<T>)[], concurrency: number): Prom
   return results;
 }
 
-router.get("/m365/service-principals", async (req, res) => {
-  try {
-    const token = await getCached("sp-token", getToken);
+async function getServicePrincipalsData() {
+  const permissionMetadata = getPermissionMetadataForFeature("service-principals");
+  const token = await getCached("sp-token", getToken);
 
-    // ── 1. Fetch all service principals (beta for signInActivity) ───────────
-    const spResult = await gfetchAllPages(
-      "https://graph.microsoft.com/beta/servicePrincipals" +
-        "?$select=id,appId,displayName,publisherName,servicePrincipalType,accountEnabled,tags,homepage,replyUrls,signInActivity" +
+  let spResult = await gfetchAllPages(
+    "https://graph.microsoft.com/beta/servicePrincipals" +
+      "?$select=id,appId,displayName,publisherName,servicePrincipalType,accountEnabled,tags,homepage,replyUrls,signInActivity" +
+      "&$top=500",
+    token
+  );
+
+  if (spResult.denied) {
+    spResult = await gfetchAllPages(
+      "https://graph.microsoft.com/v1.0/servicePrincipals" +
+        "?$select=id,appId,displayName,publisherName,servicePrincipalType,accountEnabled,tags,homepage,replyUrls" +
         "&$top=500",
       token
     );
+  }
 
-    if (spResult.denied) {
-      return res.json({
-        total: 0, applicationCount: 0, managedIdentityCount: 0,
-        microsoftOwnedCount: 0, thirdPartyCount: 0, disabledCount: 0,
-        withHighRiskGrants: 0, permissionError: true, servicePrincipals: [],
-      });
-    }
+  if (spResult.denied) {
+    return {
+      total: 0, applicationCount: 0, managedIdentityCount: 0,
+      microsoftOwnedCount: 0, thirdPartyCount: 0, disabledCount: 0,
+      withHighRiskGrants: 0, permissionError: true, servicePrincipals: [],
+      permissionMetadata,
+    };
+  }
 
-    const rawSPs = spResult.items as any[];
+  const rawSPs = spResult.items as any[];
 
-    // ── 2. Fetch all delegated (oauth2) permission grants ───────────────────
-    const grantsResult = await gfetchAllPages(
-      "https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$select=clientId,resourceId,scope,consentType,principalId&$top=500",
-      token
-    );
-    const rawGrants = grantsResult.items as any[];
+  const grantsResult = await gfetchAllPages(
+    "https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$select=clientId,resourceId,scope,consentType,principalId&$top=500",
+    token
+  );
+  const rawGrants = grantsResult.items as any[];
 
-    // Build a map: clientId (SP id) → grants
-    const grantsBySpId = new Map<string, any[]>();
-    for (const g of rawGrants) {
-      if (!grantsBySpId.has(g.clientId)) grantsBySpId.set(g.clientId, []);
-      grantsBySpId.get(g.clientId)!.push(g);
-    }
+  const grantsBySpId = new Map<string, any[]>();
+  for (const g of rawGrants) {
+    if (!grantsBySpId.has(g.clientId)) grantsBySpId.set(g.clientId, []);
+    grantsBySpId.get(g.clientId)!.push(g);
+  }
 
-    // ── 3. Fetch resource SP displayNames for grant resolution ──────────────
-    const resourceIds = new Set(rawGrants.map((g: any) => g.resourceId as string));
-    const resourceNameMap = new Map<string, string>();
-    await pLimit(
-      [...resourceIds].map((rid) => async () => {
-        const { data, ok } = await gfetch(
-          `https://graph.microsoft.com/v1.0/servicePrincipals/${rid}?$select=id,displayName,appId`,
-          token
-        );
-        if (ok && data) {
-          resourceNameMap.set(rid, data.displayName as string);
-        }
-      }),
-      10
-    );
+  const resourceIds = new Set(rawGrants.map((g: any) => g.resourceId as string));
+  const resourceNameMap = new Map<string, string>();
+  await pLimit(
+    [...resourceIds].map((rid) => async () => {
+      const { data, ok } = await gfetch(
+        `https://graph.microsoft.com/v1.0/servicePrincipals/${rid}?$select=id,displayName,appId`,
+        token
+      );
+      if (ok && data) {
+        resourceNameMap.set(rid, data.displayName as string);
+      }
+    }),
+    10
+  );
 
-    // ── 4. For Application-type SPs, fetch appRoleAssignedTo counts ─────────
-    //    (only for non-first-party SPs to avoid noisy Microsoft apps)
-    const appTypeSPs = rawSPs.filter(
-      (sp: any) =>
-        sp.servicePrincipalType === "Application" &&
-        !MS_PUBLISHER_NAMES.has(sp.publisherName) &&
-        !MS_RESOURCE_APP_IDS.has(sp.appId)
-    );
+  const appTypeSPs = rawSPs.filter(
+    (sp: any) =>
+      sp.servicePrincipalType === "Application" &&
+      !MS_PUBLISHER_NAMES.has(sp.publisherName) &&
+      !MS_RESOURCE_APP_IDS.has(sp.appId)
+  );
 
-    const assignmentCountMap = new Map<string, { users: number; groups: number }>();
-    await pLimit(
-      appTypeSPs.slice(0, 60).map((sp: any) => async () => {
-        // Get first page of assignments (up to 100) + count header
-        const { data, ok } = await gfetch(
-          `https://graph.microsoft.com/v1.0/servicePrincipals/${sp.id}/appRoleAssignedTo?$select=principalType&$top=100`,
-          token,
-          { ConsistencyLevel: "eventual" }
-        );
-        if (!ok || !data?.value) return;
-        const assignments = data.value as any[];
-        const users  = assignments.filter((a: any) => a.principalType === "User").length;
-        const groups = assignments.filter((a: any) => a.principalType === "Group").length;
-        assignmentCountMap.set(sp.id, { users, groups });
-      }),
-      8
-    );
+  const assignmentCountMap = new Map<string, { users: number; groups: number }>();
+  await pLimit(
+    appTypeSPs.slice(0, 60).map((sp: any) => async () => {
+      const { data, ok } = await gfetch(
+        `https://graph.microsoft.com/v1.0/servicePrincipals/${sp.id}/appRoleAssignedTo?$select=principalType&$top=100`,
+        token,
+        { ConsistencyLevel: "eventual" }
+      );
+      if (!ok || !data?.value) return;
+      const assignments = data.value as any[];
+      const users = assignments.filter((a: any) => a.principalType === "User").length;
+      const groups = assignments.filter((a: any) => a.principalType === "Group").length;
+      assignmentCountMap.set(sp.id, { users, groups });
+    }),
+    8
+  );
 
-    // ── 5. Build structured output ─────────────────────────────────────────
-    const servicePrincipals = rawSPs.map((sp: any) => {
-      const isFirstParty =
-        MS_PUBLISHER_NAMES.has(sp.publisherName) ||
-        MS_RESOURCE_APP_IDS.has(sp.appId) ||
-        (sp.tags as string[] || []).includes("WindowsAzureActiveDirectoryIntegratedApp");
+  const servicePrincipals = rawSPs.map((sp: any) => {
+    const isFirstParty =
+      MS_PUBLISHER_NAMES.has(sp.publisherName) ||
+      MS_RESOURCE_APP_IDS.has(sp.appId) ||
+      (sp.tags as string[] || []).includes("WindowsAzureActiveDirectoryIntegratedApp");
 
-      const spGrants = grantsBySpId.get(sp.id) ?? [];
-      const consentGrants = spGrants.map((g: any) => {
-        const scopes: string[] = (g.scope ?? "").split(" ").filter(Boolean);
-        const isHighRisk = scopes.some((s: string) => HIGH_RISK_SCOPES.has(s));
-        return {
-          consentType: g.consentType as "AllPrincipals" | "Principal",
-          principalId: g.principalId ?? null,
-          resourceId: g.resourceId,
-          resourceName: resourceNameMap.get(g.resourceId) ?? g.resourceId,
-          scopes,
-          isHighRisk,
-        };
-      });
-
-      const hasHighRiskGrants = consentGrants.some((g) => g.isHighRisk);
-      const isAdminConsented  = consentGrants.some((g) => g.consentType === "AllPrincipals");
-      const assignments = assignmentCountMap.get(sp.id) ?? { users: 0, groups: 0 };
-
-      // Compute risk factors
-      const riskFactors: string[] = [];
-      if (hasHighRiskGrants && !isFirstParty)    riskFactors.push("High-risk delegated permissions");
-      if (isAdminConsented && !isFirstParty)     riskFactors.push("Tenant-wide admin consent");
-      if (!sp.accountEnabled && spGrants.length) riskFactors.push("Disabled SP with active grants");
-      if (!isFirstParty && consentGrants.length > 5) riskFactors.push("Many consent grants (>5)");
-
-      const riskScore = riskFactors.length;
-      const riskLevel: "high" | "medium" | "low" =
-        riskScore >= 3 ? "high" : riskScore >= 2 ? "medium" : "low";
-
-      const signIn = sp.signInActivity ?? null;
-
+    const spGrants = grantsBySpId.get(sp.id) ?? [];
+    const consentGrants = spGrants.map((g: any) => {
+      const scopes: string[] = (g.scope ?? "").split(" ").filter(Boolean);
+      const isHighRisk = scopes.some((s: string) => HIGH_RISK_SCOPES.has(s));
       return {
-        id: sp.id as string,
-        appId: sp.appId as string,
-        displayName: sp.displayName as string,
-        publisherName: (sp.publisherName as string | null) ?? null,
-        servicePrincipalType: sp.servicePrincipalType as string,
-        accountEnabled: sp.accountEnabled as boolean,
-        tags: (sp.tags as string[]) ?? [],
-        homepage: (sp.homepage as string | null) ?? null,
-        lastSignInDateTime: signIn?.lastSignInDateTime ?? null,
-        consentGrants,
-        hasHighRiskGrants,
-        assignedUserCount: assignments.users,
-        assignedGroupCount: assignments.groups,
-        isAdminConsented,
-        isFirstParty,
-        riskLevel,
-        riskScore,
-        riskFactors,
+        consentType: g.consentType as "AllPrincipals" | "Principal",
+        principalId: g.principalId ?? null,
+        resourceId: g.resourceId,
+        resourceName: resourceNameMap.get(g.resourceId) ?? g.resourceId,
+        scopes,
+        isHighRisk,
       };
     });
 
-    const applicationCount     = servicePrincipals.filter((sp) => sp.servicePrincipalType === "Application").length;
-    const managedIdentityCount = servicePrincipals.filter((sp) => sp.servicePrincipalType === "ManagedIdentity").length;
-    const microsoftOwnedCount  = servicePrincipals.filter((sp) => sp.isFirstParty).length;
-    const thirdPartyCount      = servicePrincipals.filter((sp) => !sp.isFirstParty && sp.servicePrincipalType === "Application").length;
-    const disabledCount        = servicePrincipals.filter((sp) => !sp.accountEnabled).length;
-    const withHighRiskGrants   = servicePrincipals.filter((sp) => sp.hasHighRiskGrants && !sp.isFirstParty).length;
+    const hasHighRiskGrants = consentGrants.some((g) => g.isHighRisk);
+    const isAdminConsented = consentGrants.some((g) => g.consentType === "AllPrincipals");
+    const assignments = assignmentCountMap.get(sp.id) ?? { users: 0, groups: 0 };
 
-    return res.json({
-      total: servicePrincipals.length,
-      applicationCount,
-      managedIdentityCount,
-      microsoftOwnedCount,
-      thirdPartyCount,
-      disabledCount,
-      withHighRiskGrants,
-      permissionError: false,
-      servicePrincipals,
-    });
+    const riskFactors: string[] = [];
+    if (hasHighRiskGrants && !isFirstParty) riskFactors.push("High-risk delegated permissions");
+    if (isAdminConsented && !isFirstParty) riskFactors.push("Tenant-wide admin consent");
+    if (!sp.accountEnabled && spGrants.length) riskFactors.push("Disabled SP with active grants");
+    if (!isFirstParty && consentGrants.length > 5) riskFactors.push("Many consent grants (>5)");
+
+    const riskScore = riskFactors.length;
+    const riskLevel: "high" | "medium" | "low" =
+      riskScore >= 3 ? "high" : riskScore >= 2 ? "medium" : "low";
+
+    const signIn = sp.signInActivity ?? null;
+
+    return {
+      id: sp.id as string,
+      appId: sp.appId as string,
+      displayName: sp.displayName as string,
+      publisherName: (sp.publisherName as string | null) ?? null,
+      servicePrincipalType: sp.servicePrincipalType as string,
+      accountEnabled: sp.accountEnabled as boolean,
+      tags: (sp.tags as string[]) ?? [],
+      homepage: (sp.homepage as string | null) ?? null,
+      lastSignInDateTime: signIn?.lastSignInDateTime ?? null,
+      consentGrants,
+      hasHighRiskGrants,
+      assignedUserCount: assignments.users,
+      assignedGroupCount: assignments.groups,
+      isAdminConsented,
+      isFirstParty,
+      riskLevel,
+      riskScore,
+      riskFactors,
+    };
+  });
+
+  const applicationCount = servicePrincipals.filter((sp) => sp.servicePrincipalType === "Application").length;
+  const managedIdentityCount = servicePrincipals.filter((sp) => sp.servicePrincipalType === "ManagedIdentity").length;
+  const microsoftOwnedCount = servicePrincipals.filter((sp) => sp.isFirstParty).length;
+  const thirdPartyCount = servicePrincipals.filter((sp) => !sp.isFirstParty && sp.servicePrincipalType === "Application").length;
+  const disabledCount = servicePrincipals.filter((sp) => !sp.accountEnabled).length;
+  const withHighRiskGrants = servicePrincipals.filter((sp) => sp.hasHighRiskGrants && !sp.isFirstParty).length;
+
+  return {
+    total: servicePrincipals.length,
+    applicationCount,
+    managedIdentityCount,
+    microsoftOwnedCount,
+    thirdPartyCount,
+    disabledCount,
+    withHighRiskGrants,
+    permissionError: false,
+    servicePrincipals,
+    permissionMetadata,
+  };
+}
+
+router.get("/m365/service-principals", async (req, res) => {
+  try {
+    const data = await getServicePrincipalsData();
+    return res.json(data);
   } catch (err) {
     req.log.error(err, "Error fetching service principals");
+    return res.status(500).json({ error: "Failed to fetch service principals" });
+  }
+});
+
+router.get("/m365/service-principals/with-metadata", async (req, res) => {
+  try {
+    const data = await getServicePrincipalsData();
+
+    const fieldMetadata = {
+      total: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "high" as const,
+        sourceLabel: "Application.Read.All",
+      },
+      applicationCount: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "high" as const,
+        sourceLabel: "Application.Read.All",
+      },
+      managedIdentityCount: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "high" as const,
+        sourceLabel: "Application.Read.All",
+      },
+      thirdPartyCount: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "medium" as const,
+        sourceLabel: "Derived from publisher and app identifiers",
+      },
+      withHighRiskGrants: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "medium" as const,
+        sourceLabel: "Delegated grant scope analysis",
+      },
+      permissionError: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "high" as const,
+        sourceLabel: "HTTP status from Graph API",
+      },
+      servicePrincipals: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "high" as const,
+        sourceLabel: "Service principal inventory and grant joins",
+      },
+      permissionMetadata: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "high" as const,
+        sourceLabel: "Static permission manifest",
+      },
+    };
+
+    return res.json(withMetadata(data, fieldMetadata));
+  } catch (err) {
+    req.log.error(err, "Error fetching service principals with metadata");
     return res.status(500).json({ error: "Failed to fetch service principals" });
   }
 });

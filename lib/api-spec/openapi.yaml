@@ -26,6 +26,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /healthz/with-metadata:
+    get:
+      operationId: healthCheckWithMetadata
+      tags: [health]
+      summary: Health check with field metadata
+      responses:
+        "200":
+          description: Healthy with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatusWithMetadata"
+
   /m365/overview:
     get:
       operationId: getM365Overview
@@ -38,6 +51,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/M365Overview"
+
+  /m365/overview/with-metadata:
+    get:
+      operationId: getM365OverviewWithMetadata
+      tags: [m365]
+      summary: M365 tenant overview KPIs with field metadata
+      responses:
+        "200":
+          description: Overview KPIs with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365OverviewWithMetadata"
 
   /m365/users:
     get:
@@ -52,6 +78,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365UsersData"
 
+  /m365/users/with-metadata:
+    get:
+      operationId: getM365UsersWithMetadata
+      tags: [m365]
+      summary: User accounts summary and list with field metadata
+      responses:
+        "200":
+          description: User data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365UsersDataWithMetadata"
+
   /m365/licenses:
     get:
       operationId: getM365Licenses
@@ -64,6 +103,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/M365LicensesData"
+
+  /m365/licenses/with-metadata:
+    get:
+      operationId: getM365LicensesWithMetadata
+      tags: [m365]
+      summary: License allocation and usage with field metadata
+      responses:
+        "200":
+          description: License data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365LicensesDataWithMetadata"
 
   /m365/security:
     get:
@@ -78,6 +130,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365SecurityData"
 
+  /m365/security/with-metadata:
+    get:
+      operationId: getM365SecurityWithMetadata
+      tags: [m365]
+      summary: Security scores and MFA status with field metadata
+      responses:
+        "200":
+          description: Security data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365SecurityDataWithMetadata"
+
   /m365/security/estate:
     get:
       operationId: getM365SecurityEstate
@@ -90,6 +155,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SecurityEstateData"
+
+  /m365/security/estate/with-metadata:
+    get:
+      operationId: getM365SecurityEstateWithMetadata
+      tags: [m365]
+      summary: Discovered devices, SaaS apps, and OAuth apps in the estate with field metadata
+      responses:
+        "200":
+          description: Security estate data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityEstateDataWithMetadata"
 
   /m365/exchange:
     get:
@@ -104,6 +182,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365ExchangeData"
 
+  /m365/exchange/with-metadata:
+    get:
+      operationId: getM365ExchangeWithMetadata
+      tags: [m365]
+      summary: Exchange Online mailbox and mail flow stats with field metadata
+      responses:
+        "200":
+          description: Exchange data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365ExchangeDataWithMetadata"
+
   /m365/teams:
     get:
       operationId: getM365Teams
@@ -116,6 +207,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/M365TeamsData"
+
+  /m365/teams/with-metadata:
+    get:
+      operationId: getM365TeamsWithMetadata
+      tags: [m365]
+      summary: Microsoft Teams usage and activity with field metadata
+      responses:
+        "200":
+          description: Teams data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365TeamsDataWithMetadata"
 
   /m365/sharepoint:
     get:
@@ -130,6 +234,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365SharePointData"
 
+  /m365/sharepoint/with-metadata:
+    get:
+      operationId: getM365SharePointWithMetadata
+      tags: [m365]
+      summary: SharePoint sites and storage with field metadata
+      responses:
+        "200":
+          description: SharePoint data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365SharePointDataWithMetadata"
+
   /m365/compliance:
     get:
       operationId: getM365Compliance
@@ -142,6 +259,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/M365ComplianceData"
+
+  /m365/compliance/with-metadata:
+    get:
+      operationId: getM365ComplianceWithMetadata
+      tags: [m365]
+      summary: Compliance and policy status with field metadata
+      responses:
+        "200":
+          description: Compliance data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365ComplianceDataWithMetadata"
 
   /m365/service-health:
     get:
@@ -156,6 +286,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365ServiceHealthData"
 
+  /m365/service-health/with-metadata:
+    get:
+      operationId: getM365ServiceHealthWithMetadata
+      tags: [m365]
+      summary: Microsoft 365 service health status with field metadata
+      responses:
+        "200":
+          description: Service health data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365ServiceHealthDataWithMetadata"
+
   /m365/intune:
     get:
       operationId: getM365Intune
@@ -168,6 +311,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/M365IntuneData"
+
+  /m365/intune/with-metadata:
+    get:
+      operationId: getM365IntuneWithMetadata
+      tags: [m365]
+      summary: Intune device management and compliance with field metadata
+      responses:
+        "200":
+          description: Intune data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365IntuneDataWithMetadata"
 
   /m365/intune/device/{deviceId}/compliance:
     get:
@@ -201,6 +357,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365AppsData"
 
+  /m365/apps/with-metadata:
+    get:
+      operationId: getM365AppsWithMetadata
+      tags: [m365]
+      summary: Enterprise application registrations with security assessment and field metadata
+      responses:
+        "200":
+          description: App registrations and security posture with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365AppsDataWithMetadata"
+
   /m365/service-principals:
     get:
       operationId: getM365ServicePrincipals
@@ -213,6 +382,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/M365ServicePrincipalsData"
+
+  /m365/service-principals/with-metadata:
+    get:
+      operationId: getM365ServicePrincipalsWithMetadata
+      tags: [m365]
+      summary: Service principals (enterprise apps) with consent grants and sign-in activity with field metadata
+      responses:
+        "200":
+          description: Service principals data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365ServicePrincipalsDataWithMetadata"
 
   /m365/intune/apps:
     get:
@@ -227,6 +409,137 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365IntuneAppsData"
 
+  /m365/groups:
+    get:
+      operationId: getM365Groups
+      tags: [m365]
+      summary: Entra ID groups list
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Groups response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365GroupsData"
+
+  /m365/groups/with-metadata:
+    get:
+      operationId: getM365GroupsWithMetadata
+      tags: [m365]
+      summary: Entra ID groups list with field metadata
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Groups response with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365GroupsDataWithMetadata"
+
+  /m365/permissions/manifest:
+    get:
+      operationId: getM365PermissionsManifest
+      tags: [m365]
+      summary: Permissions manifest
+      responses:
+        "200":
+          description: Permissions manifest response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365PermissionsManifestData"
+
+  /m365/permissions/manifest/with-metadata:
+    get:
+      operationId: getM365PermissionsManifestWithMetadata
+      tags: [m365]
+      summary: Permissions manifest with field metadata
+      responses:
+        "200":
+          description: Permissions manifest with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365PermissionsManifestDataWithMetadata"
+
+  /m365/permissions/feature/{featureId}:
+    get:
+      operationId: getM365PermissionsFeature
+      tags: [m365]
+      summary: Permission details for one feature
+      parameters:
+        - in: path
+          name: featureId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Permission details for a feature
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365PermissionsFeatureData"
+
+  /m365/permissions/feature/{featureId}/with-metadata:
+    get:
+      operationId: getM365PermissionsFeatureWithMetadata
+      tags: [m365]
+      summary: Permission details for one feature with field metadata
+      parameters:
+        - in: path
+          name: featureId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Permission details for a feature with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365PermissionsFeatureDataWithMetadata"
+
+  /m365/data-sources:
+    get:
+      operationId: getM365DataSources
+      tags: [m365]
+      summary: Data source registry for dashboard metrics
+      parameters:
+        - in: query
+          name: tab
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: metricId
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: evidenceStatus
+          required: false
+          schema:
+            $ref: "#/components/schemas/EvidenceStatus"
+      responses:
+        "200":
+          description: Registry entries and summary counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365DataSourcesResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -235,6 +548,153 @@ components:
         status:
           type: string
       required: [status]
+
+    EvidenceStatus:
+      type: string
+      enum: [apiBacked, partial, manual, automationCandidate, notAssessed]
+
+    ConfidenceLabel:
+      type: string
+      enum: [high, medium, low, unknown]
+
+    FieldEvidenceMetadata:
+      type: object
+      properties:
+        evidenceStatus:
+          $ref: "#/components/schemas/EvidenceStatus"
+        confidenceLabel:
+          $ref: "#/components/schemas/ConfidenceLabel"
+        sourceLabel:
+          type: string
+        notes:
+          type: array
+          items:
+            type: string
+      required: [evidenceStatus, confidenceLabel]
+
+    FieldMetadataMap:
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/FieldEvidenceMetadata"
+
+    HealthStatusWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/HealthStatus"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
+    LicenseDependency:
+      type: string
+      enum:
+        - none
+        - m365-license-required
+        - intune-license-required
+        - entra-id-p2-recommended
+        - defender-xdr-license-recommended
+
+    DataSourceEndpoint:
+      type: object
+      properties:
+        provider:
+          type: string
+        label:
+          type: string
+        endpoint:
+          type: string
+        notes:
+          type: array
+          items:
+            type: string
+      required: [provider, label, endpoint, notes]
+
+    MetricDataSourceEntry:
+      type: object
+      properties:
+        metricId:
+          type: string
+        metricName:
+          type: string
+        tab:
+          type: string
+        dataSources:
+          type: array
+          items:
+            $ref: "#/components/schemas/DataSourceEndpoint"
+        permissionDependencies:
+          type: array
+          items:
+            type: string
+        licenseDependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/LicenseDependency"
+        confidenceLabel:
+          $ref: "#/components/schemas/ConfidenceLabel"
+        evidenceStatus:
+          $ref: "#/components/schemas/EvidenceStatus"
+        notes:
+          type: array
+          items:
+            type: string
+      required:
+        - metricId
+        - metricName
+        - tab
+        - dataSources
+        - permissionDependencies
+        - licenseDependencies
+        - confidenceLabel
+        - evidenceStatus
+        - notes
+
+    M365DataSourcesSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        byConfidence:
+          type: object
+          properties:
+            high:
+              type: integer
+            medium:
+              type: integer
+            low:
+              type: integer
+            unknown:
+              type: integer
+          required: [high, medium, low, unknown]
+        byEvidenceStatus:
+          type: object
+          properties:
+            apiBacked:
+              type: integer
+            partial:
+              type: integer
+            manual:
+              type: integer
+            automationCandidate:
+              type: integer
+            notAssessed:
+              type: integer
+          required: [apiBacked, partial, manual, automationCandidate, notAssessed]
+      required: [total, byConfidence, byEvidenceStatus]
+
+    M365DataSourcesResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetricDataSourceEntry"
+        summary:
+          $ref: "#/components/schemas/M365DataSourcesSummary"
+      required: [items, summary]
 
     M365Overview:
       type: object
@@ -279,6 +739,17 @@ components:
         - disabledUsers
         - activeServices
         - totalServices
+
+    M365OverviewWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365Overview"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
 
     UserItem:
       type: object
@@ -363,6 +834,42 @@ components:
         - usersByDepartment
         - users
 
+    M365UsersDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365UsersData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
+    CollectionIssue:
+      type: object
+      properties:
+        source:
+          type: string
+        status:
+          type: integer
+          nullable: true
+        category:
+          type: string
+          enum: [permission, license, notFound, throttled, upstream, unknown]
+        message:
+          type: string
+        retryable:
+          type: boolean
+        permissionRequired:
+          type: boolean
+      required:
+        - source
+        - status
+        - category
+        - message
+        - retryable
+        - permissionRequired
+
     LicenseItem:
       type: object
       properties:
@@ -407,12 +914,23 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LicenseItem"
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
       required:
         - totalLicenses
         - assignedLicenses
         - availableLicenses
         - utilizationPercent
         - licenses
+        - partialData
+        - permissionError
+        - collectionIssues
 
     MfaUserItem:
       type: object
@@ -608,6 +1126,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SecureScoreControl"
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
       required:
         - secureScore
         - secureScoreMax
@@ -629,6 +1155,20 @@ components:
         - riskDetectionTimeline
         - riskyUsersDetail
         - secureScoreControls
+        - partialData
+        - permissionError
+        - collectionIssues
+
+    M365SecurityDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365SecurityData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
 
     SecureScoreControl:
       type: object
@@ -762,6 +1302,17 @@ components:
             $ref: "#/components/schemas/OAuthAppItem"
       required: [deviceSummary, deviceList, saasApps, oauthApps]
 
+    SecurityEstateDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SecurityEstateData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
     M365ExchangeData:
       type: object
       properties:
@@ -805,6 +1356,14 @@ components:
           type: integer
         spamFiltered:
           type: integer
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
       required:
         - totalMailboxes
         - activeMailboxes
@@ -818,6 +1377,20 @@ components:
         - quarantinedMessages
         - malwareDetected
         - spamFiltered
+        - partialData
+        - permissionError
+        - collectionIssues
+
+    M365ExchangeDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365ExchangeData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
 
     M365TeamsData:
       type: object
@@ -856,6 +1429,14 @@ components:
               count:
                 type: integer
             required: [range, count]
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
       required:
         - totalTeams
         - activeTeams
@@ -870,6 +1451,20 @@ components:
         - guestAccessEnabled
         - externalAccessEnabled
         - teamsBySize
+        - partialData
+        - permissionError
+        - collectionIssues
+
+    M365TeamsDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365TeamsData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
 
     SharePointSiteItem:
       type: object
@@ -926,6 +1521,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SharePointSiteItem"
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
       required:
         - totalSites
         - activeSites
@@ -937,6 +1540,20 @@ components:
         - oneDriveTotalStorageGB
         - oneDriveUsedStorageGB
         - sites
+        - partialData
+        - permissionError
+        - collectionIssues
+
+    M365SharePointDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365SharePointData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
 
     M365ComplianceData:
       type: object
@@ -980,6 +1597,17 @@ components:
         - eDiscoveryCases
         - sensitivityLabelsList
         - sensitivityLabelsPermissionRequired
+
+    M365ComplianceDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365ComplianceData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
 
     IntuneDeviceItem:
       type: object
@@ -1289,6 +1917,17 @@ components:
         - policySummaryByOS
         - assessmentItems
 
+    M365IntuneDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365IntuneData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
     ServiceHealthItem:
       type: object
       properties:
@@ -1328,6 +1967,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ServiceHealthItem"
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
       required:
         - overallStatus
         - servicesHealthy
@@ -1336,6 +1983,9 @@ components:
         - activeIncidents
         - activeAdvisories
         - services
+        - partialData
+        - permissionError
+        - collectionIssues
 
     AppOwner:
       type: object
@@ -1499,6 +2149,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AppRegistration"
+
+    M365AppsDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365AppsData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
 
     SpConsentGrant:
       type: object
@@ -1667,6 +2328,17 @@ components:
           items:
             $ref: "#/components/schemas/ServicePrincipalItem"
 
+    M365ServicePrincipalsDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365ServicePrincipalsData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
     IntuneAppInstallItem:
       type: object
       properties:
@@ -1794,3 +2466,93 @@ components:
         - unmanagedDiscoveredApps
         - discoveredByPlatform
         - discoveredAppList
+
+    GroupItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+          nullable: true
+        groupTypes:
+          type: array
+          items:
+            type: string
+        securityEnabled:
+          type: boolean
+      required: [id, displayName, groupTypes, securityEnabled]
+
+    M365GroupsData:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupItem"
+      required: [groups]
+
+    M365GroupsDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365GroupsData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
+    M365PermissionsManifestData:
+      type: object
+      additionalProperties: true
+
+    M365PermissionsFeatureData:
+      type: object
+      additionalProperties: true
+
+    M365PermissionsManifestDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365PermissionsManifestData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
+    M365PermissionsFeatureDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365PermissionsFeatureData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
+    M365LicensesDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365LicensesData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
+    M365ServiceHealthDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365ServiceHealthData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]

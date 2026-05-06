@@ -1,0 +1,526 @@
+{
+  "metadata": {
+    "appType": "service-application",
+    "authFlow": "client-credentials",
+    "adminConsentRequired": true,
+    "sourceOfTruth": "current-shipped-code",
+    "generatedAt": "2026-05-04",
+    "generatedFrom": "lib/permissions-manifest/src/manifest.ts",
+    "notes": [
+      "This manifest reflects permissions used by shipped code today.",
+      "Future roadmap capabilities are tracked separately so the required list stays accurate.",
+      "Microsoft Defender scopes are external provider scopes and are not Microsoft Graph application permissions.",
+      "A small number of UI prompts still need least-privilege validation before they should be treated as final."
+    ]
+  },
+  "permissions": [
+    {
+      "name": "Application.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "required",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read app registrations and enterprise application objects.",
+      "why": "Required for application inventory and service principal inventory views.",
+      "endpoints": [
+        "/applications",
+        "/servicePrincipals"
+      ],
+      "features": [
+        "enterprise-apps",
+        "service-principals"
+      ],
+      "notes": [
+        "This is missing from the current replit permission list."
+      ]
+    },
+    {
+      "name": "Organization.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "required",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read tenant organization metadata.",
+      "why": "Used in overview and identity summary views.",
+      "endpoints": [
+        "/organization"
+      ],
+      "features": [
+        "overview",
+        "users-identity",
+        "service-principals"
+      ]
+    },
+    {
+      "name": "Directory.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "required",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read directory objects such as users, groups, apps, and service principals.",
+      "why": "Used across identity and app inventory routes.",
+      "endpoints": [
+        "/users",
+        "/groups",
+        "/applications",
+        "/servicePrincipals"
+      ],
+      "features": [
+        "overview",
+        "users-identity",
+        "enterprise-apps",
+        "service-principals"
+      ]
+    },
+    {
+      "name": "Reports.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "required",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read Microsoft 365 usage and registration reports.",
+      "why": "Used for user adoption, workload usage, and MFA registration reporting.",
+      "endpoints": [
+        "/reports/authenticationMethods/userRegistrationDetails",
+        "/reports/getMailboxUsageDetail",
+        "/reports/getEmailActivityUserDetail",
+        "/reports/getTeamsUserActivityUserDetail",
+        "/reports/getSharePointSiteUsageDetail"
+      ],
+      "features": [
+        "overview",
+        "users-identity",
+        "exchange",
+        "teams-sharepoint"
+      ],
+      "notes": [
+        "This covers the current SharePoint usage reports, which is why Sites.Read.All is not required today."
+      ]
+    },
+    {
+      "name": "Policy.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "required",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read tenant policies such as Conditional Access and authorization policy.",
+      "why": "Used for Conditional Access reporting and app registration policy checks.",
+      "endpoints": [
+        "/identity/conditionalAccess/policies",
+        "/policies/authorizationPolicy"
+      ],
+      "features": [
+        "enterprise-apps",
+        "security",
+        "users-identity"
+      ]
+    },
+    {
+      "name": "SecurityEvents.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "required",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read Microsoft security score data.",
+      "why": "Used for Secure Score cards and security posture views.",
+      "endpoints": [
+        "/security/secureScores"
+      ],
+      "features": [
+        "security",
+        "compliance"
+      ]
+    },
+    {
+      "name": "ServiceHealth.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "required",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read Microsoft 365 service health.",
+      "why": "Used for service announcement and health status views.",
+      "endpoints": [
+        "/admin/serviceAnnouncement/healthOverviews",
+        "/admin/serviceAnnouncement/issues"
+      ],
+      "features": [
+        "overview",
+        "service-health",
+        "compliance-health"
+      ]
+    },
+    {
+      "name": "Team.ReadBasic.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "required",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read basic Microsoft Teams metadata.",
+      "why": "Used for Teams inventory and collaboration views.",
+      "endpoints": [
+        "/teams"
+      ],
+      "features": [
+        "teams-sharepoint"
+      ]
+    },
+    {
+      "name": "UserAuthenticationMethod.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "required",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read tenant-wide user authentication method registration detail.",
+      "why": "Used for MFA registration and passwordless capability reporting.",
+      "endpoints": [
+        "/reports/authenticationMethods/userRegistrationDetails"
+      ],
+      "features": [
+        "users-identity",
+        "security"
+      ]
+    },
+    {
+      "name": "AuditLog.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read audit and compliance-related activity data.",
+      "why": "Enhances compliance and enterprise app evidence without being required for the whole dashboard to load.",
+      "endpoints": [
+        "/security/cases/ediscoveryCases",
+        "/security/informationProtection/policies/dlp/policies"
+      ],
+      "features": [
+        "compliance",
+        "service-principals"
+      ],
+      "notes": [
+        "The Service Principals screen treats this as optional for sign-in and enrichment data."
+      ]
+    },
+    {
+      "name": "IdentityRiskEvent.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read identity protection risk events and risky users.",
+      "why": "Current security route catches failures and degrades to partial risk reporting.",
+      "endpoints": [
+        "/identityProtection/riskDetections",
+        "/identityProtection/riskyUsers"
+      ],
+      "features": [
+        "security"
+      ],
+      "notes": [
+        "The code currently uses this permission for both risk detections and risky users."
+      ]
+    },
+    {
+      "name": "DeviceManagementManagedDevices.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read Intune managed device inventory and per-device details.",
+      "why": "Enables full Intune device drill-down; current UI degrades when this is absent.",
+      "endpoints": [
+        "/deviceManagement/managedDevices",
+        "/deviceManagement/detectedApps"
+      ],
+      "features": [
+        "intune-devices",
+        "intune-discovered-apps"
+      ],
+      "notes": [
+        "This is required for per-device detail and discovered-app evidence in the current implementation."
+      ]
+    },
+    {
+      "name": "DeviceManagementConfiguration.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read Intune compliance policies and configuration profiles.",
+      "why": "Used for Intune policy and configuration summaries.",
+      "endpoints": [
+        "/deviceManagement/deviceCompliancePolicies",
+        "/deviceManagement/deviceConfigurations",
+        "/deviceManagement/deviceEnrollmentConfigurations"
+      ],
+      "features": [
+        "intune-devices"
+      ]
+    },
+    {
+      "name": "DeviceManagementApps.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read Intune application deployment and install state information.",
+      "why": "Used only for the Intune app installation health section.",
+      "endpoints": [
+        "/deviceManagement/reports/getDeviceInstallStatusReport"
+      ],
+      "features": [
+        "intune-app-installations"
+      ]
+    },
+    {
+      "name": "InformationProtectionPolicy.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read sensitivity labels and related information protection policy metadata.",
+      "why": "Least-privilege application permission for listing sensitivity labels via Graph security informationProtection endpoints.",
+      "endpoints": [
+        "/security/informationProtection/sensitivityLabels"
+      ],
+      "features": [
+        "compliance-sensitivity-labels"
+      ],
+      "notes": [
+        "Validated against Microsoft Graph permissions table for List sensitivityLabels (beta)."
+      ]
+    },
+    {
+      "name": "https://api.security.microsoft.com/.default",
+      "provider": "microsoft-defender",
+      "accessKind": "external-scope",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Acquire a Microsoft Defender token for machine inventory.",
+      "why": "Used by the security route for Defender machine data and must be documented separately from Graph permissions.",
+      "endpoints": [
+        "https://api.security.microsoft.com/api/machines"
+      ],
+      "features": [
+        "defender-machines"
+      ],
+      "notes": [
+        "The code also attempts the legacy alias https://api.securitycenter.microsoft.com/.default."
+      ]
+    },
+    {
+      "name": "Sites.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "future",
+      "adminConsentRequired": true,
+      "verificationStatus": "future-roadmap",
+      "summary": "Read SharePoint site objects directly.",
+      "why": "This appears in older docs but is not required by the shipped code today.",
+      "endpoints": [
+        "/sites"
+      ],
+      "features": [
+        "sharepoint-direct"
+      ],
+      "notes": [
+        "Keep this in the future tier until the product introduces direct SharePoint site API calls."
+      ]
+    },
+    {
+      "name": "Exchange.ManageAsApp",
+      "provider": "exchange-online",
+      "accessKind": "external-scope",
+      "tier": "future",
+      "adminConsentRequired": true,
+      "verificationStatus": "future-roadmap",
+      "summary": "Potential future Exchange Online workload access outside Graph.",
+      "why": "The roadmap calls out Exchange evidence that Graph alone cannot provide.",
+      "endpoints": [
+        "Exchange Online PowerShell and workload-specific APIs"
+      ],
+      "features": [
+        "exchange-advanced"
+      ],
+      "notes": [
+        "This is future-facing and not consumed by the shipped code today."
+      ]
+    }
+  ],
+  "features": [
+    {
+      "id": "enterprise-apps",
+      "title": "Enterprise Application Registrations",
+      "requiredPermissions": [
+        "Application.Read.All"
+      ],
+      "optionalPermissions": [
+        "Policy.Read.All"
+      ],
+      "futurePermissions": [],
+      "backendRoutes": [
+        "/m365/apps"
+      ],
+      "frontendLocations": [
+        "EnterpriseAppsSection"
+      ],
+      "behavior": "hard-fail",
+      "notes": [
+        "The current UI previously overstated Policy.Read.All as mandatory; the route hard-fails on applications read, not authorization policy read."
+      ]
+    },
+    {
+      "id": "service-principals",
+      "title": "Service Principals (Enterprise Apps)",
+      "requiredPermissions": [
+        "Application.Read.All"
+      ],
+      "optionalPermissions": [
+        "AuditLog.Read.All"
+      ],
+      "futurePermissions": [],
+      "backendRoutes": [
+        "/m365/service-principals"
+      ],
+      "frontendLocations": [
+        "ServicePrincipalsTab"
+      ],
+      "behavior": "hard-fail",
+      "notes": [
+        "Audit log access is treated as optional enrichment for sign-in and activity context."
+      ]
+    },
+    {
+      "id": "intune-devices",
+      "title": "Intune Devices and Compliance",
+      "requiredPermissions": [
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "optionalPermissions": [
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "futurePermissions": [],
+      "backendRoutes": [
+        "/m365/intune"
+      ],
+      "frontendLocations": [
+        "IntuneTab"
+      ],
+      "behavior": "partial-data",
+      "notes": [
+        "Per-device detail is the current gating factor; configuration data enriches the tab when available."
+      ]
+    },
+    {
+      "id": "intune-app-installations",
+      "title": "Intune App Installation Health",
+      "requiredPermissions": [],
+      "optionalPermissions": [
+        "DeviceManagementApps.Read.All"
+      ],
+      "futurePermissions": [],
+      "backendRoutes": [
+        "/m365/intune/apps"
+      ],
+      "frontendLocations": [
+        "IntuneTab"
+      ],
+      "behavior": "partial-data"
+    },
+    {
+      "id": "intune-discovered-apps",
+      "title": "Intune Discovered App Estate",
+      "requiredPermissions": [],
+      "optionalPermissions": [
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "futurePermissions": [],
+      "backendRoutes": [
+        "/m365/intune/apps"
+      ],
+      "frontendLocations": [
+        "IntuneTab"
+      ],
+      "behavior": "partial-data"
+    },
+    {
+      "id": "security",
+      "title": "Security and Risk",
+      "requiredPermissions": [
+        "SecurityEvents.Read.All",
+        "UserAuthenticationMethod.Read.All",
+        "Policy.Read.All"
+      ],
+      "optionalPermissions": [
+        "IdentityRiskEvent.Read.All",
+        "https://api.security.microsoft.com/.default"
+      ],
+      "futurePermissions": [],
+      "backendRoutes": [
+        "/m365/security"
+      ],
+      "frontendLocations": [
+        "SecurityTab"
+      ],
+      "behavior": "partial-data"
+    },
+    {
+      "id": "compliance-sensitivity-labels",
+      "title": "Compliance Sensitivity Labels",
+      "requiredPermissions": [],
+      "optionalPermissions": [
+        "InformationProtectionPolicy.Read.All"
+      ],
+      "futurePermissions": [],
+      "backendRoutes": [
+        "/m365/compliance"
+      ],
+      "frontendLocations": [
+        "ComplianceTab"
+      ],
+      "behavior": "partial-data",
+      "notes": [
+        "Optional enrichment for sensitivity-label inventory in the compliance tab."
+      ]
+    },
+    {
+      "id": "sharepoint-direct",
+      "title": "Future Direct SharePoint Site Analysis",
+      "requiredPermissions": [],
+      "optionalPermissions": [],
+      "futurePermissions": [
+        "Sites.Read.All"
+      ],
+      "backendRoutes": [],
+      "frontendLocations": [],
+      "behavior": "future"
+    },
+    {
+      "id": "exchange-advanced",
+      "title": "Future Exchange Online Advanced Evidence",
+      "requiredPermissions": [],
+      "optionalPermissions": [],
+      "futurePermissions": [
+        "Exchange.ManageAsApp"
+      ],
+      "backendRoutes": [],
+      "frontendLocations": [],
+      "behavior": "future"
+    }
+  ]
+}

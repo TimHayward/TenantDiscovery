@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { useGetM365SecurityEstate } from "@workspace/api-client-react";
+import { useGetM365SecurityEstateWithMetadata } from "@workspace/api-client-react";
 import type {
   DeviceEstateItem,
   SaasAppItem,
   OAuthAppItem,
-} from "@workspace/api-client-react/src/generated/api.schemas";
+} from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
@@ -303,7 +303,9 @@ const oauthColumns: ColumnDef<OAuthAppItem>[] = [
 // ── main component ────────────────────────────────────────────────────────────
 
 export function DefenderTab() {
-  const { data, isLoading, isFetching } = useGetM365SecurityEstate();
+  const { data: estateWithMetadata, isLoading, isFetching } = useGetM365SecurityEstateWithMetadata();
+  const data = estateWithMetadata?.data;
+  const fieldMetadata = estateWithMetadata?.fieldMetadata ?? {};
   const estateData = data as unknown as {
     mdeDeviceInventory?: DeviceEstateItem[];
     mdeStatus?: { ok: boolean; status: number | null; count: number; error: string | null };
@@ -311,6 +313,19 @@ export function DefenderTab() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const loading = isLoading || isFetching;
+
+  const metricToFieldMap: Record<string, string> = {
+    "defender.deviceSummaryTotal": "deviceSummary",
+    "defender.deviceSummaryManaged": "deviceSummary",
+    "defender.deviceSummaryUnmanaged": "deviceSummary",
+    "defender.deviceSummaryMde": "mdeDeviceInventory",
+  };
+
+  const getMetricMeta = (metricId: string) => {
+    const field = metricToFieldMap[metricId];
+    return field ? fieldMetadata[field] : undefined;
+  };
+
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
 
@@ -524,15 +539,37 @@ export function DefenderTab() {
 
       {/* ── Device Estate KPIs ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard title="Total Devices" value={data?.deviceSummary.total} loading={loading} />
-        <KPICard title="Managed" value={data?.deviceSummary.managed} loading={loading} valueColor={C.green} />
+        <KPICard
+          title="Total Devices"
+          value={data?.deviceSummary.total}
+          loading={loading}
+          evidenceStatus={getMetricMeta("defender.deviceSummaryTotal")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("defender.deviceSummaryTotal")?.confidenceLabel}
+        />
+        <KPICard
+          title="Managed"
+          value={data?.deviceSummary.managed}
+          loading={loading}
+          valueColor={C.green}
+          evidenceStatus={getMetricMeta("defender.deviceSummaryManaged")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("defender.deviceSummaryManaged")?.confidenceLabel}
+        />
         <KPICard
           title="Unmanaged / Unknown"
           value={data?.deviceSummary.unmanaged}
           loading={loading}
           valueColor={(data?.deviceSummary.unmanaged ?? 0) > 0 ? C.red : C.green}
+          evidenceStatus={getMetricMeta("defender.deviceSummaryUnmanaged")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("defender.deviceSummaryUnmanaged")?.confidenceLabel}
         />
-        <KPICard title="Defender for Endpoint" value={data?.deviceSummary.mde} loading={loading} valueColor={C.purple} />
+        <KPICard
+          title="Defender for Endpoint"
+          value={data?.deviceSummary.mde}
+          loading={loading}
+          valueColor={C.purple}
+          evidenceStatus={getMetricMeta("defender.deviceSummaryMde")?.evidenceStatus}
+          confidenceLabel={getMetricMeta("defender.deviceSummaryMde")?.confidenceLabel}
+        />
       </div>
 
       {/* ── Device Breakdown Charts ──────────────────────────────────────────── */}

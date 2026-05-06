@@ -3,13 +3,38 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2, XCircle, AlertTriangle, HelpCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getMetricDataSourceEntry, type ConfidenceLabel, type EvidenceStatus, type ManualCheckDefinition, type ManualReasonCode } from "@workspace/permissions-manifest";
 
+/**
+ * CheckStatus represents the outcome of a control assessment (pass/fail/warning/manual).
+ * This is independent of EvidenceStatus, which describes how the evidence was obtained.
+ */
 export type CheckStatus = "pass" | "fail" | "warning" | "manual";
 
+/**
+ * ChecklistItem represents a single security control or assessment.
+ * - status: outcome of the assessment (CheckStatus)
+ * - evidenceStatus: how the evidence was obtained (from the five-label taxonomy)
+ * - confidenceLabel: optional confidence in the evidence quality
+ * - metricId/assessmentId: optional stable identifier for registry lookup
+ * - sourceLabel: optional human-readable source of the data
+ * - notes: optional explanation for manual, partial, or incomplete states
+ */
 export interface ChecklistItem {
   label: string;
   status: CheckStatus;
   detail?: string;
+  evidenceStatus?: EvidenceStatus;
+  confidenceLabel?: ConfidenceLabel;
+  metricId?: string;
+  assessmentId?: string;
+  sourceLabel?: string;
+  notes?: string;
+  manualReasonCode?: ManualReasonCode;
+  whyManual?: string;
+  evidenceRequired?: string;
+  futureAutomation?: ManualCheckDefinition["futureAutomation"];
+  exceptionRationale?: string;
 }
 
 export interface ChecklistGroup {
@@ -40,6 +65,51 @@ function StatusBadge({ status, detail }: { status: CheckStatus; detail?: string 
   );
 }
 
+/**
+ * EvidenceBadge renders the evidence status for a checklist item.
+ * Provides a secondary badge showing how the evidence was obtained.
+ */
+function EvidenceBadge({ evidenceStatus, confidenceLabel, sourceLabel }: { evidenceStatus?: EvidenceStatus; confidenceLabel?: ConfidenceLabel; sourceLabel?: string }) {
+  const EVIDENCE_LABELS: Record<EvidenceStatus, string> = {
+    apiBacked: "API-backed",
+    partial: "Partial",
+    manual: "Manual",
+    automationCandidate: "Automation candidate",
+    notAssessed: "Not assessed",
+  };
+
+  const CONFIDENCE_LABELS: Record<ConfidenceLabel, string> = {
+    high: "High confidence",
+    medium: "Medium confidence",
+    low: "Low confidence",
+    unknown: "Unknown confidence",
+  };
+
+  if (!evidenceStatus && !confidenceLabel && !sourceLabel) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {evidenceStatus && (
+        <Badge variant="outline" className="text-[10px] font-normal bg-slate-50 dark:bg-slate-900/30">
+          {EVIDENCE_LABELS[evidenceStatus]}
+        </Badge>
+      )}
+      {confidenceLabel && confidenceLabel !== "high" && (
+        <Badge variant="outline" className="text-[10px] font-normal bg-slate-50 dark:bg-slate-900/30">
+          {CONFIDENCE_LABELS[confidenceLabel]}
+        </Badge>
+      )}
+      {sourceLabel && (
+        <Badge variant="outline" className="text-[10px] font-normal bg-slate-50 dark:bg-slate-900/30">
+          {sourceLabel}
+        </Badge>
+      )}
+    </div>
+  );
+}
+
 export function ChecklistTable({ sectionTitle, groups, loading }: Props) {
   const allItems = groups.flatMap(g => g.items);
   const passed   = allItems.filter(i => i.status === "pass").length;
@@ -52,6 +122,29 @@ export function ChecklistTable({ sectionTitle, groups, loading }: Props) {
     flatRows.push({ kind: "group", group: g });
     g.items.forEach((item, idx) => flatRows.push({ kind: "item", groupId: g.id, item, idx }));
   }
+
+  const resolveManualDetails = (item: ChecklistItem) => {
+    if (!item.metricId) {
+      return item;
+    }
+
+    const registryEntry = getMetricDataSourceEntry(item.metricId);
+    const manual = registryEntry?.manualCheck;
+
+    if (!manual) {
+      return item;
+    }
+
+    return {
+      ...item,
+      manualReasonCode: item.manualReasonCode ?? manual.reasonCode,
+      whyManual: item.whyManual ?? manual.whyManual,
+      evidenceRequired: item.evidenceRequired ?? manual.evidenceRequired,
+      futureAutomation: item.futureAutomation ?? manual.futureAutomation,
+      exceptionRationale: item.exceptionRationale ?? manual.exceptionRationale,
+      notes: item.notes ?? `Future automation: ${manual.futureAutomation.route}`,
+    };
+  };
 
   return (
     <div className="space-y-4 pt-2">
@@ -102,7 +195,21 @@ export function ChecklistTable({ sectionTitle, groups, loading }: Props) {
                   return (
                     <TableRow key={`item-${row.groupId}-${row.idx}`}>
                       <TableCell className="pl-8 text-sm text-muted-foreground py-2.5">{row.item.label}</TableCell>
-                      <TableCell className="py-2.5"><StatusBadge status={row.item.status} detail={row.item.detail} /></TableCell>
+                      <TableCell className="py-2.5">
+                        {(() => {
+                          const resolved = resolveManualDetails(row.item);
+                          return (
+                        <div className="flex flex-col gap-1">
+                          <StatusBadge status={resolved.status} detail={resolved.detail} />
+                          <EvidenceBadge evidenceStatus={resolved.evidenceStatus} confidenceLabel={resolved.confidenceLabel} sourceLabel={resolved.sourceLabel} />
+                          {resolved.whyManual && <p className="text-[10px] text-muted-foreground mt-0.5">Why manual: {resolved.whyManual}</p>}
+                          {resolved.evidenceRequired && <p className="text-[10px] text-muted-foreground mt-0.5">Evidence: {resolved.evidenceRequired}</p>}
+                          {resolved.futureAutomation?.route && <p className="text-[10px] text-muted-foreground italic mt-0.5">Future automation: {resolved.futureAutomation.route}</p>}
+                          {resolved.notes && <p className="text-[10px] text-muted-foreground italic mt-0.5">{resolved.notes}</p>}
+                        </div>
+                          );
+                        })()}
+                      </TableCell>
                     </TableRow>
                   );
                 })}

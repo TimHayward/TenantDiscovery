@@ -13,6 +13,8 @@ import m365IntuneRouter from "./m365Intune";
 import m365GroupsRouter from "./m365Groups";
 import m365AppsRouter from "./m365Apps";
 import m365ServicePrincipalsRouter from "./m365ServicePrincipals";
+import m365PermissionsRouter from "./m365Permissions";
+import m365DataSourcesRouter from "./m365DataSources";
 
 const router: IRouter = Router();
 
@@ -30,5 +32,7 @@ router.use(m365IntuneRouter);
 router.use(m365GroupsRouter);
 router.use(m365AppsRouter);
 router.use(m365ServicePrincipalsRouter);
+router.use(m365PermissionsRouter);
+router.use(m365DataSourcesRouter);
 
 export default router;

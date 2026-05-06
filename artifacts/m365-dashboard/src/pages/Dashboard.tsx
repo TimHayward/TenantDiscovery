@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw, ChevronDown, Printer, Sun, Moon } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTheme } from "next-themes";
-import { useGetM365Overview } from "@workspace/api-client-react";
+import { useGetM365Overview, useGetM365DataSources } from "@workspace/api-client-react";
 
 import { OverviewTab } from "./tabs/OverviewTab";
 import { UsersTab } from "./tabs/UsersTab";
@@ -15,8 +16,6 @@ import { ComplianceTab } from "./tabs/ComplianceTab";
 import { IntuneTab } from "./tabs/IntuneTab";
 import { ServicePrincipalsTab } from "./tabs/ServicePrincipalsTab";
 import { DefenderTab } from "./tabs/DefenderTab";
-
-const DATA_SOURCES: string[] = ["Microsoft Graph API"];
 
 const INTERVAL_OPTIONS = [
   { label: "Off", ms: 0 },
@@ -31,13 +30,31 @@ export default function Dashboard() {
   
   const queryClient = useQueryClient();
   const { dataUpdatedAt, isLoading, isFetching } = useGetM365Overview();
+  const { data: dataSourcesData } = useGetM365DataSources();
   
   const [isSpinning, setIsSpinning] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showDataSources, setShowDataSources] = useState(false);
   const [selectedIntervalMs, setSelectedIntervalMs] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const loading = isLoading || isFetching;
+  const dataSourceRows = Array.from(
+    new Map(
+      ((dataSourcesData as {
+        items?: Array<{
+          dataSources?: Array<{ provider?: string; label?: string; endpoint?: string }>;
+        }>;
+      })?.items ?? [])
+        .flatMap((item) => item.dataSources ?? [])
+        .map((source) => {
+          const provider = source.provider || "manual-assessment";
+          const label = source.label || "Unknown source";
+          const endpoint = source.endpoint || "Manual assessment";
+          return [`${provider}|${label}|${endpoint}`, { provider, label, endpoint }] as const;
+        })
+    ).values()
+  );
 
   // Auto-refresh logic
   useEffect(() => {
@@ -67,6 +84,7 @@ export default function Dashboard() {
       const t = setTimeout(() => setIsSpinning(false), 600);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [loading]);
 
   const handleRefresh = () => {
@@ -92,27 +110,41 @@ export default function Dashboard() {
             <h1 className="font-bold text-[32px] text-primary">M365 Health Dashboard</h1>
             <p className="text-muted-foreground mt-1.5 text-[14px]">Comprehensive overview of your Microsoft 365 tenant health and usage</p>
             
-            {DATA_SOURCES.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                <span className="text-[12px] text-muted-foreground shrink-0">
-                  Data Sources:
-                </span>
-                {DATA_SOURCES.map((source) => (
-                  <span
-                    key={source}
-                    className="text-[12px] font-bold rounded px-2 py-0.5 truncate print:!bg-[rgb(229,231,235)] print:!text-[rgb(75,85,99)]"
-                    title={source}
-                    style={{
-                      maxWidth: "20ch",
-                      backgroundColor: isDark
-                        ? "rgba(255,255,255,0.1)"
-                        : "rgb(229, 231, 235)",
-                      color: isDark ? "#c8c9cc" : "rgb(75, 85, 99)",
-                    }}
-                  >
-                    {source}
-                  </span>
-                ))}
+            {dataSourceRows.length > 0 && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDataSources((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showDataSources ? "rotate-180" : ""}`} />
+                  See Data Sources
+                </button>
+
+                {showDataSources && (
+                  <div className="mt-2 border rounded-md overflow-hidden bg-card">
+                    <div className="max-h-56 overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-[11px]">Provider</TableHead>
+                            <TableHead className="text-[11px]">Label</TableHead>
+                            <TableHead className="text-[11px]">Endpoint</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dataSourceRows.map((row) => (
+                            <TableRow key={`${row.provider}-${row.label}-${row.endpoint}`}>
+                              <TableCell className="text-[11px] font-medium whitespace-nowrap">{row.provider}</TableCell>
+                              <TableCell className="text-[11px] whitespace-nowrap">{row.label}</TableCell>
+                              <TableCell className="text-[11px] font-mono break-all">{row.endpoint}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             
