@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminExposureUserItem';
 export * from './appCredential';
 export * from './appCredentialType';
 export * from './appOwner';
@@ -48,6 +49,7 @@ export * from './intunePolicyItem';
 export * from './intunePolicySummaryByOS';
 export * from './licenseDependency';
 export * from './licenseItem';
+export * from './m365AdminExposureData';
 export * from './m365AppsData';
 export * from './m365AppsDataWithMetadata';
 export * from './m365ComplianceData';

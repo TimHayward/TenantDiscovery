@@ -160,6 +160,15 @@ export interface M365UsersDataWithMetadata {
   metadataVersion: string;
 }
 
+export interface AdminExposureUserItem {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+  accountEnabled: boolean;
+  roles: string[];
+  hasProductivityLicense: boolean;
+}
+
 export type CollectionIssueCategory = typeof CollectionIssueCategory[keyof typeof CollectionIssueCategory];
 
 
@@ -179,6 +188,28 @@ export interface CollectionIssue {
   message: string;
   retryable: boolean;
   permissionRequired: boolean;
+}
+
+export interface M365AdminExposureData {
+  permanentGlobalAdminsCount: number;
+  permanentGlobalAdminsWithProductivityCount: number;
+  permanentAdminsCount: number;
+  permanentAdminsWithProductivityCount: number;
+  eligibleGlobalAdminsCount: number;
+  eligibleGlobalAdminsWithProductivityCount: number;
+  eligibleAdminsCount: number;
+  eligibleAdminsWithProductivityCount: number;
+  permanentGlobalAdmins: AdminExposureUserItem[];
+  permanentGlobalAdminsWithProductivity: AdminExposureUserItem[];
+  permanentAdmins: AdminExposureUserItem[];
+  permanentAdminsWithProductivity: AdminExposureUserItem[];
+  eligibleGlobalAdmins: AdminExposureUserItem[];
+  eligibleGlobalAdminsWithProductivity: AdminExposureUserItem[];
+  eligibleAdmins: AdminExposureUserItem[];
+  eligibleAdminsWithProductivity: AdminExposureUserItem[];
+  partialData: boolean;
+  permissionError: boolean;
+  collectionIssues: CollectionIssue[];
 }
 
 export interface LicenseItem {

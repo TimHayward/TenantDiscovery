@@ -91,6 +91,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365UsersDataWithMetadata"
 
+  /m365/users/admin-exposure:
+    get:
+      operationId: getM365AdminExposure
+      tags: [m365]
+      summary: Administrator role exposure and PIM eligibility
+      responses:
+        "200":
+          description: Administrator exposure data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365AdminExposureData"
+
   /m365/licenses:
     get:
       operationId: getM365Licenses
@@ -844,6 +857,113 @@ components:
         metadataVersion:
           type: string
       required: [data, fieldMetadata, metadataVersion]
+
+    AdminExposureUserItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        userPrincipalName:
+          type: string
+        accountEnabled:
+          type: boolean
+        roles:
+          type: array
+          items:
+            type: string
+        hasProductivityLicense:
+          type: boolean
+      required:
+        - id
+        - displayName
+        - userPrincipalName
+        - accountEnabled
+        - roles
+        - hasProductivityLicense
+
+    M365AdminExposureData:
+      type: object
+      properties:
+        permanentGlobalAdminsCount:
+          type: integer
+        permanentGlobalAdminsWithProductivityCount:
+          type: integer
+        permanentAdminsCount:
+          type: integer
+        permanentAdminsWithProductivityCount:
+          type: integer
+        eligibleGlobalAdminsCount:
+          type: integer
+        eligibleGlobalAdminsWithProductivityCount:
+          type: integer
+        eligibleAdminsCount:
+          type: integer
+        eligibleAdminsWithProductivityCount:
+          type: integer
+
+        permanentGlobalAdmins:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminExposureUserItem"
+        permanentGlobalAdminsWithProductivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminExposureUserItem"
+        permanentAdmins:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminExposureUserItem"
+        permanentAdminsWithProductivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminExposureUserItem"
+        eligibleGlobalAdmins:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminExposureUserItem"
+        eligibleGlobalAdminsWithProductivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminExposureUserItem"
+        eligibleAdmins:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminExposureUserItem"
+        eligibleAdminsWithProductivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminExposureUserItem"
+
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
+      required:
+        - permanentGlobalAdminsCount
+        - permanentGlobalAdminsWithProductivityCount
+        - permanentAdminsCount
+        - permanentAdminsWithProductivityCount
+        - eligibleGlobalAdminsCount
+        - eligibleGlobalAdminsWithProductivityCount
+        - eligibleAdminsCount
+        - eligibleAdminsWithProductivityCount
+        - permanentGlobalAdmins
+        - permanentGlobalAdminsWithProductivity
+        - permanentAdmins
+        - permanentAdminsWithProductivity
+        - eligibleGlobalAdmins
+        - eligibleGlobalAdminsWithProductivity
+        - eligibleAdmins
+        - eligibleAdminsWithProductivity
+        - partialData
+        - permissionError
+        - collectionIssues
 
     CollectionIssue:
       type: object

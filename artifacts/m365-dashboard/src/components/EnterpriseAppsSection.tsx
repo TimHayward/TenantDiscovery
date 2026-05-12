@@ -576,7 +576,7 @@ export function EnterpriseAppsSection() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
 
       {/* Header */}
       <div className="flex items-center gap-2">
@@ -590,11 +590,12 @@ export function EnterpriseAppsSection() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <KPICard
           title="App Registrations"
           value={data?.totalApps}
           loading={loading}
+          density="compact"
           evidenceStatus={getMetricMeta("apps.totalApps")?.evidenceStatus}
           confidenceLabel={getMetricMeta("apps.totalApps")?.confidenceLabel}
         />
@@ -602,6 +603,7 @@ export function EnterpriseAppsSection() {
           title="No Owner"
           value={data?.appsWithNoOwner}
           loading={loading}
+          density="compact"
           valueColor={(data?.appsWithNoOwner ?? 0) > 0 ? C.red : C.green}
           evidenceStatus={getMetricMeta("apps.appsWithNoOwner")?.evidenceStatus}
           confidenceLabel={getMetricMeta("apps.appsWithNoOwner")?.confidenceLabel}
@@ -610,6 +612,7 @@ export function EnterpriseAppsSection() {
           title="High Risk"
           value={data?.appsWithHighRisk}
           loading={loading}
+          density="compact"
           valueColor={(data?.appsWithHighRisk ?? 0) > 0 ? C.red : C.green}
           evidenceStatus={getMetricMeta("apps.appsWithHighRisk")?.evidenceStatus}
           confidenceLabel={getMetricMeta("apps.appsWithHighRisk")?.confidenceLabel}
@@ -618,6 +621,7 @@ export function EnterpriseAppsSection() {
           title="Expired Creds"
           value={data?.appsWithExpiredCredentials}
           loading={loading}
+          density="compact"
           valueColor={(data?.appsWithExpiredCredentials ?? 0) > 0 ? C.red : C.green}
           evidenceStatus={getMetricMeta("apps.appsWithExpiredCredentials")?.evidenceStatus}
           confidenceLabel={getMetricMeta("apps.appsWithExpiredCredentials")?.confidenceLabel}
@@ -626,6 +630,7 @@ export function EnterpriseAppsSection() {
           title="Long-lived Secrets"
           value={data?.appsWithLongLivedSecrets}
           loading={loading}
+          density="compact"
           valueColor={(data?.appsWithLongLivedSecrets ?? 0) > 0 ? C.yellow : C.green}
           evidenceStatus={getMetricMeta("apps.appsWithLongLivedSecrets")?.evidenceStatus}
           confidenceLabel={getMetricMeta("apps.appsWithLongLivedSecrets")?.confidenceLabel}
@@ -634,6 +639,7 @@ export function EnterpriseAppsSection() {
           title="Multi-tenant"
           value={data?.multiTenantApps}
           loading={loading}
+          density="compact"
           valueColor={(data?.multiTenantApps ?? 0) > 0 ? C.yellow : C.green}
           evidenceStatus={getMetricMeta("apps.multiTenantApps")?.evidenceStatus}
           confidenceLabel={getMetricMeta("apps.multiTenantApps")?.confidenceLabel}
@@ -657,6 +663,7 @@ export function EnterpriseAppsSection() {
       <CollapsibleSection
         title="App Registrations"
         storageKey="enterprise-app-registrations"
+        density="compact"
         description="Click any row's expand button to see the full 10-dimension security assessment"
         actions={<div className="flex items-center gap-2 flex-wrap">
             {(["all", "high", "medium", "low"] as const).map((r) => {
@@ -774,6 +781,7 @@ export function EnterpriseAppsSection() {
         sectionTitle="Enterprise Applications (EA)"
         groups={appChecklist}
         loading={loading}
+        density="compact"
       />
 
     </div>

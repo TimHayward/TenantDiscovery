@@ -11,6 +11,7 @@ interface CollapsibleSectionProps {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+  density?: "default" | "compact";
 }
 
 function usePersistedToggle(storageKey: string | undefined, defaultOpen: boolean) {
@@ -46,13 +47,15 @@ export function CollapsibleSection({
   children,
   className,
   contentClassName,
+  density = "default",
 }: CollapsibleSectionProps) {
   const [open, toggle] = usePersistedToggle(storageKey, defaultOpen);
+  const isCompact = density === "compact";
 
   return (
     <Card className={className}>
       <CardHeader
-        className={`px-4 pt-4 flex-row items-start justify-between space-y-0 gap-3 cursor-pointer select-none transition-colors hover:bg-muted/30 rounded-t-lg ${open ? "pb-2" : "pb-4 rounded-b-lg"}`}
+        className={`${isCompact ? "px-3 pt-3 gap-2.5" : "px-4 pt-4 gap-3"} flex-row items-start justify-between space-y-0 cursor-pointer select-none transition-colors hover:bg-muted/30 rounded-t-lg ${open ? (isCompact ? "pb-1.5" : "pb-2") : (isCompact ? "pb-3 rounded-b-lg" : "pb-4 rounded-b-lg")}`}
         onClick={toggle}
       >
         <div className="flex-1 min-w-0">
@@ -60,7 +63,7 @@ export function CollapsibleSection({
             {title}
           </div>
           {description && (
-            <p className="text-xs text-muted-foreground mt-1">{description}</p>
+            <p className={`${isCompact ? "text-[11px] mt-0.5" : "text-xs mt-1"} text-muted-foreground`}>{description}</p>
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -75,7 +78,7 @@ export function CollapsibleSection({
         </div>
       </CardHeader>
       {open && (
-        <CardContent className={`pt-0 ${contentClassName ?? ""}`}>
+        <CardContent className={`${isCompact ? "pt-0 px-4 pb-3" : "pt-0"} ${contentClassName ?? ""}`}>
           {children}
         </CardContent>
       )}

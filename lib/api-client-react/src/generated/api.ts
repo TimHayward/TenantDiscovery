@@ -22,6 +22,7 @@ import type {
   GetM365GroupsWithMetadataParams,
   HealthStatus,
   HealthStatusWithMetadata,
+  M365AdminExposureData,
   M365AppsData,
   M365AppsDataWithMetadata,
   M365ComplianceData,
@@ -520,6 +521,83 @@ export function useGetM365UsersWithMetadata<TData = Awaited<ReturnType<typeof ge
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetM365UsersWithMetadataQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Administrator role exposure and PIM eligibility
+ */
+export const getGetM365AdminExposureUrl = () => {
+
+
+
+
+  return `/api/m365/users/admin-exposure`
+}
+
+export const getM365AdminExposure = async ( options?: RequestInit): Promise<M365AdminExposureData> => {
+
+  return customFetch<M365AdminExposureData>(getGetM365AdminExposureUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365AdminExposureQueryKey = () => {
+    return [
+    `/api/m365/users/admin-exposure`
+    ] as const;
+    }
+
+
+export const getGetM365AdminExposureQueryOptions = <TData = Awaited<ReturnType<typeof getM365AdminExposure>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365AdminExposure>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365AdminExposureQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365AdminExposure>>> = ({ signal }) => getM365AdminExposure({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365AdminExposure>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365AdminExposureQueryResult = NonNullable<Awaited<ReturnType<typeof getM365AdminExposure>>>
+export type GetM365AdminExposureQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Administrator role exposure and PIM eligibility
+ */
+
+export function useGetM365AdminExposure<TData = Awaited<ReturnType<typeof getM365AdminExposure>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365AdminExposure>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365AdminExposureQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

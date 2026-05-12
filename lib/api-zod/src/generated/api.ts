@@ -154,6 +154,95 @@ export const GetM365UsersWithMetadataResponse = zod.object({
 
 
 /**
+ * @summary Administrator role exposure and PIM eligibility
+ */
+export const GetM365AdminExposureResponse = zod.object({
+  "permanentGlobalAdminsCount": zod.number(),
+  "permanentGlobalAdminsWithProductivityCount": zod.number(),
+  "permanentAdminsCount": zod.number(),
+  "permanentAdminsWithProductivityCount": zod.number(),
+  "eligibleGlobalAdminsCount": zod.number(),
+  "eligibleGlobalAdminsWithProductivityCount": zod.number(),
+  "eligibleAdminsCount": zod.number(),
+  "eligibleAdminsWithProductivityCount": zod.number(),
+  "permanentGlobalAdmins": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "userPrincipalName": zod.string(),
+  "accountEnabled": zod.boolean(),
+  "roles": zod.array(zod.string()),
+  "hasProductivityLicense": zod.boolean()
+})),
+  "permanentGlobalAdminsWithProductivity": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "userPrincipalName": zod.string(),
+  "accountEnabled": zod.boolean(),
+  "roles": zod.array(zod.string()),
+  "hasProductivityLicense": zod.boolean()
+})),
+  "permanentAdmins": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "userPrincipalName": zod.string(),
+  "accountEnabled": zod.boolean(),
+  "roles": zod.array(zod.string()),
+  "hasProductivityLicense": zod.boolean()
+})),
+  "permanentAdminsWithProductivity": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "userPrincipalName": zod.string(),
+  "accountEnabled": zod.boolean(),
+  "roles": zod.array(zod.string()),
+  "hasProductivityLicense": zod.boolean()
+})),
+  "eligibleGlobalAdmins": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "userPrincipalName": zod.string(),
+  "accountEnabled": zod.boolean(),
+  "roles": zod.array(zod.string()),
+  "hasProductivityLicense": zod.boolean()
+})),
+  "eligibleGlobalAdminsWithProductivity": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "userPrincipalName": zod.string(),
+  "accountEnabled": zod.boolean(),
+  "roles": zod.array(zod.string()),
+  "hasProductivityLicense": zod.boolean()
+})),
+  "eligibleAdmins": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "userPrincipalName": zod.string(),
+  "accountEnabled": zod.boolean(),
+  "roles": zod.array(zod.string()),
+  "hasProductivityLicense": zod.boolean()
+})),
+  "eligibleAdminsWithProductivity": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "userPrincipalName": zod.string(),
+  "accountEnabled": zod.boolean(),
+  "roles": zod.array(zod.string()),
+  "hasProductivityLicense": zod.boolean()
+})),
+  "partialData": zod.boolean(),
+  "permissionError": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean()
+}))
+})
+
+
+/**
  * @summary License allocation and usage
  */
 export const GetM365LicensesResponse = zod.object({

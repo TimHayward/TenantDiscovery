@@ -1,4 +1,4 @@
-import { useGetM365UsersWithMetadata, useGetM365Security } from "@workspace/api-client-react";
+import { useGetM365AdminExposure, useGetM365UsersWithMetadata, useGetM365Security } from "@workspace/api-client-react";
 import { EnterpriseAppsSection } from "@/components/EnterpriseAppsSection";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import type { UserItem } from "@workspace/api-client-react";
+import type { AdminExposureUserItem } from "@workspace/api-client-react";
 
 // ── palette ───────────────────────────────────────────────────────────────────
 
@@ -209,10 +210,161 @@ const allColumns: ColumnDef<UserItem>[] = [
   },
 ];
 
+const adminExposureColumns: ColumnDef<AdminExposureUserItem>[] = [
+  {
+    accessorKey: "displayName",
+    header: "User",
+    cell: ({ row }) => (
+      <div>
+        <p className="font-medium text-sm">{row.original.displayName}</p>
+        <p className="text-xs text-muted-foreground">{row.original.userPrincipalName}</p>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "roles",
+    header: "Roles",
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">{row.original.roles.join(", ") || "—"}</span>
+    ),
+  },
+  {
+    accessorKey: "accountEnabled",
+    header: "Status",
+    cell: ({ row }) =>
+      row.original.accountEnabled ? (
+        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 font-normal text-xs border-0">Active</Badge>
+      ) : (
+        <Badge variant="destructive" className="font-normal text-xs">Disabled</Badge>
+      ),
+  },
+  {
+    accessorKey: "hasProductivityLicense",
+    header: "Productivity",
+    cell: ({ row }) =>
+      row.original.hasProductivityLicense ? (
+        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 font-normal text-xs border-0">Enabled</Badge>
+      ) : (
+        <Badge variant="outline" className="text-muted-foreground font-normal text-xs">Not Enabled</Badge>
+      ),
+  },
+];
+
+function AdminExposureTableSection({
+  title,
+  storageKey,
+  rows,
+  loading,
+}: {
+  title: string;
+  storageKey: string;
+  rows: AdminExposureUserItem[];
+  loading: boolean;
+}) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [filter, setFilter] = useState("");
+
+  const table = useReactTable({
+    data: rows,
+    columns: adminExposureColumns,
+    state: { sorting, globalFilter: filter },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 10 } },
+  });
+
+  return (
+    <CollapsibleSection
+      title={`${title} (${rows.length})`}
+      storageKey={storageKey}
+      density="compact"
+      contentClassName="px-4 pb-3"
+    >
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-full" />
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <Input
+            placeholder="Search users…"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="max-w-sm"
+          />
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((hg) => (
+                  <TableRow key={hg.id}>
+                    {hg.headers.map((header) => (
+                      <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap h-8 py-1">
+                        <div className="flex items-center gap-2">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                        </div>
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.length > 0 ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className="py-1.5 align-top">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={adminExposureColumns.length} className="h-16 text-center text-muted-foreground">
+                      No results found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing{" "}
+              {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + (table.getFilteredRowModel().rows.length > 0 ? 1 : 0)}{" "}
+              –{" "}
+              {Math.min(
+                (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                table.getFilteredRowModel().rows.length
+              )}{" "}
+              of {table.getFilteredRowModel().rows.length}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
+              <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </CollapsibleSection>
+  );
+}
+
 // ── component ─────────────────────────────────────────────────────────────────
 
 export function UsersTab() {
   const { data: usersWithMetadata, isLoading, isFetching } = useGetM365UsersWithMetadata();
+  const {
+    data: adminExposure,
+    isLoading: isAdminExposureLoading,
+    isFetching: isAdminExposureFetching,
+  } = useGetM365AdminExposure();
   const { data: sec } = useGetM365Security();
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -220,6 +372,7 @@ export function UsersTab() {
 
   const data = usersWithMetadata?.data;
   const fieldMetadata = usersWithMetadata?.fieldMetadata ?? {};
+  const adminExposureLoading = isAdminExposureLoading || isAdminExposureFetching;
 
   const getFieldMeta = (field: string) => fieldMetadata[field];
 
@@ -272,6 +425,14 @@ export function UsersTab() {
   const [staleFilter, setStaleFilter] = useState("");
   const [staleSorting, setStaleSorting] = useState<SortingState>([{ id: "daysInactive", desc: true }]);
   const [selectedStaleUser, setSelectedStaleUser] = useState<StaleUser | null>(null);
+
+  const staleRemediationBuckets = useMemo(() => {
+    const bucketOrder = ["90+", "60-90", "30-60", "never"] as StaleBucket[];
+    if (selectedStaleUser) {
+      return [selectedStaleUser.bucket];
+    }
+    return bucketOrder.filter((bucket) => staleCounts[bucket] > 0);
+  }, [selectedStaleUser, staleCounts]);
 
   const filteredStaleUsers = useMemo(() => (
     staleBucketFilter === "all" ? staleUsers : staleUsers.filter((u) => u.bucket === staleBucketFilter)
@@ -554,14 +715,16 @@ export function UsersTab() {
   }, [sec, data]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
 
       {/* ── KPIs ────────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <h2 className="text-xl font-semibold">Users &amp; Identity Summary</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
         <KPICard
           title="Total Users"
           value={data?.totalUsers}
           loading={loading}
+          density="compact"
           evidenceStatus={getFieldMeta("totalUsers")?.evidenceStatus}
           confidenceLabel={getFieldMeta("totalUsers")?.confidenceLabel}
         />
@@ -569,6 +732,7 @@ export function UsersTab() {
           title="Active Users"
           value={data?.activeUsers}
           loading={loading}
+          density="compact"
           evidenceStatus={getFieldMeta("activeUsers")?.evidenceStatus}
           confidenceLabel={getFieldMeta("activeUsers")?.confidenceLabel}
         />
@@ -576,6 +740,7 @@ export function UsersTab() {
           title="Disabled Users"
           value={data?.disabledUsers}
           loading={loading}
+          density="compact"
           evidenceStatus={getFieldMeta("disabledUsers")?.evidenceStatus}
           confidenceLabel={getFieldMeta("disabledUsers")?.confidenceLabel}
         />
@@ -583,6 +748,7 @@ export function UsersTab() {
           title="Guest Users"
           value={data?.guestUsers}
           loading={loading}
+          density="compact"
           evidenceStatus={getFieldMeta("guestUsers")?.evidenceStatus}
           confidenceLabel={getFieldMeta("guestUsers")?.confidenceLabel}
         />
@@ -590,22 +756,23 @@ export function UsersTab() {
           title="MFA Enabled"
           value={data ? `${Math.round((data.mfaEnabled / (data.totalUsers || 1)) * 100)}%` : undefined}
           loading={loading}
+          density="compact"
           evidenceStatus={getFieldMeta("mfaEnabled")?.evidenceStatus}
           confidenceLabel={getFieldMeta("mfaEnabled")?.confidenceLabel}
         />
       </div>
 
       {/* ── Type donut + Dept bar ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <Card className="lg:col-span-1">
-          <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+          <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">User Types</CardTitle>
             {exportBtn("user-types.csv", typeDonut)}
           </CardHeader>
-          <CardContent>
-            {loading ? <Skeleton className="w-full h-[250px]" /> : (
+          <CardContent className="px-3 pb-3 pt-0">
+            {loading ? <Skeleton className="w-full h-[220px]" /> : (
               <div className="flex flex-col items-center">
-                <ResponsiveContainer width="100%" height={250} debounce={0}>
+                <ResponsiveContainer width="100%" height={220} debounce={0}>
                   <PieChart>
                     <Pie data={typeDonut} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} cornerRadius={2} paddingAngle={2} isAnimationActive={false} stroke="none">
                       {typeDonut.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
@@ -628,13 +795,13 @@ export function UsersTab() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+          <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Users by Department</CardTitle>
             {exportBtn("users-by-department.csv", data?.usersByDepartment ?? [])}
           </CardHeader>
-          <CardContent>
-            {loading ? <Skeleton className="w-full h-[280px]" /> : (
-              <ResponsiveContainer width="100%" height={280} debounce={0}>
+          <CardContent className="px-3 pb-3 pt-0">
+            {loading ? <Skeleton className="w-full h-[240px]" /> : (
+              <ResponsiveContainer width="100%" height={240} debounce={0}>
                 <BarChart data={data?.usersByDepartment ?? []} layout="vertical" margin={{ left: 40, right: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal vertical={false} stroke={gridColor} />
                   <XAxis type="number" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
@@ -651,7 +818,7 @@ export function UsersTab() {
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {/* STALE ACCOUNTS SECTION                                               */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-4 pt-2">
+      <div className="space-y-3 pt-1">
         <div className="border-b pb-2">
           <h2 className="text-xl font-semibold">Stale Accounts</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -660,23 +827,23 @@ export function UsersTab() {
         </div>
 
         {/* Stale KPI cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {(["30-60", "60-90", "90+", "never"] as StaleBucket[]).map((b) => {
             const meta = BUCKET_META[b];
             return (
               <button
                 key={b}
                 onClick={() => setStaleBucketFilter((prev) => prev === b ? "all" : b)}
-                className={`text-left rounded-lg border p-4 transition-all hover:shadow-sm ${staleBucketFilter === b ? "ring-2 ring-offset-1" : ""}`}
+                className={`text-left rounded-lg border p-3 transition-all hover:shadow-sm ${staleBucketFilter === b ? "ring-2 ring-offset-1" : ""}`}
                 style={{ '--tw-ring-color': meta.color } as React.CSSProperties}
               >
                 {loading ? (
                   <Skeleton className="h-10 w-16" />
                 ) : (
                   <>
-                    <p className="text-xs text-muted-foreground font-medium mb-1">{meta.label} inactive</p>
-                    <p className="text-3xl font-bold" style={{ color: meta.color }}>{staleCounts[b]}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{meta.severity}</p>
+                    <p className="text-[11px] text-muted-foreground font-medium mb-1">{meta.label} inactive</p>
+                    <p className="text-2xl font-bold leading-none" style={{ color: meta.color }}>{staleCounts[b]}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{meta.severity}</p>
                   </>
                 )}
               </button>
@@ -685,23 +852,23 @@ export function UsersTab() {
         </div>
 
         {/* Stale chart + remediation guidance */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {/* Bar chart */}
           <Card className="lg:col-span-1">
-            <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+            <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Stale by Category</CardTitle>
               {exportBtn("stale-by-category.csv", staleChartData)}
             </CardHeader>
-            <CardContent>
-              {loading ? <Skeleton className="w-full h-[200px]" /> : staleChartData.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[200px] gap-2 text-center">
+            <CardContent className="px-3 pb-3 pt-0">
+              {loading ? <Skeleton className="w-full h-[180px]" /> : staleChartData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[180px] gap-2 text-center">
                   <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                     <span className="text-green-600 dark:text-green-400 text-xl">✓</span>
                   </div>
                   <p className="text-sm font-medium text-green-600 dark:text-green-400">All accounts are active</p>
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={200} debounce={0}>
+                <ResponsiveContainer width="100%" height={180} debounce={0}>
                   <BarChart data={staleChartData} margin={{ left: -20, right: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
@@ -720,55 +887,58 @@ export function UsersTab() {
 
           {/* Remediation guidance */}
           <Card className="lg:col-span-2">
-            <CardHeader className="px-4 pt-4 pb-2">
+            <CardHeader className="px-3 pt-3 pb-1.5">
               <CardTitle className="text-base flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-muted-foreground" />
                 Remediation Guidance
               </CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-muted-foreground mt-0.5">
                 {selectedStaleUser
                   ? `Actions for ${selectedStaleUser.displayName} (${BUCKET_META[selectedStaleUser.bucket].label} inactive)`
-                  : "Click a user in the table below to see specific recommendations, or review general guidance by category"}
+                  : "Click a stale user row for targeted actions"}
               </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 pb-3 pt-0">
               {loading ? (
-                <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                  {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-[170px] w-full" />)}
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {/* Show guidance for selected user's bucket, or all buckets if none selected */}
-                  {(selectedStaleUser
-                    ? [[selectedStaleUser.bucket, REMEDIATION[selectedStaleUser.bucket]] as [StaleBucket, typeof REMEDIATION[StaleBucket]]]
-                    : (["90+", "60-90", "30-60", "never"] as StaleBucket[])
-                        .filter((b) => staleCounts[b] > 0)
-                        .map((b) => [b, REMEDIATION[b]] as [StaleBucket, typeof REMEDIATION[StaleBucket]])
-                  ).map(([bucket, actions]) => (
-                    <div key={bucket}>
-                      {!selectedStaleUser && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: BUCKET_META[bucket].color }} />
-                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            {BUCKET_META[bucket].label} — {BUCKET_META[bucket].severity} ({staleCounts[bucket]})
-                          </span>
-                        </div>
-                      )}
-                      <div className="space-y-2">
-                        {actions.map(({ icon: Icon, action, detail }) => (
-                          <div key={action} className="flex items-start gap-3 p-2.5 rounded-md border bg-muted/30">
-                            <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
-                              style={{ backgroundColor: `${BUCKET_META[bucket].color}20`, color: BUCKET_META[bucket].color }}>
-                              <Icon className="w-3.5 h-3.5" />
+                <div className="space-y-2.5">
+                  {staleRemediationBuckets.length > 0 && (
+                    <div className={`grid gap-2 ${selectedStaleUser ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"}`}>
+                      {staleRemediationBuckets.map((bucket) => {
+                        const actions = REMEDIATION[bucket];
+                        const meta = BUCKET_META[bucket];
+                        return (
+                          <div key={bucket} className="rounded-md border bg-muted/10 p-2">
+                            <div className="mb-2 flex items-center gap-2 border-b pb-1.5">
+                              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
+                              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                {meta.label} — {meta.severity} ({staleCounts[bucket]})
+                              </span>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium leading-none mb-0.5">{action}</p>
-                              <p className="text-xs text-muted-foreground leading-snug">{detail}</p>
+                            <div className="space-y-1.5">
+                              {actions.map(({ icon: Icon, action, detail }) => (
+                                <div key={action} className="flex items-start gap-2 rounded-md border bg-background p-2">
+                                  <div
+                                    className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md"
+                                    style={{ backgroundColor: `${meta.color}20`, color: meta.color }}
+                                  >
+                                    <Icon className="h-3 w-3" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="mb-0.5 text-xs font-medium leading-none">{action}</p>
+                                    <p className="text-[11px] leading-snug text-muted-foreground">{detail}</p>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                      {!selectedStaleUser && <div className="mt-3 border-t" />}
+                        );
+                      })}
                     </div>
-                  ))}
+                  )}
 
                   {!loading && staleUsers.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
@@ -794,6 +964,7 @@ export function UsersTab() {
         <CollapsibleSection
           title={<><AlertTriangle className="w-4 h-4 text-amber-500" /> Stale Account Details{!loading && <Badge variant="outline" className="font-normal text-xs ml-1">{staleUsers.length} accounts</Badge>}</>}
           storageKey="users-stale-accounts"
+          density="compact"
           description={!loading && staleBucketFilter !== "all" ? `Filtered: ${BUCKET_META[staleBucketFilter].label} inactive (${filteredStaleUsers.length} users)` : undefined}
           actions={exportBtn("stale-accounts.csv", filteredStaleUsers.map((u) => ({
               Name: u.displayName,
@@ -806,6 +977,7 @@ export function UsersTab() {
               Licenses: u.assignedLicenses,
               Department: u.department ?? "",
             })))}
+          contentClassName="px-4 pb-3"
         >
             {loading ? (
               <div className="space-y-2">
@@ -855,7 +1027,7 @@ export function UsersTab() {
                       {staleTable.getHeaderGroups().map((hg) => (
                         <TableRow key={hg.id}>
                           {hg.headers.map((header) => (
-                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
+                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap h-8 py-1">
                               <div className="flex items-center gap-1">
                                 {flexRender(header.column.columnDef.header, header.getContext())}
                                 {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
@@ -887,7 +1059,7 @@ export function UsersTab() {
                         })
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={staleColumns.length} className="h-16 text-center text-muted-foreground">
+                          <TableCell colSpan={staleColumns.length} className="h-14 text-center text-muted-foreground">
                             No accounts match the filter.
                           </TableCell>
                         </TableRow>
@@ -927,11 +1099,13 @@ export function UsersTab() {
       <CollapsibleSection
         title={`All Users Directory (${data?.totalUsers ?? "…"} users)`}
         storageKey="users-all-users"
+        density="compact"
         actions={exportBtn("all-users.csv", (data?.users ?? []).map((u) => ({
             Name: u.displayName, UPN: u.userPrincipalName, Type: u.userType,
             MFA: u.mfaEnabled, Licenses: u.assignedLicenses, Department: u.department ?? "",
             "Last Sign-In": u.lastSignIn ?? "Never", Enabled: u.accountEnabled,
           })))}
+        contentClassName="px-4 pb-3"
       >
             {loading ? (
               <div className="space-y-2">
@@ -946,13 +1120,13 @@ export function UsersTab() {
                   onChange={(e) => setAllFilter(e.target.value)}
                   className="max-w-sm"
                 />
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       {allTable.getHeaderGroups().map((hg) => (
                         <TableRow key={hg.id}>
                           {hg.headers.map((header) => (
-                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
+                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap h-8 py-1">
                               <div className="flex items-center gap-2">
                                 {flexRender(header.column.columnDef.header, header.getContext())}
                                 {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
@@ -967,7 +1141,7 @@ export function UsersTab() {
                         allTable.getRowModel().rows.map((row) => (
                           <TableRow key={row.id}>
                             {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id}>
+                              <TableCell key={cell.id} className="py-1.5">
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                               </TableCell>
                             ))}
@@ -975,7 +1149,7 @@ export function UsersTab() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={allColumns.length} className="h-24 text-center text-muted-foreground">
+                          <TableCell colSpan={allColumns.length} className="h-16 text-center text-muted-foreground">
                             No results found.
                           </TableCell>
                         </TableRow>
@@ -1003,11 +1177,98 @@ export function UsersTab() {
             )}
       </CollapsibleSection>
 
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* ADMINISTRATOR EXPOSURE SECTION                                       */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      <div className="space-y-3 pt-1">
+        <div className="border-b pb-2">
+          <h2 className="text-xl font-semibold">Administrator Exposure</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Overview of users with administrative rights over the tenant
+          </p>
+        </div>
+
+        {adminExposure?.permissionError && (
+          <div className="rounded-md border border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-900 dark:text-amber-300">
+            Administrator role data is partially unavailable due to Graph permission constraints (RoleManagement.Read.Directory).
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Permanent assignments (not using PIM)</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <KPICard title="Users permanently assigned Global Admin (not using PIM)" value={adminExposure?.permanentGlobalAdminsCount} loading={adminExposureLoading} density="compact" />
+            <KPICard title="Permanent Global Admins with productivity features enabled" value={adminExposure?.permanentGlobalAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" />
+            <KPICard title="Users permanently assigned admin roles (not using PIM)" value={adminExposure?.permanentAdminsCount} loading={adminExposureLoading} density="compact" />
+            <KPICard title="Permanent admins with productivity features enabled" value={adminExposure?.permanentAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Eligible assignments (using PIM)</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <KPICard title="Users eligible for Global Admin (using PIM)" value={adminExposure?.eligibleGlobalAdminsCount} loading={adminExposureLoading} density="compact" />
+            <KPICard title="Eligible Global Admins with productivity features enabled" value={adminExposure?.eligibleGlobalAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" />
+            <KPICard title="Users eligible for admin roles (using PIM)" value={adminExposure?.eligibleAdminsCount} loading={adminExposureLoading} density="compact" />
+            <KPICard title="Eligible admins with productivity features enabled" value={adminExposure?.eligibleAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" />
+          </div>
+        </div>
+
+        <AdminExposureTableSection
+          title="Users with permanently assigned Global Admin (not using PIM)"
+          storageKey="users-admin-exposure-permanent-global"
+          rows={adminExposure?.permanentGlobalAdmins ?? []}
+          loading={adminExposureLoading}
+        />
+        <AdminExposureTableSection
+          title="Users with permanently assigned Global Admin (not using PIM) with productivity features enabled"
+          storageKey="users-admin-exposure-permanent-global-productivity"
+          rows={adminExposure?.permanentGlobalAdminsWithProductivity ?? []}
+          loading={adminExposureLoading}
+        />
+        <AdminExposureTableSection
+          title="Users with permanently assigned admin roles (not using PIM)"
+          storageKey="users-admin-exposure-permanent-admin"
+          rows={adminExposure?.permanentAdmins ?? []}
+          loading={adminExposureLoading}
+        />
+        <AdminExposureTableSection
+          title="Users with permanently assigned admin roles (not using PIM) with productivity features enabled"
+          storageKey="users-admin-exposure-permanent-admin-productivity"
+          rows={adminExposure?.permanentAdminsWithProductivity ?? []}
+          loading={adminExposureLoading}
+        />
+        <AdminExposureTableSection
+          title="Users eligible for Global Admin (using PIM)"
+          storageKey="users-admin-exposure-eligible-global"
+          rows={adminExposure?.eligibleGlobalAdmins ?? []}
+          loading={adminExposureLoading}
+        />
+        <AdminExposureTableSection
+          title="Users eligible for Global Admin (using PIM) with productivity features enabled"
+          storageKey="users-admin-exposure-eligible-global-productivity"
+          rows={adminExposure?.eligibleGlobalAdminsWithProductivity ?? []}
+          loading={adminExposureLoading}
+        />
+        <AdminExposureTableSection
+          title="Users eligible for admin roles (using PIM)"
+          storageKey="users-admin-exposure-eligible-admin"
+          rows={adminExposure?.eligibleAdmins ?? []}
+          loading={adminExposureLoading}
+        />
+        <AdminExposureTableSection
+          title="Users eligible for admin roles (using PIM) with productivity features enabled"
+          storageKey="users-admin-exposure-eligible-admin-productivity"
+          rows={adminExposure?.eligibleAdminsWithProductivity ?? []}
+          loading={adminExposureLoading}
+        />
+      </div>
+
       {/* ── ENTERPRISE APPLICATIONS ─────────────────────────────────────────── */}
       <EnterpriseAppsSection />
 
       {/* SECTION 1 — ENTRA ID SECURITY CHECKLIST */}
-      <ChecklistTable sectionTitle="Entra ID" groups={section1Groups} loading={loading} />
+      <ChecklistTable sectionTitle="Entra ID" groups={section1Groups} loading={loading} notesInSeparateColumn density="compact" />
 
     </div>
   );

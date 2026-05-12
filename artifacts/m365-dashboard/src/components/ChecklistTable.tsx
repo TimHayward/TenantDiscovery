@@ -47,6 +47,8 @@ interface Props {
   sectionTitle: string;
   groups: ChecklistGroup[];
   loading?: boolean;
+  notesInSeparateColumn?: boolean;
+  density?: "default" | "compact";
 }
 
 function StatusBadge({ status, detail }: { status: CheckStatus; detail?: string }) {
@@ -110,7 +112,7 @@ function EvidenceBadge({ evidenceStatus, confidenceLabel, sourceLabel }: { evide
   );
 }
 
-export function ChecklistTable({ sectionTitle, groups, loading }: Props) {
+export function ChecklistTable({ sectionTitle, groups, loading, notesInSeparateColumn = false, density = "default" }: Props) {
   const allItems = groups.flatMap(g => g.items);
   const passed   = allItems.filter(i => i.status === "pass").length;
   const failed   = allItems.filter(i => i.status === "fail").length;
@@ -146,22 +148,37 @@ export function ChecklistTable({ sectionTitle, groups, loading }: Props) {
     };
   };
 
+  const getNotesLines = (item: ReturnType<typeof resolveManualDetails>) => {
+    const lines: string[] = [];
+    if (item.whyManual) lines.push(`Why manual: ${item.whyManual}`);
+    if (item.evidenceRequired) lines.push(`Evidence: ${item.evidenceRequired}`);
+    if (item.futureAutomation?.route) lines.push(`Future automation: ${item.futureAutomation.route}`);
+    if (item.notes) lines.push(item.notes);
+    return lines;
+  };
+
+  const hasNotesColumn = notesInSeparateColumn && flatRows.some((row) => {
+    if (row.kind !== "item") return false;
+    return getNotesLines(resolveManualDetails(row.item)).length > 0;
+  });
+  const isCompact = density === "compact";
+
   return (
-    <div className="space-y-4 pt-2">
+    <div className={`${isCompact ? "space-y-3 pt-1" : "space-y-4 pt-2"}`}>
       <h2 className="text-xl font-semibold border-b pb-2">{sectionTitle} — Security Checklist</h2>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className={`grid grid-cols-2 sm:grid-cols-4 ${isCompact ? "gap-2.5" : "gap-3"}`}>
         {[
           { label: "Passed",   value: passed,   color: "text-green-600 dark:text-green-400" },
           { label: "Failed",   value: failed,   color: "text-red-600 dark:text-red-400" },
           { label: "Review",   value: warnings, color: "text-yellow-600 dark:text-yellow-400" },
           { label: "Manual",   value: manuals,  color: "text-muted-foreground" },
         ].map(({ label, value, color }) => (
-          <div key={label} className="p-3 border rounded-md bg-card text-center">
-            <p className="text-xs text-muted-foreground">{label}</p>
+          <div key={label} className={`${isCompact ? "p-2.5" : "p-3"} border rounded-md bg-card text-center`}>
+            <p className={`${isCompact ? "text-[11px]" : "text-xs"} text-muted-foreground`}>{label}</p>
             {loading
               ? <Skeleton className="h-8 w-12 mx-auto mt-1" />
-              : <p className={`text-2xl font-bold mt-0.5 ${color}`}>{value}</p>
+              : <p className={`${isCompact ? "text-xl" : "text-2xl"} font-bold mt-0.5 ${color}`}>{value}</p>
             }
           </div>
         ))}
@@ -177,8 +194,9 @@ export function ChecklistTable({ sectionTitle, groups, loading }: Props) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-4">Requirement</TableHead>
-                  <TableHead className="w-[220px]">Status</TableHead>
+                  <TableHead className="pl-4 h-8">Requirement</TableHead>
+                  <TableHead className="w-[220px] h-8">Status</TableHead>
+                  {hasNotesColumn && <TableHead className="w-[360px] h-8">Notes</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -186,7 +204,7 @@ export function ChecklistTable({ sectionTitle, groups, loading }: Props) {
                   if (row.kind === "group") {
                     return (
                       <TableRow key={`grp-${row.group.id}`} className="bg-muted/40 hover:bg-muted/50">
-                        <TableCell colSpan={2} className="py-2.5 pl-4 font-semibold text-sm">
+                        <TableCell colSpan={hasNotesColumn ? 3 : 2} className="py-2 pl-4 font-semibold text-sm">
                           {row.group.title}
                         </TableCell>
                       </TableRow>
@@ -194,22 +212,41 @@ export function ChecklistTable({ sectionTitle, groups, loading }: Props) {
                   }
                   return (
                     <TableRow key={`item-${row.groupId}-${row.idx}`}>
-                      <TableCell className="pl-8 text-sm text-muted-foreground py-2.5">{row.item.label}</TableCell>
-                      <TableCell className="py-2.5">
+                      <TableCell className="pl-8 text-sm text-muted-foreground py-2">{row.item.label}</TableCell>
+                      <TableCell className="py-2 align-top">
                         {(() => {
                           const resolved = resolveManualDetails(row.item);
+                          const notesLines = getNotesLines(resolved);
                           return (
-                        <div className="flex flex-col gap-1">
-                          <StatusBadge status={resolved.status} detail={resolved.detail} />
-                          <EvidenceBadge evidenceStatus={resolved.evidenceStatus} confidenceLabel={resolved.confidenceLabel} sourceLabel={resolved.sourceLabel} />
-                          {resolved.whyManual && <p className="text-[10px] text-muted-foreground mt-0.5">Why manual: {resolved.whyManual}</p>}
-                          {resolved.evidenceRequired && <p className="text-[10px] text-muted-foreground mt-0.5">Evidence: {resolved.evidenceRequired}</p>}
-                          {resolved.futureAutomation?.route && <p className="text-[10px] text-muted-foreground italic mt-0.5">Future automation: {resolved.futureAutomation.route}</p>}
-                          {resolved.notes && <p className="text-[10px] text-muted-foreground italic mt-0.5">{resolved.notes}</p>}
-                        </div>
+                            <div className="flex flex-col gap-1">
+                              <StatusBadge status={resolved.status} detail={resolved.detail} />
+                              <EvidenceBadge evidenceStatus={resolved.evidenceStatus} confidenceLabel={resolved.confidenceLabel} sourceLabel={resolved.sourceLabel} />
+                              {!hasNotesColumn && notesLines.map((line, lineIdx) => (
+                                <p key={`${row.groupId}-${row.idx}-inline-${lineIdx}`} className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{line}</p>
+                              ))}
+                            </div>
                           );
                         })()}
                       </TableCell>
+                      {hasNotesColumn && (
+                        <TableCell className="py-2 align-top">
+                          {(() => {
+                            const resolved = resolveManualDetails(row.item);
+                            const notesLines = getNotesLines(resolved);
+                            if (notesLines.length === 0) {
+                              return <span className="text-xs text-muted-foreground">-</span>;
+                            }
+
+                            return (
+                              <div className="space-y-1">
+                                {notesLines.map((line, lineIdx) => (
+                                  <p key={`${row.groupId}-${row.idx}-notes-${lineIdx}`} className="text-[10px] text-muted-foreground leading-tight">{line}</p>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}

@@ -57,12 +57,13 @@ export function OverviewTab() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <KPICard
           title="Total Users"
           value={overview?.totalUsers}
           loading={loading}
+          density="compact"
           evidenceStatus={getMetricMeta("overview.totalUsers")?.evidenceStatus}
           confidenceLabel={getMetricMeta("overview.totalUsers")?.confidenceLabel}
         />
@@ -70,6 +71,7 @@ export function OverviewTab() {
           title="Active Users"
           value={overview?.activeUsers}
           loading={loading}
+          density="compact"
           evidenceStatus={getMetricMeta("overview.activeUsers")?.evidenceStatus}
           confidenceLabel={getMetricMeta("overview.activeUsers")?.confidenceLabel}
         />
@@ -77,6 +79,7 @@ export function OverviewTab() {
           title="License Utilization"
           value={overview ? `${Math.round((overview.assignedLicenses / overview.totalLicenses) * 100)}%` : undefined}
           loading={loading}
+          density="compact"
           evidenceStatus={getMetricMeta("overview.licenseUtilization")?.evidenceStatus}
           confidenceLabel={getMetricMeta("overview.licenseUtilization")?.confidenceLabel}
         />
@@ -84,6 +87,7 @@ export function OverviewTab() {
           title="Secure Score"
           value={overview ? `${overview.secureScore} / ${overview.secureScoreMax}` : undefined}
           loading={loading}
+          density="compact"
           evidenceStatus={getMetricMeta("overview.secureScore")?.evidenceStatus}
           confidenceLabel={getMetricMeta("overview.secureScore")?.confidenceLabel}
         />
@@ -91,6 +95,7 @@ export function OverviewTab() {
           title="MFA Coverage"
           value={overview ? `${overview.mfaEnabledPercent}%` : undefined}
           loading={loading}
+          density="compact"
           valueColor={overview && overview.mfaEnabledPercent < 80 ? CHART_COLORS.red : CHART_COLORS.green}
           evidenceStatus={getMetricMeta("overview.mfaCoverage")?.evidenceStatus}
           confidenceLabel={getMetricMeta("overview.mfaCoverage")?.confidenceLabel}
@@ -99,15 +104,16 @@ export function OverviewTab() {
           title="Services Healthy"
           value={overview ? `${overview.activeServices} / ${overview.totalServices}` : undefined}
           loading={loading}
+          density="compact"
           valueColor={overview && overview.activeServices < overview.totalServices ? CHART_COLORS.red : CHART_COLORS.green}
           evidenceStatus={getMetricMeta("overview.servicesHealthy")?.evidenceStatus}
           confidenceLabel={getMetricMeta("overview.servicesHealthy")?.confidenceLabel}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card>
-          <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+          <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Top Licenses Utilization</CardTitle>
             {!loading && licenseData.length > 0 && (
               <CSVLink data={licenseData} filename="top-licenses.csv" className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }} aria-label="Export chart data as CSV">
@@ -115,9 +121,9 @@ export function OverviewTab() {
               </CSVLink>
             )}
           </CardHeader>
-          <CardContent>
-            {loading ? <Skeleton className="w-full h-[300px]" /> : (
-              <ResponsiveContainer width="100%" height={300} debounce={0}>
+          <CardContent className="px-3 pb-3 pt-0">
+            {loading ? <Skeleton className="w-full h-[240px]" /> : (
+              <ResponsiveContainer width="100%" height={240} debounce={0}>
                 <BarChart data={licenseData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                   <XAxis dataKey="displayName" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + "..." : v} />
@@ -133,18 +139,18 @@ export function OverviewTab() {
         </Card>
 
         <Card>
-          <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+          <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">M365 Service Health Status</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-3 pt-0">
             {loading ? (
-              <div className="space-y-2 mt-4">
+              <div className="space-y-2 mt-2">
                 {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 max-h-[300px] overflow-y-auto pr-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 max-h-[240px] overflow-y-auto pr-2">
                 {health?.services.map(service => (
-                  <div key={service.service} className="p-3 border rounded-md flex justify-between items-center bg-card">
+                  <div key={service.service} className="p-2.5 border rounded-md flex justify-between items-center bg-card">
                     <span className="font-medium text-sm truncate mr-2" title={service.service}>{service.service}</span>
                     <Badge className={`font-normal shrink-0 ${
                       service.status === 'Service operational' ? 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400' :

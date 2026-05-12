@@ -137,12 +137,13 @@ export function ExchangeTab() {
   ] : [];
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <KPICard
           title="Total Mailboxes"
           value={data?.totalMailboxes}
           loading={loading}
+          density="compact"
           evidenceStatus={getMetricMetaWithFieldFallback("exchange.totalMailboxes")?.evidenceStatus}
           confidenceLabel={getMetricMetaWithFieldFallback("exchange.totalMailboxes")?.confidenceLabel}
         />
@@ -150,6 +151,7 @@ export function ExchangeTab() {
           title="Active"
           value={data?.activeMailboxes}
           loading={loading}
+          density="compact"
           evidenceStatus={getMetricMetaWithFieldFallback("exchange.activeMailboxes")?.evidenceStatus}
           confidenceLabel={getMetricMetaWithFieldFallback("exchange.activeMailboxes")?.confidenceLabel}
         />
@@ -157,6 +159,7 @@ export function ExchangeTab() {
           title="Shared"
           value={data?.sharedMailboxes}
           loading={loading}
+          density="compact"
           evidenceStatus={getMetricMetaWithFieldFallback("exchange.sharedMailboxes")?.evidenceStatus}
           confidenceLabel={getMetricMetaWithFieldFallback("exchange.sharedMailboxes")?.confidenceLabel}
         />
@@ -164,6 +167,7 @@ export function ExchangeTab() {
           title="Room"
           value={data?.roomMailboxes}
           loading={loading}
+          density="compact"
           evidenceStatus={getMetricMetaWithFieldFallback("exchange.roomMailboxes")?.evidenceStatus}
           confidenceLabel={getMetricMetaWithFieldFallback("exchange.roomMailboxes")?.confidenceLabel}
         />
@@ -171,6 +175,7 @@ export function ExchangeTab() {
           title="Storage Used (GB)"
           value={data ? formatCompact(data.totalStorageUsedGB) : undefined}
           loading={loading}
+          density="compact"
           evidenceStatus={getMetricMetaWithFieldFallback("exchange.storageUsedGB")?.evidenceStatus}
           confidenceLabel={getMetricMetaWithFieldFallback("exchange.storageUsedGB")?.confidenceLabel}
         />
@@ -178,15 +183,16 @@ export function ExchangeTab() {
           title="Storage %"
           value={data ? `${data.storageUtilizationPercent}%` : undefined}
           loading={loading}
+          density="compact"
           valueColor={data && data.storageUtilizationPercent > 85 ? CHART_COLORS.red : CHART_COLORS.blue}
           evidenceStatus={getMetricMetaWithFieldFallback("exchange.storageUtilizationPercent")?.evidenceStatus}
           confidenceLabel={getMetricMetaWithFieldFallback("exchange.storageUtilizationPercent")?.confidenceLabel}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card>
-          <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+          <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Mailbox Size Distribution</CardTitle>
             {!loading && data?.mailboxSizeDistribution && data.mailboxSizeDistribution.length > 0 && (
               <CSVLink data={data.mailboxSizeDistribution} filename="mailbox-size-distribution.csv" className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }} aria-label="Export chart data as CSV">
@@ -194,9 +200,9 @@ export function ExchangeTab() {
               </CSVLink>
             )}
           </CardHeader>
-          <CardContent>
-            {loading ? <Skeleton className="w-full h-[300px]" /> : (
-              <ResponsiveContainer width="100%" height={300} debounce={0}>
+          <CardContent className="px-3 pb-3 pt-0">
+            {loading ? <Skeleton className="w-full h-[240px]" /> : (
+              <ResponsiveContainer width="100%" height={240} debounce={0}>
                 <BarChart data={data?.mailboxSizeDistribution || []} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                   <XAxis dataKey="range" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
@@ -210,7 +216,7 @@ export function ExchangeTab() {
         </Card>
 
         <Card>
-          <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
+          <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Email Activity (Last 30 Days)</CardTitle>
             {!loading && emailActivityData.length > 0 && (
               <CSVLink data={emailActivityData} filename="email-activity.csv" className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }} aria-label="Export chart data as CSV">
@@ -218,9 +224,9 @@ export function ExchangeTab() {
               </CSVLink>
             )}
           </CardHeader>
-          <CardContent>
-            {loading ? <Skeleton className="w-full h-[300px]" /> : (
-              <ResponsiveContainer width="100%" height={300} debounce={0}>
+          <CardContent className="px-3 pb-3 pt-0">
+            {loading ? <Skeleton className="w-full h-[240px]" /> : (
+              <ResponsiveContainer width="100%" height={240} debounce={0}>
                 <BarChart data={emailActivityData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                   <XAxis dataKey="name" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
@@ -238,29 +244,29 @@ export function ExchangeTab() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader className="px-4 pt-4 pb-2">
+          <CardHeader className="px-3 pt-3 pb-1.5">
             <CardTitle className="text-base">Threat Protection (Last 30 Days)</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-3 pt-0">
             {loading ? (
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
                   <Skeleton className="h-24 w-full" />
                   <Skeleton className="h-24 w-full" />
                   <Skeleton className="h-24 w-full" />
                </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <div className="p-6 border rounded-md flex flex-col items-center justify-center text-center bg-card">
-                  <p className="text-sm text-muted-foreground font-medium mb-2">Spam Filtered</p>
-                  <p className="text-3xl font-bold" style={{ color: CHART_COLORS.blue }}>{formatCompact(data?.spamFiltered || 0)}</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+                <div className="p-4 border rounded-md flex flex-col items-center justify-center text-center bg-card">
+                  <p className="text-xs text-muted-foreground font-medium mb-1.5">Spam Filtered</p>
+                  <p className="text-2xl font-bold" style={{ color: CHART_COLORS.blue }}>{formatCompact(data?.spamFiltered || 0)}</p>
                 </div>
-                <div className="p-6 border rounded-md flex flex-col items-center justify-center text-center bg-card">
-                  <p className="text-sm text-muted-foreground font-medium mb-2">Malware Detected</p>
-                  <p className="text-3xl font-bold" style={{ color: CHART_COLORS.red }}>{formatCompact(data?.malwareDetected || 0)}</p>
+                <div className="p-4 border rounded-md flex flex-col items-center justify-center text-center bg-card">
+                  <p className="text-xs text-muted-foreground font-medium mb-1.5">Malware Detected</p>
+                  <p className="text-2xl font-bold" style={{ color: CHART_COLORS.red }}>{formatCompact(data?.malwareDetected || 0)}</p>
                 </div>
-                <div className="p-6 border rounded-md flex flex-col items-center justify-center text-center bg-card">
-                  <p className="text-sm text-muted-foreground font-medium mb-2">Quarantined</p>
-                  <p className="text-3xl font-bold" style={{ color: CHART_COLORS.purple }}>{formatCompact(data?.quarantinedMessages || 0)}</p>
+                <div className="p-4 border rounded-md flex flex-col items-center justify-center text-center bg-card">
+                  <p className="text-xs text-muted-foreground font-medium mb-1.5">Quarantined</p>
+                  <p className="text-2xl font-bold" style={{ color: CHART_COLORS.purple }}>{formatCompact(data?.quarantinedMessages || 0)}</p>
                 </div>
               </div>
             )}
@@ -269,7 +275,7 @@ export function ExchangeTab() {
       </div>
 
       {/* SECTION 2 — EXCHANGE ONLINE SECURITY CHECKLIST */}
-      <ChecklistTable sectionTitle="Exchange Online" groups={exchangeChecklist} loading={loading} />
+      <ChecklistTable sectionTitle="Exchange Online" groups={exchangeChecklist} loading={loading} density="compact" />
 
     </div>
   );
