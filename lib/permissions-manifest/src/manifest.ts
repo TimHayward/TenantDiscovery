@@ -1189,6 +1189,16 @@ export const metricDataSourceRegistry = {
     confidenceLabel: "high",
     evidenceStatus: "apiBacked",
   },
+  "intune.tamperProtectionPercent": {
+    metricId: "intune.tamperProtectionPercent",
+    metricName: "Tamper Protection Percent",
+    tab: "intune",
+    dataSources: [{ provider: "microsoft-graph", label: "Microsoft Graph Device Management API", endpoint: "GET /v1.0/deviceManagement/managedDevices?$expand=windowsProtectionState($select=tamperProtectionEnabled)" }],
+    permissionDependencies: ["DeviceManagementManagedDevices.Read.All"],
+    licenseDependencies: ["intune-license-required"],
+    confidenceLabel: "high",
+    evidenceStatus: "apiBacked",
+  },
   "intune.staleDevices": {
     metricId: "intune.staleDevices",
     metricName: "Stale Intune Devices",

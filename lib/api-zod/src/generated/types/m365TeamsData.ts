@@ -7,6 +7,7 @@
  */
 import type { CollectionIssue } from './collectionIssue';
 import type { M365TeamsDataTeamsBySizeItem } from './m365TeamsDataTeamsBySizeItem';
+import type { TeamsTeamActivityItem } from './teamsTeamActivityItem';
 
 export interface M365TeamsData {
   totalTeams: number;
@@ -22,6 +23,7 @@ export interface M365TeamsData {
   guestAccessEnabled: boolean;
   externalAccessEnabled: boolean;
   teamsBySize: M365TeamsDataTeamsBySizeItem[];
+  topTeams: TeamsTeamActivityItem[];
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];

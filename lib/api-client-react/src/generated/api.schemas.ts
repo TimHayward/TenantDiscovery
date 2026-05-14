@@ -443,6 +443,19 @@ export interface M365ExchangeDataWithMetadata {
   metadataVersion: string;
 }
 
+export interface TeamsTeamActivityItem {
+  teamId: string;
+  teamName: string;
+  lastActivityDate: string | null;
+  activeUsers: number;
+  activeChannels: number;
+  messages: number;
+  urgentMessages: number;
+  reactions: number;
+  meetingsOrganized: number;
+  guests: number;
+}
+
 export type M365TeamsDataTeamsBySizeItem = {
   range: string;
   count: number;
@@ -462,6 +475,7 @@ export interface M365TeamsData {
   guestAccessEnabled: boolean;
   externalAccessEnabled: boolean;
   teamsBySize: M365TeamsDataTeamsBySizeItem[];
+  topTeams: TeamsTeamActivityItem[];
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];
@@ -482,6 +496,7 @@ export interface SharePointSiteItem {
   isActive: boolean;
   pageViews: number;
   filesCount: number;
+  assignedTeamName: string | null;
 }
 
 export interface M365SharePointData {

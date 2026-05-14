@@ -1512,6 +1512,42 @@ components:
           type: string
       required: [data, fieldMetadata, metadataVersion]
 
+    TeamsTeamActivityItem:
+      type: object
+      properties:
+        teamId:
+          type: string
+        teamName:
+          type: string
+        lastActivityDate:
+          type: string
+          nullable: true
+        activeUsers:
+          type: integer
+        activeChannels:
+          type: integer
+        messages:
+          type: integer
+        urgentMessages:
+          type: integer
+        reactions:
+          type: integer
+        meetingsOrganized:
+          type: integer
+        guests:
+          type: integer
+      required:
+        - teamId
+        - teamName
+        - lastActivityDate
+        - activeUsers
+        - activeChannels
+        - messages
+        - urgentMessages
+        - reactions
+        - meetingsOrganized
+        - guests
+
     M365TeamsData:
       type: object
       properties:
@@ -1549,6 +1585,10 @@ components:
               count:
                 type: integer
             required: [range, count]
+        topTeams:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamsTeamActivityItem"
         partialData:
           type: boolean
         permissionError:
@@ -1571,6 +1611,7 @@ components:
         - guestAccessEnabled
         - externalAccessEnabled
         - teamsBySize
+        - topTeams
         - partialData
         - permissionError
         - collectionIssues
@@ -1606,6 +1647,9 @@ components:
           type: integer
         filesCount:
           type: integer
+        assignedTeamName:
+          type: string
+          nullable: true
       required:
         - name
         - url
@@ -1615,6 +1659,7 @@ components:
         - isActive
         - pageViews
         - filesCount
+        - assignedTeamName
 
     M365SharePointData:
       type: object

@@ -44,6 +44,44 @@ async function fetchAllPages(firstUrl: string, bearerToken: string): Promise<{ i
   return { items, permissionDenied: false };
 }
 
+function isWindowsDevice(device: any): boolean {
+  return (device.operatingSystem ?? "").toLowerCase().includes("windows");
+}
+
+function getTamperProtectionEnabled(device: any): boolean | null {
+  const value = device.windowsProtectionState?.tamperProtectionEnabled;
+  return typeof value === "boolean" ? value : null;
+}
+
+function getTamperProtectionSummary(devices: any[]) {
+  const windowsDevices = devices.filter(isWindowsDevice);
+  const windowsDevicesWithState = windowsDevices.filter((device) => getTamperProtectionEnabled(device) !== null);
+  const enabledDevices = windowsDevicesWithState.filter((device) => getTamperProtectionEnabled(device) === true).length;
+  const disabledDevices = windowsDevicesWithState.filter((device) => getTamperProtectionEnabled(device) === false).length;
+  const unknownDevices = Math.max(windowsDevices.length - windowsDevicesWithState.length, 0);
+  const reportedDevices = enabledDevices + disabledDevices;
+  const percent = reportedDevices > 0 ? Math.round((enabledDevices / reportedDevices) * 100) : 0;
+
+  return {
+    enabledDevices,
+    disabledDevices,
+    unknownDevices,
+    reportedDevices,
+    windowsDevices: windowsDevices.length,
+    percent,
+  };
+}
+
+function buildManagedDevicesUrl(): string {
+  return (
+    "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices" +
+    "?$select=id,deviceName,operatingSystem,osVersion,complianceState,enrolledDateTime," +
+    "lastSyncDateTime,userDisplayName,userPrincipalName,manufacturer,model," +
+    "managementAgent,managementState,isEncrypted,isSupervised,jailBroken" +
+    "&$expand=windowsProtectionState($select=tamperProtectionEnabled)"
+  );
+}
+
 router.get("/m365/intune", async (req, res) => {
   try {
     const intunePermissionMetadata = getPermissionMetadataForFeature("intune-devices");
@@ -60,13 +98,7 @@ router.get("/m365/intune", async (req, res) => {
         complianceSummaryResult,
         appProtectionPoliciesResult,
       ] = await Promise.all([
-        fetchAllPages(
-          "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices" +
-            "?$select=id,deviceName,operatingSystem,osVersion,complianceState,enrolledDateTime," +
-            "lastSyncDateTime,userDisplayName,userPrincipalName,manufacturer,model," +
-            "managementAgent,managementState,isEncrypted,isSupervised,jailBroken",
-          token
-        ),
+        fetchAllPages(buildManagedDevicesUrl(), token),
         fetchAllPages(
           "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies" +
             "?$select=id,displayName,description,createdDateTime,lastModifiedDateTime" +
@@ -101,6 +133,7 @@ router.get("/m365/intune", async (req, res) => {
       const enrollmentConfigs = enrollmentConfigsResult.items;
       const complianceSummary = complianceSummaryResult.data;
       const appProtectionPolicies = appProtectionPoliciesResult.items;
+      const tamperProtection = getTamperProtectionSummary(devices);
 
       // ── permission check ─────────────────────────────────────────────────
       // Only true when the devices endpoint explicitly returned 403/401
@@ -223,6 +256,7 @@ router.get("/m365/intune", async (req, res) => {
         isEncrypted: d.isEncrypted ?? null,
         isSupervised: d.isSupervised ?? null,
         jailBroken: d.jailBroken || "Unknown",
+        tamperProtectionEnabled: getTamperProtectionEnabled(d),
       }));
 
       const getPlatform = (oDataType: string) => {
@@ -402,6 +436,22 @@ router.get("/m365/intune", async (req, res) => {
         },
         {
           area: "Security",
+          item: "Tamper Protection",
+          value: tamperProtection.reportedDevices > 0 ? `${tamperProtection.percent}%` : "N/A",
+          status:
+            tamperProtection.reportedDevices === 0
+              ? "N/A — tamper protection data unavailable"
+              : tamperProtection.percent >= 90
+              ? "Good"
+              : tamperProtection.percent >= 70
+              ? "Warning"
+              : "Critical",
+          notes: tamperProtection.reportedDevices > 0
+            ? `${tamperProtection.enabledDevices} of ${tamperProtection.reportedDevices} Windows device(s) reporting tamper protection enabled${tamperProtection.unknownDevices > 0 ? `; ${tamperProtection.unknownDevices} device(s) did not report a state` : ""}`
+            : "Tamper protection requires Intune managed Windows device protection state data",
+        },
+        {
+          area: "Security",
           item: "Jailbroken / Rooted Devices",
           value: hasDeviceList ? String(jailbrokenCount) : "N/A",
           status: !hasDeviceList ? "N/A" : jailbrokenCount === 0 ? "Good" : "Critical",
@@ -434,6 +484,10 @@ router.get("/m365/intune", async (req, res) => {
         assessmentItems,
         encryptedDevices: encryptedCount,
         encryptionPercent,
+        tamperProtectionEnabledDevices: tamperProtection.enabledDevices,
+        tamperProtectionDisabledDevices: tamperProtection.disabledDevices,
+        tamperProtectionUnknownDevices: tamperProtection.unknownDevices,
+        tamperProtectionPercent: tamperProtection.percent,
         jailbrokenCount,
         permissionRequired,
         permissionMetadata: intunePermissionMetadata,
@@ -463,13 +517,7 @@ router.get("/m365/intune/with-metadata", async (req, res) => {
         complianceSummaryResult,
         appProtectionPoliciesResult,
       ] = await Promise.all([
-        fetchAllPages(
-          "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices" +
-            "?$select=id,deviceName,operatingSystem,osVersion,complianceState,enrolledDateTime," +
-            "lastSyncDateTime,userDisplayName,userPrincipalName,manufacturer,model," +
-            "managementAgent,managementState,isEncrypted,isSupervised,jailBroken",
-          token
-        ),
+        fetchAllPages(buildManagedDevicesUrl(), token),
         fetchAllPages(
           "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies" +
             "?$select=id,displayName,description,createdDateTime,lastModifiedDateTime" +
@@ -504,6 +552,7 @@ router.get("/m365/intune/with-metadata", async (req, res) => {
       const enrollmentConfigs = enrollmentConfigsResult.items;
       const complianceSummary = complianceSummaryResult.data;
       const appProtectionPolicies = appProtectionPoliciesResult.items;
+      const tamperProtection = getTamperProtectionSummary(devices);
 
       const permissionRequired = devicesResult.permissionDenied;
 
@@ -614,6 +663,7 @@ router.get("/m365/intune/with-metadata", async (req, res) => {
         isEncrypted: d.isEncrypted ?? null,
         isSupervised: d.isSupervised ?? null,
         jailBroken: d.jailBroken || "Unknown",
+        tamperProtectionEnabled: getTamperProtectionEnabled(d),
       }));
 
       const getPlatform = (oDataType: string) => {
@@ -785,6 +835,22 @@ router.get("/m365/intune/with-metadata", async (req, res) => {
         },
         {
           area: "Security",
+          item: "Tamper Protection",
+          value: tamperProtection.reportedDevices > 0 ? `${tamperProtection.percent}%` : "N/A",
+          status:
+            tamperProtection.reportedDevices === 0
+              ? "N/A — tamper protection data unavailable"
+              : tamperProtection.percent >= 90
+              ? "Good"
+              : tamperProtection.percent >= 70
+              ? "Warning"
+              : "Critical",
+          notes: tamperProtection.reportedDevices > 0
+            ? `${tamperProtection.enabledDevices} of ${tamperProtection.reportedDevices} Windows device(s) reporting tamper protection enabled${tamperProtection.unknownDevices > 0 ? `; ${tamperProtection.unknownDevices} device(s) did not report a state` : ""}`
+            : "Tamper protection requires Intune managed Windows device protection state data",
+        },
+        {
+          area: "Security",
           item: "Jailbroken / Rooted Devices",
           value: hasDeviceList ? String(jailbrokenCount) : "N/A",
           status: !hasDeviceList ? "N/A" : jailbrokenCount === 0 ? "Good" : "Critical",
@@ -817,6 +883,10 @@ router.get("/m365/intune/with-metadata", async (req, res) => {
         assessmentItems,
         encryptedDevices: encryptedCount,
         encryptionPercent,
+        tamperProtectionEnabledDevices: tamperProtection.enabledDevices,
+        tamperProtectionDisabledDevices: tamperProtection.disabledDevices,
+        tamperProtectionUnknownDevices: tamperProtection.unknownDevices,
+        tamperProtectionPercent: tamperProtection.percent,
         jailbrokenCount,
         permissionRequired,
         permissionMetadata: intunePermissionMetadata,
@@ -867,6 +937,30 @@ router.get("/m365/intune/with-metadata", async (req, res) => {
         confidenceLabel: "medium" as const,
         sourceLabel: "DeviceManagementApps.Read.All",
         notes: ["Uses beta managed app policies endpoint"],
+      },
+      tamperProtectionEnabledDevices: {
+        evidenceStatus: "partial" as const,
+        confidenceLabel: "medium" as const,
+        sourceLabel: "DeviceManagementManagedDevices.Read.All",
+        notes: ["Counted from windowsProtectionState.tamperProtectionEnabled on Windows managed devices"],
+      },
+      tamperProtectionDisabledDevices: {
+        evidenceStatus: "partial" as const,
+        confidenceLabel: "medium" as const,
+        sourceLabel: "DeviceManagementManagedDevices.Read.All",
+        notes: ["Counted from windowsProtectionState.tamperProtectionEnabled on Windows managed devices"],
+      },
+      tamperProtectionUnknownDevices: {
+        evidenceStatus: "partial" as const,
+        confidenceLabel: "medium" as const,
+        sourceLabel: "DeviceManagementManagedDevices.Read.All",
+        notes: ["Windows devices that did not return a tamper protection state"],
+      },
+      tamperProtectionPercent: {
+        evidenceStatus: "partial" as const,
+        confidenceLabel: "medium" as const,
+        sourceLabel: "DeviceManagementManagedDevices.Read.All",
+        notes: ["Derived from the Windows managed device protection state"],
       },
       enrolledByOS: {
         evidenceStatus: "partial" as const,

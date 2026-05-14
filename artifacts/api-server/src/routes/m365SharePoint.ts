@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getCached } from "../lib/graphClient.js";
 import {
+  fetchAllGraphPages,
   fetchGraphText,
   isPermissionIssue,
   type CollectionIssue,
@@ -23,9 +24,63 @@ function parseCsv(csv: string): Record<string, string>[] {
   });
 }
 
+function normalizeToken(value: string): string {
+  return decodeURIComponent(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function stripGuidSuffix(value: string): string {
+  return value
+    .replace(/-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, "")
+    .replace(/-[0-9a-f]{32}$/i, "");
+}
+
+function isLikelyGuid(value: string): boolean {
+  return (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ||
+    /^[0-9a-f]{32}$/i.test(value)
+  );
+}
+
+function prettifySlug(slug: string): string {
+  return stripGuidSuffix(decodeURIComponent(slug))
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractSiteSlug(siteUrl: string): string | null {
+  const siteSlugMatch = siteUrl.match(/\/(?:sites|teams)\/([^/]+)/i);
+  return siteSlugMatch ? siteSlugMatch[1] : null;
+}
+
+function resolveAssignedTeamName(
+  siteSlug: string | null,
+  teamNicknameMap: Map<string, string>,
+): string | null {
+  if (!siteSlug) return null;
+
+  const normalized = normalizeToken(siteSlug);
+  const normalizedWithoutGuid = normalizeToken(stripGuidSuffix(siteSlug));
+
+  const exact =
+    teamNicknameMap.get(normalized) ??
+    teamNicknameMap.get(normalizedWithoutGuid);
+  if (exact) return exact;
+
+  for (const [key, teamName] of teamNicknameMap.entries()) {
+    if (normalized.startsWith(key) || normalizedWithoutGuid.startsWith(key)) {
+      return teamName;
+    }
+  }
+
+  return null;
+}
+
 async function getSharePointData() {
   return getCached("m365-sharepoint", async () => {
-    const [siteUsageCsvResult, oneDriveCsvResult] = await Promise.all([
+    const [siteUsageCsvResult, oneDriveCsvResult, teamGroupsResult] = await Promise.all([
       fetchGraphText(
         "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D30')",
         "sharePointSiteUsageReport",
@@ -34,11 +89,29 @@ async function getSharePointData() {
         "https://graph.microsoft.com/v1.0/reports/getOneDriveUsageAccountDetail(period='D30')",
         "oneDriveUsageAccountReport",
       ),
+      fetchAllGraphPages<{ id: string; displayName: string; mailNickname: string }>(
+        "https://graph.microsoft.com/v1.0/groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&$select=id,displayName,mailNickname&$top=999",
+        "teamGroupsForSPCorrelation",
+      ),
     ]);
 
     const collectionIssues: CollectionIssue[] = [];
     if (siteUsageCsvResult.issue) collectionIssues.push(siteUsageCsvResult.issue);
     if (oneDriveCsvResult.issue) collectionIssues.push(oneDriveCsvResult.issue);
+    collectionIssues.push(...teamGroupsResult.issues);
+
+    // Build normalized mailNickname/displayName lookup for team-backed sites
+    const teamNicknameMap = new Map<string, string>();
+    for (const g of teamGroupsResult.items) {
+      if (g.mailNickname) {
+        const displayName = g.displayName ?? g.mailNickname;
+        teamNicknameMap.set(normalizeToken(g.mailNickname), displayName);
+        teamNicknameMap.set(normalizeToken(stripGuidSuffix(g.mailNickname)), displayName);
+        if (g.displayName) {
+          teamNicknameMap.set(normalizeToken(g.displayName), g.displayName);
+        }
+      }
+    }
 
     const siteRows = parseCsv(siteUsageCsvResult.text ?? "");
     const oneDriveRows = parseCsv(oneDriveCsvResult.text ?? "");
@@ -72,10 +145,17 @@ async function getSharePointData() {
       const siteUrl = s["Site URL"] ?? "";
       const owner = s["Owner Display Name"] ?? "";
 
+      const siteSlug = extractSiteSlug(siteUrl);
+      const assignedTeamName = resolveAssignedTeamName(siteSlug, teamNicknameMap);
+      const derivedSiteName = siteSlug ? prettifySlug(siteSlug) : "";
+      const friendlySiteName = assignedTeamName
+        ? assignedTeamName
+        : derivedSiteName && !isLikelyGuid(derivedSiteName)
+          ? derivedSiteName
+          : owner || "Unknown";
+
       sites.push({
-        name: siteUrl
-          ? siteUrl.split("/").filter(Boolean).pop() ?? siteUrl
-          : owner || "Unknown",
+        name: friendlySiteName,
         url: siteUrl,
         storageUsedGB: Math.round((usedBytes / 1e9) * 1000) / 1000,
         storageAllocatedGB: Math.round((allocBytes / 1e9) * 100) / 100,
@@ -83,6 +163,7 @@ async function getSharePointData() {
         isActive,
         pageViews,
         filesCount: fileCount,
+        assignedTeamName,
       });
     }
 
@@ -186,6 +267,12 @@ router.get("/m365/sharepoint/with-metadata", async (req, res): Promise<void> => 
         evidenceStatus: "apiBacked" as const,
         confidenceLabel: "high" as const,
         sourceLabel: "Top sites derived from usage report",
+      },
+      assignedTeamName: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "high" as const,
+        sourceLabel: "Group.Read.All",
+        notes: ["Correlated from team-backed groups via mailNickname to site URL slug"],
       },
       partialData: {
         evidenceStatus: "apiBacked" as const,

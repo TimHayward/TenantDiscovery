@@ -24,9 +24,16 @@ function parseCsv(csv: string): Record<string, string>[] {
   });
 }
 
+function isLikelyGuid(value: string): boolean {
+  return (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ||
+    /^[0-9a-f]{32}$/i.test(value)
+  );
+}
+
 async function getTeamsData() {
   return getCached("m365-teams", async () => {
-    const [teamsResult, activityCsvResult, deviceCsvResult] = await Promise.all([
+    const [teamsResult, activityCsvResult, deviceCsvResult, teamActivityDetailCsvResult] = await Promise.all([
       fetchAllGraphPages<any>(
         "https://graph.microsoft.com/v1.0/teams?$select=id,displayName,visibility,isArchived&$top=999",
         "teams",
@@ -39,16 +46,22 @@ async function getTeamsData() {
         "https://graph.microsoft.com/v1.0/reports/getTeamsDeviceUsageUserCounts(period='D30')",
         "teamsDeviceUsageReport",
       ),
+      fetchGraphText(
+        "https://graph.microsoft.com/v1.0/reports/getTeamsTeamActivityDetail(period='D30')",
+        "teamsTeamActivityDetailReport",
+      ),
     ]);
 
     const collectionIssues: CollectionIssue[] = [];
     collectionIssues.push(...teamsResult.issues);
     if (activityCsvResult.issue) collectionIssues.push(activityCsvResult.issue);
     if (deviceCsvResult.issue) collectionIssues.push(deviceCsvResult.issue);
+    if (teamActivityDetailCsvResult.issue) collectionIssues.push(teamActivityDetailCsvResult.issue);
 
     const teams = teamsResult.items;
     const activityRows = parseCsv(activityCsvResult.text ?? "");
     const deviceRows = parseCsv(deviceCsvResult.text ?? "");
+    const teamActivityDetailRows = parseCsv(teamActivityDetailCsvResult.text ?? "");
 
     const totalTeams = teams.length;
     let activeTeams = 0;
@@ -106,6 +119,39 @@ async function getTeamsData() {
       }
     }
 
+    const teamDisplayNameById = new Map<string, string>();
+    for (const t of teams) {
+      if (t.id && t.displayName) {
+        teamDisplayNameById.set(t.id, t.displayName);
+      }
+    }
+
+    const topTeams = teamActivityDetailRows
+      .filter((row) => row["Is Deleted"] !== "Yes")
+      .map((row) => {
+        const teamId = row["Team Id"] ?? "";
+        const reportTeamName = row["Team Name"] ?? "";
+        const mappedName = teamDisplayNameById.get(teamId);
+        const teamName = reportTeamName && !isLikelyGuid(reportTeamName)
+          ? reportTeamName
+          : mappedName ?? reportTeamName || teamId;
+
+        return {
+          teamId,
+          teamName,
+          lastActivityDate: row["Last Activity Date"] || null,
+          activeUsers: parseInt(row["Active Users"] ?? "0", 10) || 0,
+          activeChannels: parseInt(row["Active Channels"] ?? "0", 10) || 0,
+          messages: parseInt(row["Messages"] ?? "0", 10) || 0,
+          urgentMessages: parseInt(row["Urgent Messages"] ?? "0", 10) || 0,
+          reactions: parseInt(row["Reactions"] ?? "0", 10) || 0,
+          meetingsOrganized: parseInt(row["Meetings Organized"] ?? "0", 10) || 0,
+          guests: parseInt(row["Guests"] ?? "0", 10) || 0,
+        };
+      })
+      .sort((a, b) => b.messages - a.messages)
+      .slice(0, 25);
+
     return {
       totalTeams,
       activeTeams,
@@ -123,6 +169,7 @@ async function getTeamsData() {
         range: r.label,
         count: sizeCounts[i],
       })),
+      topTeams,
       partialData: collectionIssues.length > 0,
       permissionError: collectionIssues.some(isPermissionIssue),
       collectionIssues,
@@ -223,6 +270,12 @@ router.get("/m365/teams/with-metadata", async (req, res): Promise<void> => {
         confidenceLabel: "low" as const,
         sourceLabel: "N/A",
         notes: ["Team member size distribution placeholder currently returns zeros"],
+      },
+      topTeams: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "high" as const,
+        sourceLabel: "Reports.Read.All",
+        notes: ["Per-team activity from getTeamsTeamActivityDetail report, sorted by messages desc, top 25"],
       },
       partialData: {
         evidenceStatus: "apiBacked" as const,

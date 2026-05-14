@@ -15,4 +15,5 @@ export interface SharePointSiteItem {
   isActive: boolean;
   pageViews: number;
   filesCount: number;
+  assignedTeamName: string | null;
 }

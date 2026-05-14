@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useGetM365SecurityEstateWithMetadata } from "@workspace/api-client-react";
+import { useGetM365SecurityEstateWithMetadata, useGetM365Intune } from "@workspace/api-client-react";
 import type {
   DeviceEstateItem,
   SaasAppItem,
@@ -8,6 +8,7 @@ import type {
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -304,6 +305,7 @@ const oauthColumns: ColumnDef<OAuthAppItem>[] = [
 
 export function DefenderTab() {
   const { data: estateWithMetadata, isLoading, isFetching } = useGetM365SecurityEstateWithMetadata();
+  const { data: intuneData, isLoading: intuneLoading, isFetching: intuneFetching } = useGetM365Intune();
   const data = estateWithMetadata?.data;
   const fieldMetadata = estateWithMetadata?.fieldMetadata ?? {};
   const estateData = data as unknown as {
@@ -312,7 +314,7 @@ export function DefenderTab() {
   } | undefined;
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const loading = isLoading || isFetching;
+  const loading = isLoading || isFetching || intuneLoading || intuneFetching;
 
   const metricToFieldMap: Record<string, string> = {
     "defender.deviceSummaryTotal": "deviceSummary",
@@ -325,6 +327,100 @@ export function DefenderTab() {
     const field = metricToFieldMap[metricId];
     return field ? fieldMetadata[field] : undefined;
   };
+
+  // ── EDR (6.3) derived status ──
+  const mdeApiOk = estateData?.mdeStatus == null || estateData.mdeStatus.ok;
+  const mdeCount = data?.deviceSummary?.mde ?? 0;
+  const totalCount = data?.deviceSummary?.total ?? 0;
+  const edrStatus: "pass" | "warning" | "fail" | "manual" =
+    !mdeApiOk ? "manual" :
+    totalCount === 0 ? "manual" :
+    mdeCount >= totalCount ? "pass" :
+    mdeCount === 0 ? "fail" : "warning";
+  const edrPercent = totalCount > 0 ? Math.round((mdeCount / totalCount) * 100) : null;
+  const edrDetail = edrPercent != null ? `${edrPercent}% enrolled` : undefined;
+  const edrNotes = !mdeApiOk
+    ? "Defender for Endpoint API was unavailable — status could not be determined. Verify MDE is deployed and the API token has sufficient permissions."
+    : totalCount > 0
+    ? `${mdeCount} of ${totalCount} devices are enrolled in Defender for Endpoint. Coverage is based on the merged device inventory (Entra ID + Intune + MDE). Devices visible only in Entra or Intune but not onboarded to MDE appear as unprotected regardless of their actual EDR state. Verify coverage in the Microsoft Defender portal.`
+    : "No device inventory data available.";
+
+  // ── Tamper Protection (6.7) derived status ──
+  const tpPercent = intuneData?.tamperProtectionPercent ?? null;
+  const tpEnabled = intuneData?.tamperProtectionEnabledDevices ?? 0;
+  const tpDisabled = intuneData?.tamperProtectionDisabledDevices ?? 0;
+  const tpUnknown = intuneData?.tamperProtectionUnknownDevices ?? 0;
+  const tpStatus: "pass" | "warning" | "fail" | "manual" =
+    tpPercent == null ? "manual" :
+    tpPercent >= 95 ? "pass" :
+    tpPercent > 0 ? "warning" : "fail";
+  const tpDetail = tpPercent != null ? `${tpPercent}% of Windows devices` : undefined;
+  const tpNotes = tpPercent != null
+    ? `${tpEnabled} enabled, ${tpDisabled} disabled, ${tpUnknown} unknown state. Coverage is limited to Windows devices enrolled in Intune. Devices that have not reported their protection state are counted as unknown and excluded from the denominator. Verify coverage for devices managed outside of Intune.`
+    : "Intune data unavailable — tamper protection status could not be determined. Verify the tenant has an Intune licence and the required Graph API permissions are granted.";
+
+  const defenderChecklist: ChecklistGroup[] = [
+    { id: "6.1", title: "6.1 Security awareness training is conducted at least once per year", items: [
+      { label: "Security awareness training is conducted at least once per year", status: "manual",
+        metricId: "defender.checklist.6.1.awarenessTraining",
+      },
+      { label: "Attack simulations are periodically conducted", status: "manual",
+        metricId: "defender.checklist.6.1.attackSimulations",
+      },
+    ]},
+    { id: "6.2", title: "6.2 Anti-virus protections applied to all devices", items: [
+      { label: "Anti-virus protections applied to all devices", status: "manual",
+        metricId: "defender.checklist.6.2.antiVirus",
+      },
+    ]},
+    { id: "6.3", title: "6.3 Endpoint detection and response software is running on all devices", items: [
+      { label: "Endpoint detection and response software is running on all devices",
+        status: edrStatus,
+        detail: edrDetail,
+        notes: edrNotes,
+        evidenceStatus: "partial",
+        confidenceLabel: "medium",
+        sourceLabel: "Defender for Endpoint",
+        metricId: "defender.checklist.6.3.edr",
+      },
+    ]},
+    { id: "6.4", title: "6.4 Firewall protections configured on devices", items: [
+      { label: "Firewall protections configured on devices", status: "manual",
+        metricId: "defender.checklist.6.4.firewall",
+      },
+    ]},
+    { id: "6.5", title: "6.5 Safe Links policies are configured", items: [
+      { label: "Safe Links policies are configured", status: "manual",
+        metricId: "defender.checklist.6.5.safeLinks",
+      },
+    ]},
+    { id: "6.6", title: "6.6 Safe Attachment policies are configured", items: [
+      { label: "Safe Attachment policies are configured", status: "manual",
+        metricId: "defender.checklist.6.6.safeAttachments",
+      },
+    ]},
+    { id: "6.7", title: "6.7 Tamper Protection is configured", items: [
+      { label: "Tamper Protection is configured",
+        status: tpStatus,
+        detail: tpDetail,
+        notes: tpNotes,
+        evidenceStatus: "partial",
+        confidenceLabel: "medium",
+        sourceLabel: "Intune",
+        metricId: "defender.checklist.6.7.tamperProtection",
+      },
+    ]},
+    { id: "6.8", title: "6.8 Attack Surface Reduction rules are configured", items: [
+      { label: "Attack Surface Reduction rules are configured", status: "manual",
+        metricId: "defender.checklist.6.8.asr",
+      },
+    ]},
+    { id: "6.9", title: "6.9 Defender for Cloud Apps monitors applications on the network", items: [
+      { label: "Defender for Cloud Apps monitors applications on the network", status: "manual",
+        metricId: "defender.checklist.6.9.cloudApps",
+      },
+    ]},
+  ];
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
@@ -1157,6 +1253,14 @@ export function DefenderTab() {
             </div>
           )}
       </CollapsibleSection>
+
+      {/* ── Defender Security Checklist ─────────────────────────────────────── */}
+      <ChecklistTable
+        sectionTitle="Defender - Security Checklist"
+        groups={defenderChecklist}
+        loading={loading}
+        density="compact"
+      />
 
     </div>
   );

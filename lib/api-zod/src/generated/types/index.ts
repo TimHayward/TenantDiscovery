@@ -110,4 +110,5 @@ export * from './servicePrincipalItemRiskLevel';
 export * from './sharePointSiteItem';
 export * from './spConsentGrant';
 export * from './spConsentGrantConsentType';
+export * from './teamsTeamActivityItem';
 export * from './userItem';

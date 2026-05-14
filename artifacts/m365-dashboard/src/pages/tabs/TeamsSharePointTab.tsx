@@ -23,7 +23,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { SharePointSiteItem } from "@workspace/api-client-react";
+import type { SharePointSiteItem, TeamsTeamActivityItem } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
@@ -34,6 +34,44 @@ const CHART_COLORS = {
   red: "#A60808",
   pink: "#ec4899",
 };
+
+const topTeamsColumns: ColumnDef<TeamsTeamActivityItem>[] = [
+  {
+    accessorKey: "teamName",
+    header: "Team Name",
+    cell: ({ row }) => <span className="font-medium">{row.original.teamName}</span>,
+  },
+  {
+    accessorKey: "messages",
+    header: "Messages",
+    cell: ({ row }) => <span>{row.original.messages.toLocaleString()}</span>,
+  },
+  {
+    accessorKey: "activeUsers",
+    header: "Active Users",
+    cell: ({ row }) => <span>{row.original.activeUsers.toLocaleString()}</span>,
+  },
+  {
+    accessorKey: "activeChannels",
+    header: "Active Channels",
+    cell: ({ row }) => <span>{row.original.activeChannels.toLocaleString()}</span>,
+  },
+  {
+    accessorKey: "meetingsOrganized",
+    header: "Meetings",
+    cell: ({ row }) => <span>{row.original.meetingsOrganized.toLocaleString()}</span>,
+  },
+  {
+    accessorKey: "reactions",
+    header: "Reactions",
+    cell: ({ row }) => <span>{row.original.reactions.toLocaleString()}</span>,
+  },
+  {
+    accessorKey: "lastActivityDate",
+    header: "Last Activity",
+    cell: ({ row }) => <span>{formatDate(row.original.lastActivityDate)}</span>,
+  },
+];
 
 const spColumns: ColumnDef<SharePointSiteItem>[] = [
   {
@@ -74,7 +112,14 @@ const spColumns: ColumnDef<SharePointSiteItem>[] = [
         <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 font-normal">Active</Badge> : 
         <Badge variant="outline" className="text-muted-foreground font-normal">Inactive</Badge>
     ),
-  }
+  },
+  {
+    accessorKey: "assignedTeamName",
+    header: "Assigned to Team",
+    cell: ({ row }) => row.original.assignedTeamName
+      ? <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 font-normal">{row.original.assignedTeamName}</Badge>
+      : <span className="text-muted-foreground">—</span>,
+  },
 ];
 
 export function TeamsSharePointTab() {
@@ -209,8 +254,23 @@ export function TeamsSharePointTab() {
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
 
+  const [topTeamsSorting, setTopTeamsSorting] = useState<SortingState>([]);
+  const [topTeamsGlobalFilter, setTopTeamsGlobalFilter] = useState("");
   const [spSorting, setSpSorting] = useState<SortingState>([]);
   const [spGlobalFilter, setSpGlobalFilter] = useState("");
+
+  const topTeamsTable = useReactTable({
+    data: teamsData?.topTeams || [],
+    columns: topTeamsColumns,
+    state: { sorting: topTeamsSorting, globalFilter: topTeamsGlobalFilter },
+    onSortingChange: setTopTeamsSorting,
+    onGlobalFilterChange: setTopTeamsGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 10 } },
+  });
 
   const spTable = useReactTable({
     data: spData?.sites || [],
@@ -330,6 +390,86 @@ export function TeamsSharePointTab() {
           </Card>
         </div>
       </div>
+
+        <CollapsibleSection title="Most Active Teams (Last 30 Days)" storageKey="teams-most-active">
+          {teamsLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <Input
+                  placeholder="Search teams..."
+                  value={topTeamsGlobalFilter}
+                  onChange={(e) => setTopTeamsGlobalFilter(e.target.value)}
+                  className="max-w-sm"
+                />
+                {(teamsData?.topTeams?.length ?? 0) > 0 && (
+                  <CSVLink
+                    data={teamsData!.topTeams}
+                    filename="most-active-teams.csv"
+                    className="print:hidden flex items-center gap-1.5 px-3 h-9 rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Export CSV
+                  </CSVLink>
+                )}
+              </div>
+
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    {topTeamsTable.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none">
+                            <div className="flex items-center gap-2">
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                              {{ asc: " 🔼", desc: " 🔽" }[header.column.getIsSorted() as string] ?? null}
+                            </div>
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {topTeamsTable.getRowModel().rows.length > 0 ? (
+                      topTeamsTable.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={topTeamsColumns.length} className="h-24 text-center text-muted-foreground">
+                          No Teams activity data available for the last 30 days.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {topTeamsTable.getState().pagination.pageIndex * topTeamsTable.getState().pagination.pageSize + (topTeamsTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)} to{" "}
+                  {Math.min((topTeamsTable.getState().pagination.pageIndex + 1) * topTeamsTable.getState().pagination.pageSize, topTeamsTable.getFilteredRowModel().rows.length)}{" "}
+                  of {topTeamsTable.getFilteredRowModel().rows.length} results
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => topTeamsTable.previousPage()} disabled={!topTeamsTable.getCanPreviousPage()}>Previous</Button>
+                  <Button variant="outline" size="sm" onClick={() => topTeamsTable.nextPage()} disabled={!topTeamsTable.getCanNextPage()}>Next</Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </CollapsibleSection>
 
       {/* SHAREPOINT SECTION */}
       <div className="space-y-4 pt-4">

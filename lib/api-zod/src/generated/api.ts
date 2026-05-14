@@ -706,6 +706,18 @@ export const GetM365TeamsResponse = zod.object({
   "range": zod.string(),
   "count": zod.number()
 })),
+  "topTeams": zod.array(zod.object({
+  "teamId": zod.string(),
+  "teamName": zod.string(),
+  "lastActivityDate": zod.string().nullable(),
+  "activeUsers": zod.number(),
+  "activeChannels": zod.number(),
+  "messages": zod.number(),
+  "urgentMessages": zod.number(),
+  "reactions": zod.number(),
+  "meetingsOrganized": zod.number(),
+  "guests": zod.number()
+})),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
   "collectionIssues": zod.array(zod.object({
@@ -739,6 +751,18 @@ export const GetM365TeamsWithMetadataResponse = zod.object({
   "teamsBySize": zod.array(zod.object({
   "range": zod.string(),
   "count": zod.number()
+})),
+  "topTeams": zod.array(zod.object({
+  "teamId": zod.string(),
+  "teamName": zod.string(),
+  "lastActivityDate": zod.string().nullable(),
+  "activeUsers": zod.number(),
+  "activeChannels": zod.number(),
+  "messages": zod.number(),
+  "urgentMessages": zod.number(),
+  "reactions": zod.number(),
+  "meetingsOrganized": zod.number(),
+  "guests": zod.number()
 })),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
@@ -782,7 +806,8 @@ export const GetM365SharePointResponse = zod.object({
   "lastActivityDate": zod.string().nullable(),
   "isActive": zod.boolean(),
   "pageViews": zod.number(),
-  "filesCount": zod.number()
+  "filesCount": zod.number(),
+  "assignedTeamName": zod.string().nullable()
 })),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
@@ -819,7 +844,8 @@ export const GetM365SharePointWithMetadataResponse = zod.object({
   "lastActivityDate": zod.string().nullable(),
   "isActive": zod.boolean(),
   "pageViews": zod.number(),
-  "filesCount": zod.number()
+  "filesCount": zod.number(),
+  "assignedTeamName": zod.string().nullable()
 })),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
