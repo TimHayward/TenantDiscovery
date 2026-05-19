@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { cache, getCached } from "../lib/graphClient.js";
+import { cache, getCached, getGraphCredentialValues } from "../lib/graphClient.js";
 import {
   createCollectionIssue,
   fetchAllGraphPages,
@@ -18,10 +18,11 @@ async function fetchDefenderMachinesWithDiagnostics(): Promise<{
   scope: string | null;
 }> {
   const { ClientSecretCredential } = await import("@azure/identity");
+  const { tenantId, clientId, clientSecret } = await getGraphCredentialValues();
   const cred = new ClientSecretCredential(
-    process.env.AZURE_TENANT_ID!,
-    process.env.AZURE_CLIENT_ID!,
-    process.env.AZURE_CLIENT_SECRET!
+    tenantId,
+    clientId,
+    clientSecret
   );
   const defenderScopes = [
     "https://api.securitycenter.microsoft.com/.default",

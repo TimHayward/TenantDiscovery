@@ -4,7 +4,7 @@ import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { CSVLink } from "react-csv";
 import { Download } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import type { SharePointSiteItem, TeamsTeamActivityItem } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
+import { useQuery } from "@tanstack/react-query";
 
 const CHART_COLORS = {
   blue: "#0079F2",
@@ -126,14 +127,58 @@ export function TeamsSharePointTab() {
   const { data: teamsWithMetadata, isLoading: isTeamsLoading, isFetching: isTeamsFetching } = useGetM365TeamsWithMetadata();
   const { data: spWithMetadata, isLoading: isSpLoading, isFetching: isSpFetching } = useGetM365SharePointWithMetadata();
   const { data: dataSources } = useGetM365DataSources({ tab: "teams-sharepoint" });
+  const { data: sharePointPoliciesWithMetadata, isLoading: isSharePointPoliciesLoading, isFetching: isSharePointPoliciesFetching } = useQuery({
+    queryKey: ["m365-sharepoint-policies-with-metadata"],
+    queryFn: async () => {
+      const response = await fetch("/api/m365/sharepoint/policies/with-metadata");
+      if (!response.ok) {
+        throw new Error("Failed to fetch SharePoint policies");
+      }
+      return response.json() as Promise<{
+        data: {
+          sharingCapability: string | null;
+          oneDriveSharingCapability: string | null;
+          sharingDomainRestrictionMode: string | null;
+          sharingAllowedDomainCount: number;
+          sharingBlockedDomainCount: number;
+          defaultSharingLinkType: string | null;
+          defaultLinkPermission: string | null;
+          anyoneLinkExpirationInDays: number | null;
+          policyPermissionError: boolean;
+        };
+        fieldMetadata?: Record<string, { evidenceStatus?: EvidenceStatus; confidenceLabel?: ConfidenceLabel }>;
+      }>;
+    },
+    staleTime: 60_000,
+  });
   
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   const teamsLoading = isTeamsLoading || isTeamsFetching;
   const spLoading = isSpLoading || isSpFetching;
+  const spPoliciesLoading = isSharePointPoliciesLoading || isSharePointPoliciesFetching;
   const teamsData = teamsWithMetadata?.data;
   const spData = spWithMetadata?.data;
+  const sharePointPolicies = sharePointPoliciesWithMetadata?.data;
+
+  const teamsBySizeBreakdown = (teamsData?.teamsBySize ?? []).map((item) => {
+    const breakdown = item as typeof item & {
+      totalTeamSize?: number;
+      owners?: number;
+      members?: number;
+      guests?: number;
+    };
+
+    return {
+      range: item.range,
+      totalTeamSize: breakdown.totalTeamSize ?? 0,
+      owners: breakdown.owners ?? 0,
+      members: breakdown.members ?? 0,
+      guests: breakdown.guests ?? 0,
+      count: item.count,
+    };
+  });
 
   const registryItems =
     (dataSources as {
@@ -185,6 +230,132 @@ export function TeamsSharePointTab() {
   const externalAccessEnabled = teamsData?.externalAccessEnabled ?? null;
   const guestAccessEnabled = teamsData?.guestAccessEnabled ?? null;
 
+  const sharingCapability = sharePointPolicies?.sharingCapability ?? null;
+  const oneDriveSharingCapability = sharePointPolicies?.oneDriveSharingCapability ?? null;
+  const sharingDomainRestrictionMode = sharePointPolicies?.sharingDomainRestrictionMode ?? null;
+  const sharingAllowedDomainCount = sharePointPolicies?.sharingAllowedDomainCount ?? 0;
+  const sharingBlockedDomainCount = sharePointPolicies?.sharingBlockedDomainCount ?? 0;
+  const defaultSharingLinkType = sharePointPolicies?.defaultSharingLinkType ?? null;
+  const defaultLinkPermission = sharePointPolicies?.defaultLinkPermission ?? null;
+  const anyoneLinkExpirationInDays = sharePointPolicies?.anyoneLinkExpirationInDays ?? null;
+
+  const isRestrictedSharingCapability = (value: string | null) =>
+    value === "disabled" || value === "existingExternalUserSharingOnly";
+  const isModerateSharingCapability = (value: string | null) =>
+    value === "externalUserSharingOnly";
+  const isRestrictedLinkType = (value: string | null) =>
+    value === "direct" || value === "internal";
+
+  const sharingCapabilityStatus: "pass" | "warning" | "fail" | "manual" =
+    sharingCapability === null
+      ? "manual"
+      : isRestrictedSharingCapability(sharingCapability)
+      ? "pass"
+      : isModerateSharingCapability(sharingCapability)
+      ? "warning"
+      : "fail";
+
+  const oneDriveSharingCapabilityStatus: "pass" | "warning" | "fail" | "manual" =
+    oneDriveSharingCapability === null
+      ? "manual"
+      : isRestrictedSharingCapability(oneDriveSharingCapability)
+      ? "pass"
+      : isModerateSharingCapability(oneDriveSharingCapability)
+      ? "warning"
+      : "fail";
+
+  const domainRestrictionStatus: "pass" | "fail" | "manual" =
+    sharingDomainRestrictionMode === null
+      ? "manual"
+      : sharingDomainRestrictionMode === "allowList" || sharingDomainRestrictionMode === "blockList"
+      ? "pass"
+      : "fail";
+
+  const linkTypeStatus: "pass" | "fail" | "manual" =
+    defaultSharingLinkType === null
+      ? "manual"
+      : isRestrictedLinkType(defaultSharingLinkType)
+      ? "pass"
+      : "fail";
+
+  const anyoneLinkExpiryStatus: "pass" | "fail" | "manual" =
+    anyoneLinkExpirationInDays === null
+      ? "manual"
+      : anyoneLinkExpirationInDays > 0
+      ? "pass"
+      : "fail";
+
+  const sharePointPoliciesChecklist: ChecklistGroup[] = [
+    {
+      id: "sp.1",
+      title: "SP.1 External Sharing Policy",
+      items: [
+        {
+          label: "SharePoint external sharing capability",
+          status: sharingCapabilityStatus,
+          detail: sharingCapability ?? "Manual Check Required",
+          evidenceStatus: sharePointPoliciesWithMetadata?.fieldMetadata?.sharingCapability?.evidenceStatus,
+          confidenceLabel: sharePointPoliciesWithMetadata?.fieldMetadata?.sharingCapability?.confidenceLabel,
+          sourceLabel: "Graph /admin/sharepoint/settings",
+        },
+        {
+          label: "OneDrive external sharing capability",
+          status: oneDriveSharingCapabilityStatus,
+          detail: oneDriveSharingCapability ?? "Manual Check Required",
+          evidenceStatus: sharePointPoliciesWithMetadata?.fieldMetadata?.oneDriveSharingCapability?.evidenceStatus,
+          confidenceLabel: sharePointPoliciesWithMetadata?.fieldMetadata?.oneDriveSharingCapability?.confidenceLabel,
+          sourceLabel: "Graph /admin/sharepoint/settings",
+        },
+        {
+          label: "Domain restriction mode",
+          status: domainRestrictionStatus,
+          detail:
+            sharingDomainRestrictionMode === null
+              ? "Manual Check Required"
+              : `${sharingDomainRestrictionMode} (allow: ${sharingAllowedDomainCount}, block: ${sharingBlockedDomainCount})`,
+          evidenceStatus: sharePointPoliciesWithMetadata?.fieldMetadata?.sharingDomainRestrictionMode?.evidenceStatus,
+          confidenceLabel: sharePointPoliciesWithMetadata?.fieldMetadata?.sharingDomainRestrictionMode?.confidenceLabel,
+          sourceLabel: "Graph /admin/sharepoint/settings",
+        },
+      ],
+    },
+    {
+      id: "sp.2",
+      title: "SP.2 Link Defaults",
+      items: [
+        {
+          label: "Default sharing link type",
+          status: linkTypeStatus,
+          detail: defaultSharingLinkType ?? "Manual Check Required",
+          evidenceStatus: sharePointPoliciesWithMetadata?.fieldMetadata?.defaultSharingLinkType?.evidenceStatus,
+          confidenceLabel: sharePointPoliciesWithMetadata?.fieldMetadata?.defaultSharingLinkType?.confidenceLabel,
+          sourceLabel: "Graph /admin/sharepoint/settings",
+        },
+        {
+          label: "Default link permission",
+          status: defaultLinkPermission === null ? "manual" : defaultLinkPermission === "view" ? "pass" : "warning",
+          detail: defaultLinkPermission ?? "Manual Check Required",
+          evidenceStatus: sharePointPoliciesWithMetadata?.fieldMetadata?.defaultLinkPermission?.evidenceStatus,
+          confidenceLabel: sharePointPoliciesWithMetadata?.fieldMetadata?.defaultLinkPermission?.confidenceLabel,
+          sourceLabel: "Graph /admin/sharepoint/settings",
+        },
+        {
+          label: "Anyone link expiration",
+          status: anyoneLinkExpiryStatus,
+          detail:
+            anyoneLinkExpirationInDays === null
+              ? "Manual Check Required"
+              : anyoneLinkExpirationInDays > 0
+              ? `${anyoneLinkExpirationInDays} days`
+              : "Not set",
+          evidenceStatus: sharePointPoliciesWithMetadata?.fieldMetadata?.anyoneLinkExpirationInDays?.evidenceStatus,
+          confidenceLabel: sharePointPoliciesWithMetadata?.fieldMetadata?.anyoneLinkExpirationInDays?.confidenceLabel,
+          sourceLabel: "Graph /admin/sharepoint/settings",
+        },
+      ],
+    },
+  ];
+
   const teamsChecklist: ChecklistGroup[] = [
     { id: "3.1", title: "3.1 External User Access SHALL Be Restricted", items: [
       { label: "External domains restricted in Teams admin centre", status: externalAccessEnabled === null ? "manual" : externalAccessEnabled ? "fail" : "pass", detail: externalAccessEnabled === null ? "Manual Check Required" : externalAccessEnabled ? "Not Restricted" : "Restricted",
@@ -231,19 +402,30 @@ export function TeamsSharePointTab() {
       },
     ]},
     { id: "5.1", title: "5.1 Default sharing settings are set for New and Existing Guest", items: [
-      { label: "External sharing managed via whitelist/blacklist", status: "manual",
+      { label: "External sharing managed via whitelist/blacklist", status: domainRestrictionStatus,
+        detail:
+          sharingDomainRestrictionMode === null
+            ? "Manual Check Required"
+            : `${sharingDomainRestrictionMode} (allow: ${sharingAllowedDomainCount}, block: ${sharingBlockedDomainCount})`,
         evidenceStatus: getMetricMetaWithFieldFallback("teams-sharepoint.checklist.5.1.guestSharing")?.evidenceStatus,
         confidenceLabel: getMetricMetaWithFieldFallback("teams-sharepoint.checklist.5.1.guestSharing")?.confidenceLabel,
         metricId: "teams-sharepoint.checklist.5.1.guestSharing",
         sourceLabel: "SharePoint Admin Center",
       },
-      { label: "Link sharing restricted to specific people or organisation", status: "manual",
+      { label: "Link sharing restricted to specific people or organisation", status: linkTypeStatus,
+        detail: defaultSharingLinkType ?? "Manual Check Required",
         evidenceStatus: getMetricMeta("teams-sharepoint.checklist.5.1.linkSharing")?.evidenceStatus,
         metricId: "teams-sharepoint.checklist.5.1.linkSharing",
       },
     ]},
     { id: "5.2", title: "5.2 Expiration Dates are set for Anyone links", items: [
-      { label: "Expiration date is set for anonymous sharing links", status: "manual",
+      { label: "Expiration date is set for anonymous sharing links", status: anyoneLinkExpiryStatus,
+        detail:
+          anyoneLinkExpirationInDays === null
+            ? "Manual Check Required"
+            : anyoneLinkExpirationInDays > 0
+            ? `${anyoneLinkExpirationInDays} days`
+            : "Not set",
         evidenceStatus: getMetricMeta("teams-sharepoint.checklist.5.2.anonLinkExpiration")?.evidenceStatus,
         confidenceLabel: getMetricMeta("teams-sharepoint.checklist.5.2.anonLinkExpiration")?.confidenceLabel,
         metricId: "teams-sharepoint.checklist.5.2.anonLinkExpiration",
@@ -342,12 +524,16 @@ export function TeamsSharePointTab() {
             <CardContent>
               {teamsLoading ? <Skeleton className="w-full h-[250px]" /> : (
                 <ResponsiveContainer width="100%" height={250} debounce={0}>
-                  <BarChart data={teamsData?.teamsBySize || []} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                  <BarChart data={teamsBySizeBreakdown} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                     <XAxis dataKey="range" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
                     <YAxis tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
                     <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)', stroke: 'none' }} isAnimationActive={false} />
-                    <Bar dataKey="count" name="Teams" fill={CHART_COLORS.purple} fillOpacity={0.8} activeBar={{ fillOpacity: 1 }} isAnimationActive={false} radius={[2, 2, 0, 0]} />
+                    <Legend />
+                    <Bar dataKey="totalTeamSize" name="Total team size" fill={CHART_COLORS.blue} fillOpacity={0.85} isAnimationActive={false} radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="owners" name="Owners" fill={CHART_COLORS.purple} fillOpacity={0.85} isAnimationActive={false} radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="members" name="Members" fill={CHART_COLORS.green} fillOpacity={0.85} isAnimationActive={false} radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="guests" name="Guests" fill={CHART_COLORS.pink} fillOpacity={0.85} isAnimationActive={false} radius={[2, 2, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -574,6 +760,12 @@ export function TeamsSharePointTab() {
             )}
         </CollapsibleSection>
       </div>
+
+      <ChecklistTable
+        sectionTitle="SharePoint Policies"
+        groups={sharePointPoliciesChecklist}
+        loading={spPoliciesLoading}
+      />
 
       {/* SECTIONS 3 + 5 — TEAMS & SHAREPOINT SECURITY CHECKLIST */}
       <ChecklistTable sectionTitle="Teams & SharePoint" groups={teamsChecklist} loading={teamsLoading || spLoading} />

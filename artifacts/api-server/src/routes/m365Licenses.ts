@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { graphClient, getCached } from "../lib/graphClient.js";
+import { getCached, getGraphClient } from "../lib/graphClient.js";
 import {
   createCollectionIssue,
   isPermissionIssue,
@@ -25,6 +25,7 @@ function getErrorStatus(error: unknown): number | null {
 async function getLicensesData() {
   return getCached("m365-licenses", async () => {
     const collectionIssues: CollectionIssue[] = [];
+    const graphClient = await getGraphClient();
     const result = await graphClient.api("/subscribedSkus").get().catch((error: unknown) => {
       collectionIssues.push(
         createCollectionIssue(

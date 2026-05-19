@@ -524,6 +524,49 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365PermissionsFeatureDataWithMetadata"
 
+  /onboarding/setup:
+    get:
+      operationId: getOnboardingSetup
+      tags: [m365]
+      summary: Get stored onboarding setup details with secrets redacted
+      responses:
+        "200":
+          description: Redacted onboarding setup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingSetup"
+    patch:
+      operationId: patchOnboardingSetup
+      tags: [m365]
+      summary: Save onboarding setup details securely
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingSetupPatch"
+      responses:
+        "200":
+          description: Updated redacted onboarding setup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingSetup"
+
+  /onboarding/status:
+    get:
+      operationId: getOnboardingStatus
+      tags: [m365]
+      summary: Onboarding status and required permission gaps
+      responses:
+        "200":
+          description: Onboarding status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingStatus"
+
   /m365/data-sources:
     get:
       operationId: getM365DataSources
@@ -561,6 +604,99 @@ components:
         status:
           type: string
       required: [status]
+
+    OnboardingSetup:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          nullable: true
+        clientId:
+          type: string
+          nullable: true
+        clientSecret:
+          type: string
+          nullable: true
+        hasClientSecret:
+          type: boolean
+        setupComplete:
+          type: boolean
+        setupCompletedAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - tenantId
+        - clientId
+        - clientSecret
+        - hasClientSecret
+        - setupComplete
+        - setupCompletedAt
+        - createdAt
+        - updatedAt
+
+    OnboardingSetupPatch:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          nullable: true
+        clientId:
+          type: string
+          nullable: true
+        clientSecret:
+          type: string
+          nullable: true
+        setupComplete:
+          type: boolean
+
+    OnboardingStatus:
+      type: object
+      properties:
+        targetClientId:
+          type: string
+          nullable: true
+        targetTenantId:
+          type: string
+          nullable: true
+        targetAppDisplayName:
+          type: string
+          nullable: true
+        requiredApplicationPermissions:
+          type: array
+          items:
+            type: string
+        configuredApplicationPermissions:
+          type: array
+          items:
+            type: string
+        missingRequiredPermissions:
+          type: array
+          items:
+            type: string
+        hasMissingRequiredPermissions:
+          type: boolean
+        permissionCheckError:
+          type: string
+          nullable: true
+        needsOnboarding:
+          type: boolean
+        setup:
+          $ref: "#/components/schemas/OnboardingSetup"
+      required:
+        - targetClientId
+        - targetTenantId
+        - targetAppDisplayName
+        - requiredApplicationPermissions
+        - configuredApplicationPermissions
+        - missingRequiredPermissions
+        - hasMissingRequiredPermissions
+        - permissionCheckError
+        - needsOnboarding
+        - setup
 
     EvidenceStatus:
       type: string
@@ -1584,7 +1720,15 @@ components:
                 type: string
               count:
                 type: integer
-            required: [range, count]
+              totalTeamSize:
+                type: integer
+              owners:
+                type: integer
+              members:
+                type: integer
+              guests:
+                type: integer
+            required: [range, count, totalTeamSize, owners, members, guests]
         topTeams:
           type: array
           items:

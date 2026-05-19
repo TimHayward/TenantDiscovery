@@ -9,6 +9,37 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface OnboardingSetup {
+  tenantId: string | null;
+  clientId: string | null;
+  clientSecret: string | null;
+  hasClientSecret: boolean;
+  setupComplete: boolean;
+  setupCompletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OnboardingSetupPatch {
+  tenantId?: string | null;
+  clientId?: string | null;
+  clientSecret?: string | null;
+  setupComplete?: boolean;
+}
+
+export interface OnboardingStatus {
+  targetClientId: string | null;
+  targetTenantId: string | null;
+  targetAppDisplayName: string | null;
+  requiredApplicationPermissions: string[];
+  configuredApplicationPermissions: string[];
+  missingRequiredPermissions: string[];
+  hasMissingRequiredPermissions: boolean;
+  permissionCheckError: string | null;
+  needsOnboarding: boolean;
+  setup: OnboardingSetup;
+}
+
 export type EvidenceStatus = typeof EvidenceStatus[keyof typeof EvidenceStatus];
 
 
@@ -459,6 +490,10 @@ export interface TeamsTeamActivityItem {
 export type M365TeamsDataTeamsBySizeItem = {
   range: string;
   count: number;
+  totalTeamSize: number;
+  owners: number;
+  members: number;
+  guests: number;
 };
 
 export interface M365TeamsData {

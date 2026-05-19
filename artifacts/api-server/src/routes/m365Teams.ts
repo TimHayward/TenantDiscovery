@@ -10,6 +10,11 @@ import { withMetadata } from "../lib/metadata.js";
 
 const router = Router();
 
+type TeamUserRef = {
+  id?: string;
+  userType?: string;
+};
+
 function parseCsv(csv: string): Record<string, string>[] {
   const lines = csv.trim().split("\n").filter(Boolean);
   if (lines.length < 2) return [];
@@ -29,6 +34,27 @@ function isLikelyGuid(value: string): boolean {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ||
     /^[0-9a-f]{32}$/i.test(value)
   );
+}
+
+// Run async tasks with a bounded level of concurrency to reduce Graph throttling.
+async function pLimit<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
+  if (tasks.length === 0) return [];
+
+  const results = new Array<T>(tasks.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (true) {
+      const current = nextIndex;
+      nextIndex += 1;
+      if (current >= tasks.length) return;
+      results[current] = await tasks[current]();
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
 }
 
 async function getTeamsData() {
@@ -76,7 +102,13 @@ async function getTeamsData() {
       { label: "51-100 members", min: 51, max: 100 },
       { label: "100+ members", min: 101, max: Infinity },
     ];
-    const sizeCounts = new Array(sizeRanges.length).fill(0);
+    const sizeBreakdown = sizeRanges.map(() => ({
+      count: 0,
+      totalTeamSize: 0,
+      owners: 0,
+      members: 0,
+      guests: 0,
+    }));
 
     for (const t of teams) {
       if (t.isArchived) archivedTeams++;
@@ -84,6 +116,75 @@ async function getTeamsData() {
       const vis = (t.visibility ?? "").toLowerCase();
       if (vis === "private") privateTeams++;
       else publicTeams++;
+    }
+
+    const memberCountTasks = teams
+      .filter((t) => typeof t.id === "string" && t.id.length > 0)
+      .map((t) => async () => {
+        const teamId = t.id as string;
+
+        const [membersResult, ownersResult] = await Promise.all([
+          fetchAllGraphPages<TeamUserRef>(
+            `https://graph.microsoft.com/v1.0/groups/${teamId}/transitiveMembers/microsoft.graph.user?$select=id,userType&$top=999`,
+            `teamMembers:${teamId}`,
+          ),
+          fetchAllGraphPages<TeamUserRef>(
+            `https://graph.microsoft.com/v1.0/groups/${teamId}/owners/microsoft.graph.user?$select=id,userType&$top=999`,
+            `teamOwners:${teamId}`,
+          ),
+        ]);
+
+        const ownerIds = new Set<string>();
+        const memberIds = new Set<string>();
+        const guestIds = new Set<string>();
+
+        for (const member of membersResult.items) {
+          if (member.id) {
+            memberIds.add(member.id);
+            if ((member.userType ?? "").toLowerCase() === "guest") {
+              guestIds.add(member.id);
+            }
+          }
+        }
+        for (const owner of ownersResult.items) {
+          if (owner.id) {
+            ownerIds.add(owner.id);
+            if ((owner.userType ?? "").toLowerCase() === "guest") {
+              guestIds.add(owner.id);
+            }
+          }
+        }
+
+        const totalUserIds = new Set<string>([...memberIds, ...ownerIds]);
+        const memberOnlyCount = Array.from(memberIds).filter((id) => !ownerIds.has(id)).length;
+
+        return {
+          totalTeamSize: totalUserIds.size,
+          owners: ownerIds.size,
+          members: memberOnlyCount,
+          guests: guestIds.size,
+          issues: [...membersResult.issues, ...ownersResult.issues],
+        };
+      });
+
+    const memberCountResults = await pLimit(memberCountTasks, 8);
+    for (const result of memberCountResults) {
+      if (result.issues.length > 0) {
+        collectionIssues.push(...result.issues);
+      }
+
+      if (result.totalTeamSize <= 0) continue;
+
+      const bucketIndex = sizeRanges.findIndex((range) =>
+        result.totalTeamSize >= range.min && result.totalTeamSize <= range.max
+      );
+      if (bucketIndex >= 0) {
+        sizeBreakdown[bucketIndex].count += 1;
+        sizeBreakdown[bucketIndex].totalTeamSize += result.totalTeamSize;
+        sizeBreakdown[bucketIndex].owners += result.owners;
+        sizeBreakdown[bucketIndex].members += result.members;
+        sizeBreakdown[bucketIndex].guests += result.guests;
+      }
     }
 
     let meetingsOrganizedLast30Days = 0;
@@ -134,7 +235,7 @@ async function getTeamsData() {
         const mappedName = teamDisplayNameById.get(teamId);
         const teamName = reportTeamName && !isLikelyGuid(reportTeamName)
           ? reportTeamName
-          : mappedName ?? reportTeamName || teamId;
+          : (mappedName ?? reportTeamName) || teamId;
 
         return {
           teamId,
@@ -167,7 +268,11 @@ async function getTeamsData() {
       externalAccessEnabled: true,
       teamsBySize: sizeRanges.map((r, i) => ({
         range: r.label,
-        count: sizeCounts[i],
+        count: sizeBreakdown[i].count,
+        totalTeamSize: sizeBreakdown[i].totalTeamSize,
+        owners: sizeBreakdown[i].owners,
+        members: sizeBreakdown[i].members,
+        guests: sizeBreakdown[i].guests,
       })),
       topTeams,
       partialData: collectionIssues.length > 0,
@@ -266,10 +371,14 @@ router.get("/m365/teams/with-metadata", async (req, res): Promise<void> => {
         notes: ["Hardcoded fallback; policy endpoint not wired yet"],
       },
       teamsBySize: {
-        evidenceStatus: "manual" as const,
-        confidenceLabel: "low" as const,
-        sourceLabel: "N/A",
-        notes: ["Team member size distribution placeholder currently returns zeros"],
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "medium" as const,
+        sourceLabel: "Group.Read.All",
+        notes: [
+          "Computed from Graph group transitive members plus owners for each Team",
+          "Breakdown includes total users, owners, members (excluding owners), and guests",
+          "Counts include internal users and guests represented as user objects",
+        ],
       },
       topTeams: {
         evidenceStatus: "apiBacked" as const,

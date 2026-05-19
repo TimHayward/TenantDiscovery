@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getCached } from "../lib/graphClient.js";
+import { getCached, getGraphCredentialValues } from "../lib/graphClient.js";
 import { withMetadata } from "../lib/metadata.js";
 import {
   getPermissionMetadataForFeature,
@@ -12,10 +12,11 @@ const PERMISSION_ERROR_CODES = new Set([403, 401]);
 
 async function getToken(): Promise<string> {
   const { ClientSecretCredential } = await import("@azure/identity");
+  const { tenantId, clientId, clientSecret } = await getGraphCredentialValues();
   const cred = new ClientSecretCredential(
-    process.env.AZURE_TENANT_ID!,
-    process.env.AZURE_CLIENT_ID!,
-    process.env.AZURE_CLIENT_SECRET!,
+    tenantId,
+    clientId,
+    clientSecret,
     { tokenCachePersistenceOptions: { enabled: false } }
   );
   const token = await cred.getToken("https://graph.microsoft.com/.default");

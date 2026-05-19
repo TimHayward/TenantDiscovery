@@ -1,4 +1,5 @@
 import { ClientSecretCredential } from "@azure/identity";
+import { getGraphCredentialValues } from "./graphClient.js";
 
 export type CollectionIssueCategory =
   | "permission"
@@ -75,16 +76,7 @@ async function getGraphAccessToken(): Promise<string> {
     return cachedToken.token;
   }
 
-  const tenantId = process.env.AZURE_TENANT_ID;
-  const clientId = process.env.AZURE_CLIENT_ID;
-  const clientSecret = process.env.AZURE_CLIENT_SECRET;
-
-  if (!tenantId || !clientId || !clientSecret) {
-    throw new Error(
-      "AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET must be set.",
-    );
-  }
-
+  const { tenantId, clientId, clientSecret } = await getGraphCredentialValues();
   const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
   const token = await credential.getToken("https://graph.microsoft.com/.default");
 

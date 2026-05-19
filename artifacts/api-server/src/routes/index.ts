@@ -8,6 +8,7 @@ import m365SecurityRouter from "./m365Security";
 import m365ExchangeRouter from "./m365Exchange";
 import m365TeamsRouter from "./m365Teams";
 import m365SharePointRouter from "./m365SharePoint";
+import m365SharePointPoliciesRouter from "./m365SharePointPolicies";
 import m365ComplianceRouter from "./m365Compliance";
 import m365ServiceHealthRouter from "./m365ServiceHealth";
 import m365IntuneRouter from "./m365Intune";
@@ -16,6 +17,7 @@ import m365AppsRouter from "./m365Apps";
 import m365ServicePrincipalsRouter from "./m365ServicePrincipals";
 import m365PermissionsRouter from "./m365Permissions";
 import m365DataSourcesRouter from "./m365DataSources";
+import onboardingRouter from "./onboarding";
 
 const router: IRouter = Router();
 
@@ -28,6 +30,7 @@ router.use(m365SecurityRouter);
 router.use(m365ExchangeRouter);
 router.use(m365TeamsRouter);
 router.use(m365SharePointRouter);
+router.use(m365SharePointPoliciesRouter);
 router.use(m365ComplianceRouter);
 router.use(m365ServiceHealthRouter);
 router.use(m365IntuneRouter);
@@ -36,5 +39,6 @@ router.use(m365AppsRouter);
 router.use(m365ServicePrincipalsRouter);
 router.use(m365PermissionsRouter);
 router.use(m365DataSourcesRouter);
+router.use(onboardingRouter);
 
 export default router;

@@ -6,11 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import {
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
@@ -55,12 +59,15 @@ import type {
   M365TeamsDataWithMetadata,
   M365UsersData,
   M365UsersDataWithMetadata,
+  OnboardingSetup,
+  OnboardingSetupPatch,
+  OnboardingStatus,
   SecurityEstateData,
   SecurityEstateDataWithMetadata
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
-import type { ErrorType } from '../custom-fetch';
+import type { ErrorType , BodyType } from '../custom-fetch';
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -2922,6 +2929,231 @@ export function useGetM365PermissionsFeatureWithMetadata<TData = Awaited<ReturnT
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetM365PermissionsFeatureWithMetadataQueryOptions(featureId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Get stored onboarding setup details with secrets redacted
+ */
+export const getGetOnboardingSetupUrl = () => {
+
+
+
+
+  return `/api/onboarding/setup`
+}
+
+export const getOnboardingSetup = async ( options?: RequestInit): Promise<OnboardingSetup> => {
+
+  return customFetch<OnboardingSetup>(getGetOnboardingSetupUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOnboardingSetupQueryKey = () => {
+    return [
+    `/api/onboarding/setup`
+    ] as const;
+    }
+
+
+export const getGetOnboardingSetupQueryOptions = <TData = Awaited<ReturnType<typeof getOnboardingSetup>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOnboardingSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOnboardingSetupQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOnboardingSetup>>> = ({ signal }) => getOnboardingSetup({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOnboardingSetup>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOnboardingSetupQueryResult = NonNullable<Awaited<ReturnType<typeof getOnboardingSetup>>>
+export type GetOnboardingSetupQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get stored onboarding setup details with secrets redacted
+ */
+
+export function useGetOnboardingSetup<TData = Awaited<ReturnType<typeof getOnboardingSetup>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOnboardingSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOnboardingSetupQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Save onboarding setup details securely
+ */
+export const getPatchOnboardingSetupUrl = () => {
+
+
+
+
+  return `/api/onboarding/setup`
+}
+
+export const patchOnboardingSetup = async (onboardingSetupPatch: OnboardingSetupPatch, options?: RequestInit): Promise<OnboardingSetup> => {
+
+  return customFetch<OnboardingSetup>(getPatchOnboardingSetupUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      onboardingSetupPatch,)
+  }
+);}
+
+
+
+
+export const getPatchOnboardingSetupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchOnboardingSetup>>, TError,{data: BodyType<OnboardingSetupPatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof patchOnboardingSetup>>, TError,{data: BodyType<OnboardingSetupPatch>}, TContext> => {
+
+const mutationKey = ['patchOnboardingSetup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof patchOnboardingSetup>>, {data: BodyType<OnboardingSetupPatch>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  patchOnboardingSetup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PatchOnboardingSetupMutationResult = NonNullable<Awaited<ReturnType<typeof patchOnboardingSetup>>>
+    export type PatchOnboardingSetupMutationBody = BodyType<OnboardingSetupPatch>
+    export type PatchOnboardingSetupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save onboarding setup details securely
+ */
+export const usePatchOnboardingSetup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchOnboardingSetup>>, TError,{data: BodyType<OnboardingSetupPatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof patchOnboardingSetup>>,
+        TError,
+        {data: BodyType<OnboardingSetupPatch>},
+        TContext
+      > => {
+      return useMutation(getPatchOnboardingSetupMutationOptions(options));
+    }
+
+/**
+ * @summary Onboarding status and required permission gaps
+ */
+export const getGetOnboardingStatusUrl = () => {
+
+
+
+
+  return `/api/onboarding/status`
+}
+
+export const getOnboardingStatus = async ( options?: RequestInit): Promise<OnboardingStatus> => {
+
+  return customFetch<OnboardingStatus>(getGetOnboardingStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOnboardingStatusQueryKey = () => {
+    return [
+    `/api/onboarding/status`
+    ] as const;
+    }
+
+
+export const getGetOnboardingStatusQueryOptions = <TData = Awaited<ReturnType<typeof getOnboardingStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOnboardingStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOnboardingStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOnboardingStatus>>> = ({ signal }) => getOnboardingStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOnboardingStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOnboardingStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getOnboardingStatus>>>
+export type GetOnboardingStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Onboarding status and required permission gaps
+ */
+
+export function useGetOnboardingStatus<TData = Awaited<ReturnType<typeof getOnboardingStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOnboardingStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOnboardingStatusQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -1629,6 +1629,69 @@ export const GetM365PermissionsFeatureWithMetadataResponse = zod.object({
 
 
 /**
+ * @summary Get stored onboarding setup details with secrets redacted
+ */
+export const GetOnboardingSetupResponse = zod.object({
+  "tenantId": zod.string().nullable(),
+  "clientId": zod.string().nullable(),
+  "clientSecret": zod.string().nullable(),
+  "hasClientSecret": zod.boolean(),
+  "setupComplete": zod.boolean(),
+  "setupCompletedAt": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Save onboarding setup details securely
+ */
+export const PatchOnboardingSetupBody = zod.object({
+  "tenantId": zod.string().nullish(),
+  "clientId": zod.string().nullish(),
+  "clientSecret": zod.string().nullish(),
+  "setupComplete": zod.boolean().optional()
+})
+
+export const PatchOnboardingSetupResponse = zod.object({
+  "tenantId": zod.string().nullable(),
+  "clientId": zod.string().nullable(),
+  "clientSecret": zod.string().nullable(),
+  "hasClientSecret": zod.boolean(),
+  "setupComplete": zod.boolean(),
+  "setupCompletedAt": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Onboarding status and required permission gaps
+ */
+export const GetOnboardingStatusResponse = zod.object({
+  "targetClientId": zod.string().nullable(),
+  "targetTenantId": zod.string().nullable(),
+  "targetAppDisplayName": zod.string().nullable(),
+  "requiredApplicationPermissions": zod.array(zod.string()),
+  "configuredApplicationPermissions": zod.array(zod.string()),
+  "missingRequiredPermissions": zod.array(zod.string()),
+  "hasMissingRequiredPermissions": zod.boolean(),
+  "permissionCheckError": zod.string().nullable(),
+  "needsOnboarding": zod.boolean(),
+  "setup": zod.object({
+  "tenantId": zod.string().nullable(),
+  "clientId": zod.string().nullable(),
+  "clientSecret": zod.string().nullable(),
+  "hasClientSecret": zod.boolean(),
+  "setupComplete": zod.boolean(),
+  "setupCompletedAt": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+})
+
+
+/**
  * @summary Data source registry for dashboard metrics
  */
 export const GetM365DataSourcesQueryParams = zod.object({

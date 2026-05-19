@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { graphClient, getCached } from "../lib/graphClient.js";
+import { getCached, getGraphClient } from "../lib/graphClient.js";
 import {
   createCollectionIssue,
   isPermissionIssue,
@@ -24,6 +24,7 @@ function getErrorStatus(error: unknown): number | null {
 
 async function getServiceHealthData() {
   return getCached("m365-service-health", async () => {
+    const graphClient = await getGraphClient();
     const [healthRes, issuesRes] = await Promise.allSettled([
       graphClient.api("/admin/serviceAnnouncement/healthOverviews").get(),
       graphClient.api("/admin/serviceAnnouncement/issues")
