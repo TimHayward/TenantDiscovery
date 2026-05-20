@@ -5,6 +5,7 @@ import {
 } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { CSVLink } from "react-csv";
@@ -13,7 +14,7 @@ import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
 
 const CHART_COLORS = {
-  blue: "#0079F2",
+  blue: "#1E3D59",
   purple: "#795EFF",
   green: "#009118",
   red: "#A60808",
@@ -57,7 +58,8 @@ export function OverviewTab() {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <CollapsibleSection title="Summary" description="Key metrics across your Microsoft 365 tenant" storageKey="overview-summary" defaultOpen={true} density="compact">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <KPICard
           title="Total Users"
@@ -110,7 +112,9 @@ export function OverviewTab() {
           confidenceLabel={getMetricMeta("overview.servicesHealthy")?.confidenceLabel}
         />
       </div>
+      </CollapsibleSection>
 
+      <CollapsibleSection title="Licensing & Service Health" description="License allocation and M365 service status" storageKey="overview-licensing-health" defaultOpen={true} density="compact">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card>
           <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
@@ -166,6 +170,7 @@ export function OverviewTab() {
           </CardContent>
         </Card>
       </div>
+      </CollapsibleSection>
     </div>
   );
 }

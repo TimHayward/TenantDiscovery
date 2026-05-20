@@ -2714,7 +2714,7 @@ export const metricDataSourceRegistry = {
   },
 } satisfies Record<string, MetricDataSourceEntry>;
 
-export const metricDataSources = Object.values(metricDataSourceRegistry);
+export const metricDataSources = Object.values(metricDataSourceRegistry) as MetricDataSourceEntry[];
 
 export type PermissionName = (typeof permissionsManifest.permissions)[number]["name"];
 export type FeatureId = (typeof permissionsManifest.features)[number]["id"];

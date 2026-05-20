@@ -41,7 +41,7 @@ import { formatDate } from "@/lib/utils";
 // ── constants ─────────────────────────────────────────────────────────────────
 
 const C = {
-  blue:   "#0079F2",
+  blue:   "#1E3D59",
   green:  "#009118",
   red:    "#A60808",
   yellow: "#eab308",
@@ -633,7 +633,8 @@ export function DefenderTab() {
   return (
     <div className="space-y-4">
 
-      {/* ── Device Estate KPIs ───────────────────────────────────────────────── */}
+      <CollapsibleSection title="Summary" description="Device estate overview" storageKey="defender-summary" defaultOpen={true} density="compact">
+      <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
           title="Total Devices"
@@ -760,6 +761,8 @@ export function DefenderTab() {
           </CardContent>
         </Card>
       </div>
+      </div>
+      </CollapsibleSection>
 
       {/* ── Device List Table ────────────────────────────────────────────────── */}
       <CollapsibleSection
@@ -1254,13 +1257,14 @@ export function DefenderTab() {
           )}
       </CollapsibleSection>
 
-      {/* ── Defender Security Checklist ─────────────────────────────────────── */}
-      <ChecklistTable
-        sectionTitle="Defender - Security Checklist"
-        groups={defenderChecklist}
-        loading={loading}
-        density="compact"
-      />
+      <CollapsibleSection title="Summary Check List" storageKey="defender-checklist" defaultOpen={false}>
+        <ChecklistTable
+          sectionTitle=""
+          groups={defenderChecklist}
+          loading={loading}
+          density="compact"
+        />
+      </CollapsibleSection>
 
     </div>
   );

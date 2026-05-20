@@ -229,7 +229,7 @@ export function ServicePrincipalsTab() {
   const [viewFilter, setViewFilter]     = useState<ViewFilter>("thirdParty");
   const [riskFilter, setRiskFilter]     = useState<RiskFilter>("all");
 
-  const C = { green: "#009118", red: "#A60808", yellow: "#eab308", blue: "#0079F2" };
+  const C = { green: "#009118", red: "#A60808", yellow: "#eab308", blue: "#1E3D59" };
 
   // ── filtered dataset ────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -441,16 +441,7 @@ export function ServicePrincipalsTab() {
   return (
     <div className="space-y-4">
 
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <Building2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
-        <h2 className="text-base font-semibold">Service Principals (Enterprise Apps)</h2>
-        {!loading && (
-          <Badge variant="outline" className="font-normal text-xs">{data?.total ?? 0} total</Badge>
-        )}
-      </div>
-
-      {/* KPI cards */}
+      <CollapsibleSection title="Summary" description="Service principal counts and risk overview" storageKey="sp-summary" defaultOpen={true} density="compact">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KPICard
           title="Total SPs"
@@ -499,6 +490,7 @@ export function ServicePrincipalsTab() {
           confidenceLabel={getMetricMeta("sp.withHighRiskGrants")?.confidenceLabel}
         />
       </div>
+      </CollapsibleSection>
 
       {/* Main table card */}
       <CollapsibleSection
@@ -632,8 +624,7 @@ export function ServicePrincipalsTab() {
           )}
       </CollapsibleSection>
 
-      {/* Consent & security summary cards */}
-      {!loading && (
+      <CollapsibleSection title="Risk Overview" description="High-risk grants, stale apps, and most-used applications" storageKey="sp-risk-overview" defaultOpen={true} density="compact">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
           <Card>
@@ -715,7 +706,7 @@ export function ServicePrincipalsTab() {
           </Card>
 
         </div>
-      )}
+      </CollapsibleSection>
 
     </div>
   );

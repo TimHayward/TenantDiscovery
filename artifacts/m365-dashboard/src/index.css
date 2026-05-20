@@ -69,7 +69,7 @@
 
 :root {
   color-scheme: light;
-  --app-font-sans: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --app-font-sans: "Rethink Sans", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Consolas, "Courier New", monospace;
 
@@ -79,35 +79,35 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 0 0% 98%;
-  --foreground: 222 47% 11%;
-  --border: 214 32% 91%;
+  --background: 213 15% 93%;
+  --foreground: 210 51% 14%;
+  --border: 0 0% 90%;
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --card-border: 214 32% 91%;
-  --sidebar: 0 0% 96%;
-  --sidebar-foreground: 222 47% 11%;
-  --sidebar-border: 214 32% 91%;
-  --sidebar-primary: 206 85% 40%;
+  --card-foreground: 210 51% 14%;
+  --card-border: 0 0% 90%;
+  --sidebar: 210 51% 23%;
+  --sidebar-foreground: 0 0% 95%;
+  --sidebar-border: 210 51% 18%;
+  --sidebar-primary: 33 95% 55%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 214 32% 91%;
-  --sidebar-accent-foreground: 222 47% 11%;
-  --sidebar-ring: 206 85% 40%;
+  --sidebar-accent: 210 40% 30%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 33 95% 55%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --popover-border: 214 32% 91%;
-  --primary: 206 85% 40%; /* #0f6cbd M365 Blue */
+  --popover-foreground: 210 51% 14%;
+  --popover-border: 0 0% 90%;
+  --primary: 33 95% 55%; /* #FA9819 orange */
   --primary-foreground: 0 0% 100%;
-  --secondary: 214 32% 91%;
-  --secondary-foreground: 222 47% 11%;
-  --muted: 214 32% 95%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 214 32% 91%;
-  --accent-foreground: 222 47% 11%;
+  --secondary: 198 79% 87%;
+  --secondary-foreground: 210 51% 23%;
+  --muted: 213 15% 93%;
+  --muted-foreground: 195 15% 50%;
+  --accent: 198 79% 87%;
+  --accent-foreground: 210 51% 23%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --input: 214 32% 91%;
-  --ring: 206 85% 40%;
+  --input: 0 0% 90%;
+  --ring: 33 95% 55%;
 
   --chart-1: 211 100% 47%;
   --chart-2: 250 100% 68%;
@@ -157,18 +157,18 @@
   --card: 222 47% 11%;
   --card-foreground: 210 40% 98%;
   --card-border: 217 33% 20%;
-  --sidebar: 222 47% 8%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 217 33% 20%;
-  --sidebar-primary: 206 85% 60%;
+  --sidebar: 210 51% 15%;
+  --sidebar-foreground: 0 0% 92%;
+  --sidebar-border: 210 51% 11%;
+  --sidebar-primary: 33 95% 58%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 217 33% 17%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 206 85% 60%;
+  --sidebar-accent: 210 40% 22%;
+  --sidebar-accent-foreground: 0 0% 95%;
+  --sidebar-ring: 33 95% 58%;
   --popover: 222 47% 11%;
   --popover-foreground: 210 40% 98%;
   --popover-border: 217 33% 20%;
-  --primary: 206 85% 60%;
+  --primary: 33 95% 60%;
   --primary-foreground: 0 0% 100%;
   --secondary: 217 33% 17%;
   --secondary-foreground: 210 40% 98%;
@@ -179,7 +179,7 @@
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
   --input: 217 33% 20%;
-  --ring: 206 85% 60%;
+  --ring: 33 95% 60%;
 
   --chart-1: 211 100% 55%;
   --chart-2: 250 100% 74%;
@@ -201,6 +201,8 @@
 @media print {
   @page { margin: 0; }
   body { margin: 0.5in; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  aside { display: none !important; }
+  main  { overflow: visible !important; }
   .gap-4, .gap-6 { row-gap: 0 !important; }
   :root, .dark {
     color-scheme: light;

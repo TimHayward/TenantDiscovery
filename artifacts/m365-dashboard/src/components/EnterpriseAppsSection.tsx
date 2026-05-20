@@ -313,7 +313,7 @@ export function EnterpriseAppsSection() {
   const [riskFilter, setRiskFilter]       = useState<"all" | "high" | "medium" | "low">("all");
 
   const C = {
-    green: "#009118", red: "#A60808", yellow: "#eab308", blue: "#0079F2",
+    green: "#009118", red: "#A60808", yellow: "#eab308", blue: "#1E3D59",
   };
 
   // ── table column definitions ────────────────────────────────────────────────

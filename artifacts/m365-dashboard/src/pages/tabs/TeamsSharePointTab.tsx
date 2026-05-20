@@ -29,7 +29,7 @@ import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-man
 import { useQuery } from "@tanstack/react-query";
 
 const CHART_COLORS = {
-  blue: "#0079F2",
+  blue: "#1E3D59",
   purple: "#795EFF",
   green: "#009118",
   red: "#A60808",
@@ -468,10 +468,9 @@ export function TeamsSharePointTab() {
   });
 
   return (
-    <div className="space-y-8">
-      {/* TEAMS SECTION */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold border-b pb-2">Microsoft Teams</h2>
+    <div className="space-y-4">
+      <CollapsibleSection title="Microsoft Teams" description="Teams usage, activity, and top teams overview" storageKey="teams-ms-teams" defaultOpen={true} density="compact">
+        <div className="space-y-4">
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <KPICard
@@ -656,10 +655,10 @@ export function TeamsSharePointTab() {
             </div>
           )}
         </CollapsibleSection>
+      </CollapsibleSection>
 
-      {/* SHAREPOINT SECTION */}
-      <div className="space-y-4 pt-4">
-        <h2 className="text-xl font-semibold border-b pb-2">SharePoint Online</h2>
+      <CollapsibleSection title="SharePoint Online" description="Sites, storage, and sharing policies" storageKey="teams-sharepoint" defaultOpen={true} density="compact">
+        <div className="space-y-4">
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
@@ -759,16 +758,19 @@ export function TeamsSharePointTab() {
               </div>
             )}
         </CollapsibleSection>
-      </div>
+        </div>
+      </CollapsibleSection>
 
-      <ChecklistTable
-        sectionTitle="SharePoint Policies"
-        groups={sharePointPoliciesChecklist}
-        loading={spPoliciesLoading}
-      />
-
-      {/* SECTIONS 3 + 5 — TEAMS & SHAREPOINT SECURITY CHECKLIST */}
-      <ChecklistTable sectionTitle="Teams & SharePoint" groups={teamsChecklist} loading={teamsLoading || spLoading} />
+      <CollapsibleSection title="Summary Check List" description="Teams and SharePoint security controls assessment" storageKey="teams-checklist" defaultOpen={false} density="compact">
+        <div className="space-y-4">
+          <ChecklistTable
+            sectionTitle=""
+            groups={sharePointPoliciesChecklist}
+            loading={spPoliciesLoading}
+          />
+          <ChecklistTable sectionTitle="" groups={teamsChecklist} loading={teamsLoading || spLoading} />
+        </div>
+      </CollapsibleSection>
 
     </div>
   );

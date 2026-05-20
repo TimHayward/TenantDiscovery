@@ -112,7 +112,15 @@ function EvidenceBadge({ evidenceStatus, confidenceLabel, sourceLabel }: { evide
   );
 }
 
-export function ChecklistTable({ sectionTitle, groups, loading, notesInSeparateColumn = false, density = "default" }: Props) {
+const EVIDENCE_LABELS: Record<EvidenceStatus, string> = {
+  apiBacked: "API-backed",
+  partial: "Partial",
+  manual: "Manual",
+  automationCandidate: "Automation candidate",
+  notAssessed: "Not assessed",
+};
+
+export function ChecklistTable({ sectionTitle, groups, loading, notesInSeparateColumn: _notesInSeparateColumn = false, density = "default" }: Props) {
   const allItems = groups.flatMap(g => g.items);
   const passed   = allItems.filter(i => i.status === "pass").length;
   const failed   = allItems.filter(i => i.status === "fail").length;
@@ -157,15 +165,11 @@ export function ChecklistTable({ sectionTitle, groups, loading, notesInSeparateC
     return lines;
   };
 
-  const hasNotesColumn = notesInSeparateColumn && flatRows.some((row) => {
-    if (row.kind !== "item") return false;
-    return getNotesLines(resolveManualDetails(row.item)).length > 0;
-  });
   const isCompact = density === "compact";
 
   return (
     <div className={`${isCompact ? "space-y-3 pt-1" : "space-y-4 pt-2"}`}>
-      <h2 className="text-xl font-semibold border-b pb-2">{sectionTitle} — Security Checklist</h2>
+      {sectionTitle && <h2 className="text-xl font-semibold border-b pb-2">{sectionTitle} — Security Checklist</h2>}
 
       <div className={`grid grid-cols-2 sm:grid-cols-4 ${isCompact ? "gap-2.5" : "gap-3"}`}>
         {[
@@ -195,8 +199,9 @@ export function ChecklistTable({ sectionTitle, groups, loading, notesInSeparateC
               <TableHeader>
                 <TableRow>
                   <TableHead className="pl-4 h-8">Requirement</TableHead>
-                  <TableHead className="w-[220px] h-8">Status</TableHead>
-                  {hasNotesColumn && <TableHead className="w-[360px] h-8">Notes</TableHead>}
+                  <TableHead className="w-[200px] h-8">Status</TableHead>
+                  <TableHead className="w-[220px] h-8">Backed by</TableHead>
+                  <TableHead className="w-[360px] h-8">Notes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -204,49 +209,47 @@ export function ChecklistTable({ sectionTitle, groups, loading, notesInSeparateC
                   if (row.kind === "group") {
                     return (
                       <TableRow key={`grp-${row.group.id}`} className="bg-muted/40 hover:bg-muted/50">
-                        <TableCell colSpan={hasNotesColumn ? 3 : 2} className="py-2 pl-4 font-semibold text-sm">
+                        <TableCell colSpan={4} className="py-2 pl-4 font-semibold text-sm">
                           {row.group.title}
                         </TableCell>
                       </TableRow>
                     );
                   }
+                  const resolved = resolveManualDetails(row.item);
+                  const notesLines = getNotesLines(resolved);
+                  const backedByParts: string[] = [];
+                  if (resolved.evidenceStatus) backedByParts.push(EVIDENCE_LABELS[resolved.evidenceStatus]);
+                  if (resolved.sourceLabel) backedByParts.push(resolved.sourceLabel);
                   return (
                     <TableRow key={`item-${row.groupId}-${row.idx}`}>
                       <TableCell className="pl-8 text-sm text-muted-foreground py-2">{row.item.label}</TableCell>
                       <TableCell className="py-2 align-top">
-                        {(() => {
-                          const resolved = resolveManualDetails(row.item);
-                          const notesLines = getNotesLines(resolved);
-                          return (
-                            <div className="flex flex-col gap-1">
-                              <StatusBadge status={resolved.status} detail={resolved.detail} />
-                              <EvidenceBadge evidenceStatus={resolved.evidenceStatus} confidenceLabel={resolved.confidenceLabel} sourceLabel={resolved.sourceLabel} />
-                              {!hasNotesColumn && notesLines.map((line, lineIdx) => (
-                                <p key={`${row.groupId}-${row.idx}-inline-${lineIdx}`} className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{line}</p>
+                        <StatusBadge status={resolved.status} detail={resolved.detail} />
+                      </TableCell>
+                      <TableCell className="py-2 align-top">
+                        {backedByParts.length === 0
+                          ? <span className="text-xs text-muted-foreground">—</span>
+                          : (
+                            <div className="flex flex-wrap gap-1">
+                              {backedByParts.map((p, i) => (
+                                <Badge key={i} variant="outline" className="text-[10px] font-normal bg-slate-50 dark:bg-slate-900/30">{p}</Badge>
                               ))}
                             </div>
-                          );
-                        })()}
+                          )
+                        }
                       </TableCell>
-                      {hasNotesColumn && (
-                        <TableCell className="py-2 align-top">
-                          {(() => {
-                            const resolved = resolveManualDetails(row.item);
-                            const notesLines = getNotesLines(resolved);
-                            if (notesLines.length === 0) {
-                              return <span className="text-xs text-muted-foreground">-</span>;
-                            }
-
-                            return (
-                              <div className="space-y-1">
-                                {notesLines.map((line, lineIdx) => (
-                                  <p key={`${row.groupId}-${row.idx}-notes-${lineIdx}`} className="text-[10px] text-muted-foreground leading-tight">{line}</p>
-                                ))}
-                              </div>
-                            );
-                          })()}
-                        </TableCell>
-                      )}
+                      <TableCell className="py-2 align-top">
+                        {notesLines.length === 0
+                          ? <span className="text-xs text-muted-foreground">—</span>
+                          : (
+                            <div className="space-y-1">
+                              {notesLines.map((line, lineIdx) => (
+                                <p key={`${row.groupId}-${row.idx}-notes-${lineIdx}`} className="text-[10px] text-muted-foreground leading-tight">{line}</p>
+                              ))}
+                            </div>
+                          )
+                        }
+                      </TableCell>
                     </TableRow>
                   );
                 })}

@@ -30,7 +30,7 @@ import type { SensitivityLabelItem } from "@workspace/api-client-react";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
 const CHART_COLORS = {
-  blue: "#0079F2",
+  blue: "#1E3D59",
   purple: "#795EFF",
   green: "#009118",
   red: "#A60808",
@@ -264,11 +264,9 @@ export function ComplianceTab() {
   });
 
   return (
-    <div className="space-y-8">
-      {/* COMPLIANCE OVERVIEW */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold border-b pb-2">Compliance Overview</h2>
-
+    <div className="space-y-4">
+      <CollapsibleSection title="Summary" description="Compliance policies, score, and audit status" storageKey="compliance-summary" defaultOpen={true} density="compact">
+        <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
             title="DLP Policies"
@@ -380,12 +378,35 @@ export function ComplianceTab() {
             </CardContent>
           </Card>
         </div>
-      </div>
+        </div>
+      </CollapsibleSection>
 
-      {/* SENSITIVITY LABELS */}
-      <div className="space-y-4 pt-2">
-        <h2 className="text-xl font-semibold border-b pb-2">Sensitivity Labels</h2>
-
+      <CollapsibleSection
+        title="Sensitivity Labels"
+        storageKey="compliance-sensitivity-labels"
+        description={!compLoading ? `${compliance?.sensitivityLabelsList.length ?? 0} labels configured` : undefined}
+        actions={compliance && compliance.sensitivityLabelsList.length > 0 ? (
+            <CSVLink
+              data={compliance.sensitivityLabelsList.map(l => ({
+                Name: l.name,
+                Tooltip: l.tooltip,
+                SensitivityOrder: l.sensitivity,
+                Color: l.color,
+                HasProtection: l.hasProtection,
+                ContentFormats: (l.contentFormats ?? []).join(", "),
+                Active: l.isActive,
+                Appliable: l.isAppliable,
+                Type: l.parent ? "Sub-label" : "Top-level",
+              }))}
+              filename="sensitivity-labels.csv"
+              className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80"
+              style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
+              aria-label="Export labels as CSV"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </CSVLink>
+          ) : undefined}
+      >
         {compLoading ? (
           <div className="space-y-2">
             {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
@@ -412,33 +433,7 @@ export function ComplianceTab() {
             </CardContent>
           </Card>
         ) : (
-          <CollapsibleSection
-            title="Sensitivity Labels"
-            storageKey="compliance-sensitivity-labels"
-            description={`${compliance?.sensitivityLabelsList.length ?? 0} labels configured`}
-            actions={compliance && compliance.sensitivityLabelsList.length > 0 ? (
-                <CSVLink
-                  data={compliance.sensitivityLabelsList.map(l => ({
-                    Name: l.name,
-                    Tooltip: l.tooltip,
-                    SensitivityOrder: l.sensitivity,
-                    Color: l.color,
-                    HasProtection: l.hasProtection,
-                    ContentFormats: (l.contentFormats ?? []).join(", "),
-                    Active: l.isActive,
-                    Appliable: l.isAppliable,
-                    Type: l.parent ? "Sub-label" : "Top-level",
-                  }))}
-                  filename="sensitivity-labels.csv"
-                  className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80"
-                  style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
-                  aria-label="Export labels as CSV"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                </CSVLink>
-              ) : undefined}
-          >
-              <div className="space-y-3">
+          <div className="space-y-3">
                 <Input
                   placeholder="Search labels..."
                   value={labelFilter}
@@ -503,14 +498,11 @@ export function ComplianceTab() {
                   </div>
                 </div>
               </div>
-          </CollapsibleSection>
         )}
-      </div>
+      </CollapsibleSection>
 
-      {/* SERVICE HEALTH */}
-      <div className="space-y-4 pt-2">
-        <h2 className="text-xl font-semibold border-b pb-2">Service Health</h2>
-
+      <CollapsibleSection title="Service Health" description="M365 service status and incidents" storageKey="compliance-service-health-outer" defaultOpen={true} density="compact">
+        <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <KPICard
             title="Total Services"
@@ -578,10 +570,12 @@ export function ComplianceTab() {
               </div>
             )}
         </CollapsibleSection>
-      </div>
+        </div>
+      </CollapsibleSection>
 
-      {/* SECTION 7 — PURVIEW / COMPLIANCE SECURITY CHECKLIST */}
-      <ChecklistTable sectionTitle="Purview / Compliance" groups={complianceChecklist} loading={compLoading} />
+      <CollapsibleSection title="Summary Check List" storageKey="compliance-checklist" defaultOpen={false}>
+        <ChecklistTable sectionTitle="" groups={complianceChecklist} loading={compLoading} />
+      </CollapsibleSection>
 
     </div>
   );

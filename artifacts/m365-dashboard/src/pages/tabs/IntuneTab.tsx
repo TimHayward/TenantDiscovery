@@ -50,7 +50,7 @@ import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-man
 // ── palette ───────────────────────────────────────────────────────────────────
 
 const C = {
-  blue:   "#0079F2",
+  blue:   "#1E3D59",
   purple: "#795EFF",
   green:  "#009118",
   red:    "#A60808",
@@ -1159,6 +1159,8 @@ export function IntuneTab() {
   return (
     <div className="space-y-4">
 
+      <CollapsibleSection title="Summary" description="Device compliance and enrollment overview" storageKey="intune-summary" defaultOpen={true} density="compact">
+      <div className="space-y-4">
       {/* ── Device list unavailable notice ──────────────────────────────────── */}
       {!loading && data && !data.deviceListAvailable && (
         <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800 px-4 py-3">
@@ -1421,6 +1423,8 @@ export function IntuneTab() {
           </CardContent>
         </Card>
       </div>
+      </div>
+      </CollapsibleSection>
 
       {/* ── Policy summary per device type ───────────────────────────────── */}
       <CollapsibleSection
@@ -1505,13 +1509,7 @@ export function IntuneTab() {
       </CollapsibleSection>
 
       {/* ── Stale Devices ────────────────────────────────────────────────── */}
-      <div className="space-y-4 pt-2">
-        <div className="border-b pb-2">
-          <h2 className="text-xl font-semibold">Stale Devices</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Devices that have not checked in with Intune — potential security and hygiene risk
-          </p>
-        </div>
+      <CollapsibleSection title="Stale Devices" description="Devices that have not checked in with Intune — potential security and hygiene risk" storageKey="intune-stale-devices" defaultOpen={true} density="compact">
 
         {!data?.deviceListAvailable ? (
           <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800 px-4 py-3">
@@ -1523,7 +1521,7 @@ export function IntuneTab() {
             </p>
           </div>
         ) : (
-          <>
+          <div className="space-y-4">
             {/* KPI filter buttons */}
             <div className="grid grid-cols-3 gap-4">
               {(["30-60", "60-90", "90+"] as DeviceStaleBucket[]).map((b) => {
@@ -1760,9 +1758,9 @@ export function IntuneTab() {
                   </div>
               </CollapsibleSection>
             )}
-          </>
+          </div>
         )}
-      </div>
+      </CollapsibleSection>
 
       {/* ── Enrolled Device List ──────────────────────────────────────────── */}
       <CollapsibleSection
@@ -1978,21 +1976,15 @@ export function IntuneTab() {
           )}
       </CollapsibleSection>
 
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 4 — INTUNE ASSESSMENT TABLE (matches PDF report format)      */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-3 pt-2">
-        <div className="border-b pb-2 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold">Section 4 — Intune Assessment</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Comprehensive evaluation of device management posture across all Intune areas
-            </p>
-          </div>
-          <ExportBtn filename="intune-assessment-section4.csv" csvData={(data?.assessmentItems ?? []).map((i) => ({
-            Area: i.area, Item: i.item, Value: i.value, Status: i.status, Notes: i.notes,
-          }))} />
-        </div>
+      <CollapsibleSection
+        title="Intune Assessment"
+        description="Comprehensive evaluation of device management posture across all Intune areas"
+        storageKey="intune-assessment"
+        defaultOpen={false}
+        actions={<ExportBtn filename="intune-assessment-section4.csv" csvData={(data?.assessmentItems ?? []).map((i) => ({
+          Area: i.area, Item: i.item, Value: i.value, Status: i.status, Notes: i.notes,
+        }))} />}
+      >
 
         <Card>
           <CardContent className="pt-4 px-0 pb-0">
@@ -2066,15 +2058,11 @@ export function IntuneTab() {
             ))}
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
       {/* SECTION: APP INSTALLATION HEALTH */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-          <Package className="w-5 h-5" />
-          App Installation Health
-        </h2>
-
+      <CollapsibleSection title="App Installation Health" storageKey="intune-app-install-health" defaultOpen={true} density="compact">
+        <div className="space-y-4">
         {!appEstateLoading && appsData?.installPermissionRequired && (
           <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3">
             <Info className="w-4 h-4 mt-0.5 text-amber-500 flex-shrink-0" />
@@ -2292,15 +2280,12 @@ export function IntuneTab() {
               </div>
             )}
         </CollapsibleSection>
-      </div>
+        </div>
+      </CollapsibleSection>
 
       {/* SECTION: DISCOVERED APP ESTATE */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-          <Layers className="w-5 h-5" />
-          Discovered App Estate
-        </h2>
-
+      <CollapsibleSection title="Discovered App Estate" storageKey="intune-discovered-apps" defaultOpen={false} density="compact">
+        <div className="space-y-4">
         {!appEstateLoading && appsData?.discoveryPermissionRequired && (
           <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3">
             <Info className="w-4 h-4 mt-0.5 text-amber-500 flex-shrink-0" />
@@ -2507,10 +2492,12 @@ export function IntuneTab() {
               </div>
             )}
         </CollapsibleSection>
-      </div>
+        </div>
+      </CollapsibleSection>
 
-      {/* SECTION 4 — INTUNE SECURITY CHECKLIST */}
-      <ChecklistTable sectionTitle="Intune" groups={intuneChecklist} loading={loading} />
+      <CollapsibleSection title="Summary Check List" storageKey="intune-checklist" defaultOpen={false}>
+        <ChecklistTable sectionTitle="" groups={intuneChecklist} loading={loading} />
+      </CollapsibleSection>
 
     </div>
   );

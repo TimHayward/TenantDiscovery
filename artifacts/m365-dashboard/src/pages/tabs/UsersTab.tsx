@@ -34,7 +34,7 @@ import type { AdminExposureUserItem } from "@workspace/api-client-react";
 // ── palette ───────────────────────────────────────────────────────────────────
 
 const C = {
-  blue:   "#0079F2",
+  blue:   "#1E3D59",
   purple: "#795EFF",
   green:  "#009118",
   red:    "#A60808",
@@ -522,6 +522,7 @@ export function UsersTab() {
           confidenceLabel: getChecklistMeta("users.checklist.1.1.mfaAllUsers")?.confidenceLabel,
           metricId: "users.checklist.1.1.mfaAllUsers",
           sourceLabel: "Conditional Access",
+          notes: "This result is API-backed and retrieved directly from the environment.",
         },
         { label: "MFA is enforced for Azure Management", status: hasAzureMgmtMFA ? "warning" : "manual",
           detail: hasAzureMgmtMFA ? "Report Only – not yet enforced" : "Manual Check Required",
@@ -715,10 +716,11 @@ export function UsersTab() {
   }, [sec, data]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
 
-      {/* ── KPIs ────────────────────────────────────────────────────────────── */}
-      <h2 className="text-xl font-semibold">Users &amp; Identity Summary</h2>
+      {/* ── SUMMARY ──────────────────────────────────────────────────────────── */}
+      <CollapsibleSection title="Summary" description="KPI overview and user distribution" storageKey="users-summary" defaultOpen={true} density="compact">
+      <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
         <KPICard
           title="Total Users"
@@ -815,16 +817,12 @@ export function UsersTab() {
         </Card>
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* STALE ACCOUNTS SECTION                                               */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-3 pt-1">
-        <div className="border-b pb-2">
-          <h2 className="text-xl font-semibold">Stale Accounts</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Accounts with no sign-in activity — potential security and licensing risk
-          </p>
-        </div>
+      </div>
+      </CollapsibleSection>
+
+      {/* ── STALE ACCOUNTS ───────────────────────────────────────────────────── */}
+      <CollapsibleSection title="Stale Accounts" description="Accounts with no sign-in activity — potential security and licensing risk" storageKey="users-stale-section" defaultOpen={true} density="compact">
+        <div className="space-y-3">
 
         {/* Stale KPI cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1093,7 +1091,6 @@ export function UsersTab() {
               </div>
             )}
         </CollapsibleSection>
-      </div>
 
       {/* ── All Users table ──────────────────────────────────────────────────── */}
       <CollapsibleSection
@@ -1176,17 +1173,12 @@ export function UsersTab() {
               </div>
             )}
       </CollapsibleSection>
+      </div>
+      </CollapsibleSection>
 
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ADMINISTRATOR EXPOSURE SECTION                                       */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-3 pt-1">
-        <div className="border-b pb-2">
-          <h2 className="text-xl font-semibold">Administrator Exposure</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Overview of users with administrative rights over the tenant
-          </p>
-        </div>
+      {/* ── ADMINISTRATOR EXPOSURE ───────────────────────────────────────────── */}
+      <CollapsibleSection title="Administrator Exposure" description="Overview of users with administrative rights over the tenant" storageKey="users-admin-exposure-section" defaultOpen={false} density="compact">
+        <div className="space-y-3">
 
         {adminExposure?.permissionError && (
           <div className="rounded-md border border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-900 dark:text-amber-300">
@@ -1263,12 +1255,17 @@ export function UsersTab() {
           loading={adminExposureLoading}
         />
       </div>
+      </CollapsibleSection>
 
-      {/* ── ENTERPRISE APPLICATIONS ─────────────────────────────────────────── */}
-      <EnterpriseAppsSection />
+      {/* ── ENTERPRISE APPLICATIONS ──────────────────────────────────────────── */}
+      <CollapsibleSection title="Enterprise Applications" description="App registrations, credentials, and high-risk permissions" storageKey="users-enterprise-apps-section" defaultOpen={false} density="compact" className="shadow-none">
+        <EnterpriseAppsSection />
+      </CollapsibleSection>
 
-      {/* SECTION 1 — ENTRA ID SECURITY CHECKLIST */}
-      <ChecklistTable sectionTitle="Entra ID" groups={section1Groups} loading={loading} notesInSeparateColumn density="compact" />
+      {/* ── SUMMARY CHECK LIST ───────────────────────────────────────────────── */}
+      <CollapsibleSection title="Summary Check List" description="Entra ID security controls assessment" storageKey="users-checklist-section" defaultOpen={false} density="compact">
+        <ChecklistTable sectionTitle="" groups={section1Groups} loading={loading} density="compact" />
+      </CollapsibleSection>
 
     </div>
   );

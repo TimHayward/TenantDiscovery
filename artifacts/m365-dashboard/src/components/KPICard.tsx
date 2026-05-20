@@ -37,7 +37,7 @@ export function KPICard({
   change,
   trend,
   loading,
-  valueColor = "#0079F2",
+  valueColor = "#FA9819",
   evidenceStatus,
   confidenceLabel,
   density = "compact",

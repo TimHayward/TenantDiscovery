@@ -37,7 +37,7 @@ import type {
 import { getMetricDataSourceEntry } from "@workspace/permissions-manifest";
 
 const C = {
-  blue:   "#0079F2",
+  blue:   "#1E3D59",
   purple: "#795EFF",
   green:  "#009118",
   red:    "#A60808",
@@ -554,12 +554,8 @@ export function SecurityTab() {
   return (
     <div className="space-y-4">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-xl font-semibold">Security &amp; Identity</h2>
-        <Button variant="outline" size="sm" onClick={resetSecuritySections}>Reset Sections</Button>
-      </div>
-
+      <CollapsibleSection title="Summary" description="Secure Score, MFA coverage, and Conditional Access overview" storageKey="security-summary" defaultOpen={true} density="compact" actions={<Button variant="outline" size="sm" onClick={resetSecuritySections}>Reset Sections</Button>}>
+      <div className="space-y-4">
       {/* ── KPIs ───────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KPICard
@@ -663,6 +659,8 @@ export function SecurityTab() {
           </CardContent>
         </Card>
       </div>
+      </div>
+      </CollapsibleSection>
 
       {/* ── Risk Detection Timeline ─────────────────────────────────────────── */}
       {(data?.riskDetectionTimeline?.length ?? 0) > 0 && (
@@ -848,7 +846,9 @@ export function SecurityTab() {
         )}
       </CollapsibleSection>
 
-      <ChecklistTable sectionTitle="Security" groups={securityChecklist} loading={loading} />
+      <CollapsibleSection title="Summary Check List" description="Security controls assessment" storageKey="security-checklist" defaultOpen={false} density="compact">
+        <ChecklistTable sectionTitle="" groups={securityChecklist} loading={loading} />
+      </CollapsibleSection>
 
     </div>
   );

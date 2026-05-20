@@ -678,6 +678,10 @@ export interface M365IntuneData {
   totalAppProtectionPolicies: number;
   encryptedDevices: number;
   encryptionPercent: number;
+  tamperProtectionPercent: number | null;
+  tamperProtectionEnabledDevices: number;
+  tamperProtectionDisabledDevices: number;
+  tamperProtectionUnknownDevices: number;
   jailbrokenCount: number;
   permissionRequired: boolean;
   deviceListAvailable: boolean;

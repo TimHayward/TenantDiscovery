@@ -2,6 +2,7 @@ import { useGetM365ExchangeWithMetadata, useGetM365DataSources } from "@workspac
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 import { CSVLink } from "react-csv";
@@ -11,7 +12,7 @@ import { formatCompact } from "@/lib/utils";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
 const CHART_COLORS = {
-  blue: "#0079F2",
+  blue: "#1E3D59",
   purple: "#795EFF",
   green: "#009118",
   red: "#A60808",
@@ -137,7 +138,8 @@ export function ExchangeTab() {
   ] : [];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <CollapsibleSection title="Summary" description="Mailbox counts and storage overview" storageKey="exchange-summary" defaultOpen={true} density="compact">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <KPICard
           title="Total Mailboxes"
@@ -189,7 +191,9 @@ export function ExchangeTab() {
           confidenceLabel={getMetricMetaWithFieldFallback("exchange.storageUtilizationPercent")?.confidenceLabel}
         />
       </div>
+      </CollapsibleSection>
 
+      <CollapsibleSection title="Mail Flow Analysis" description="Mailbox size distribution, email activity, and threat protection" storageKey="exchange-mail-flow" defaultOpen={true} density="compact">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card>
           <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
@@ -274,8 +278,11 @@ export function ExchangeTab() {
         </Card>
       </div>
 
-      {/* SECTION 2 — EXCHANGE ONLINE SECURITY CHECKLIST */}
-      <ChecklistTable sectionTitle="Exchange Online" groups={exchangeChecklist} loading={loading} density="compact" />
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Summary Check List" description="Exchange Online security controls assessment" storageKey="exchange-checklist" defaultOpen={false} density="compact">
+        <ChecklistTable sectionTitle="" groups={exchangeChecklist} loading={loading} density="compact" />
+      </CollapsibleSection>
 
     </div>
   );

@@ -47,3 +47,18 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Environment variables — never commit credentials
+.env
+.env.*
+.env.local
+.env.*.local
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# User onboarding settings (contains Azure tenant/client credentials)
+onboarding-settings.json

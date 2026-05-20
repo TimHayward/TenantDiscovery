@@ -26,7 +26,7 @@ import { Label } from "@/components/ui/label";
 import type { LicenseItem } from "@workspace/api-client-react";
 
 const CHART_COLORS = {
-  blue: "#0079F2",
+  blue: "#1E3D59",
   purple: "#795EFF",
   green: "#009118",
   red: "#A60808",
@@ -145,6 +145,8 @@ export function LicensesTab() {
 
   return (
     <div className="space-y-4">
+      <CollapsibleSection title="Summary" description="License counts, allocation, and utilization" storageKey="licenses-summary" defaultOpen={true} density="compact">
+      <div className="space-y-4">
       {/* Filter controls */}
       <div className="flex flex-wrap items-center gap-4 p-3 rounded-lg border bg-muted/30">
         <div className="flex items-center gap-2">
@@ -238,6 +240,8 @@ export function LicensesTab() {
           )}
         </CardContent>
       </Card>
+      </div>
+      </CollapsibleSection>
 
       <CollapsibleSection title="License Subscriptions" storageKey="licenses-subscriptions">
           {loading ? (
