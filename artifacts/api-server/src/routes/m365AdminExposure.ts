@@ -293,9 +293,23 @@ async function getAdminExposureData() {
 
   logger.debug(aggregated, "Admin exposure data aggregated");
 
+  // PIM depth metrics — derived from already-fetched role assignment data
+  const activePrincipalIds = new Set(
+    roleAssignmentsResult.items.map((r: RoleAssignmentItem) => r.principalId).filter(Boolean),
+  );
+  const eligiblePrincipalIds = new Set(
+    roleEligibilityResult.items.map((r: RoleAssignmentItem) => r.principalId).filter(Boolean),
+  );
+  // Dormant = has eligible assignment but has never activated (no permanent/active assignment)
+  const dormantEligibleCount = Array.from(eligiblePrincipalIds).filter(
+    (id) => !activePrincipalIds.has(id),
+  ).length;
+
   return {
     ...aggregated,
 
+    eligibleAssignmentCount: roleEligibilityResult.items.length,
+    dormantEligibleCount,
     partialData: collectionIssues.length > 0,
     permissionError: collectionIssues.some(isPermissionIssue),
     collectionIssues,

@@ -5,9 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { DefenderOfficeAlert } from './defenderOfficeAlert';
 import type { DeviceEstateItem } from './deviceEstateItem';
 import type { OAuthAppItem } from './oAuthAppItem';
 import type { SaasAppItem } from './saasAppItem';
+import type { SecurityEstateDataDefenderOfficeStatus } from './securityEstateDataDefenderOfficeStatus';
 import type { SecurityEstateDataDeviceSummary } from './securityEstateDataDeviceSummary';
 
 export interface SecurityEstateData {
@@ -15,4 +17,6 @@ export interface SecurityEstateData {
   deviceList: DeviceEstateItem[];
   saasApps: SaasAppItem[];
   oauthApps: OAuthAppItem[];
+  defenderOfficeAlerts: DefenderOfficeAlert[];
+  defenderOfficeStatus: SecurityEstateDataDefenderOfficeStatus;
 }

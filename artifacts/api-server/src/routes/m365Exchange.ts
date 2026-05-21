@@ -2,6 +2,8 @@ import { Router } from "express";
 import { getCached } from "../lib/graphClient.js";
 import {
   fetchGraphText,
+  fetchGraphJson,
+  fetchAllGraphPages,
   isPermissionIssue,
   type CollectionIssue,
 } from "../lib/collectionIssues.js";
@@ -23,9 +25,17 @@ function parseCsv(csv: string): Record<string, string>[] {
   });
 }
 
+export interface DomainEmailAuthRecord {
+  domain: string;
+  hasSpf: boolean;
+  hasDkim: boolean;
+  hasDmarc: boolean;
+  mxConfigured: boolean;
+}
+
 async function getExchangeData() {
   return getCached("m365-exchange", async () => {
-    const [mailboxCsvResult, activityCsvResult] = await Promise.all([
+    const [mailboxCsvResult, activityCsvResult, domainsResult] = await Promise.all([
       fetchGraphText(
         "https://graph.microsoft.com/v1.0/reports/getMailboxUsageDetail(period='D30')",
         "mailboxUsageDetailReport",
@@ -34,11 +44,16 @@ async function getExchangeData() {
         "https://graph.microsoft.com/v1.0/reports/getEmailActivityCounts(period='D30')",
         "emailActivityCountsReport",
       ),
+      fetchAllGraphPages<any>(
+        "https://graph.microsoft.com/v1.0/domains?$select=id,isVerified,supportedServices",
+        "domains",
+      ),
     ]);
 
     const collectionIssues: CollectionIssue[] = [];
     if (mailboxCsvResult.issue) collectionIssues.push(mailboxCsvResult.issue);
     if (activityCsvResult.issue) collectionIssues.push(activityCsvResult.issue);
+    collectionIssues.push(...domainsResult.issues);
 
     const mailboxes = parseCsv(mailboxCsvResult.text ?? "");
     const activityRows = parseCsv(activityCsvResult.text ?? "");
@@ -89,6 +104,37 @@ async function getExchangeData() {
       totalRead += parseInt(row["Read"] ?? "0", 10) || 0;
     }
 
+    // Domain email auth records: fetch serviceConfigurationRecords for each verified email domain
+    const emailDomains = domainsResult.items.filter(
+      (d: any) => d.isVerified && (d.supportedServices as string[] ?? []).includes("Email"),
+    );
+
+    const domainAuthRecords: DomainEmailAuthRecord[] = await Promise.all(
+      emailDomains.slice(0, 20).map(async (domain: any) => {
+        const domainId: string = domain.id;
+        const result = await fetchGraphJson<any>(
+          `https://graph.microsoft.com/v1.0/domains/${encodeURIComponent(domainId)}/serviceConfigurationRecords`,
+          `domainConfigRecords:${domainId}`,
+        );
+        const records: any[] = result.data?.value ?? [];
+        const hasSpf = records.some((r: any) =>
+          r.recordType === "Txt" && typeof r.text === "string" && r.text.toLowerCase().includes("v=spf1"),
+        );
+        const hasDkim = records.some((r: any) =>
+          r.recordType === "CName" && typeof r.label === "string" &&
+          (r.label.toLowerCase().includes("selector1") || r.label.toLowerCase().includes("selector2") || r.label.toLowerCase().includes("_domainkey")),
+        );
+        const mxConfigured = records.some((r: any) => r.recordType === "Mx");
+        return {
+          domain: domainId,
+          hasSpf,
+          hasDkim,
+          hasDmarc: false, // DMARC requires external DNS lookup; not available via Graph API
+          mxConfigured,
+        };
+      }),
+    );
+
     return {
       totalMailboxes,
       activeMailboxes,
@@ -113,6 +159,7 @@ async function getExchangeData() {
       quarantinedMessages: 0,
       malwareDetected: 0,
       spamFiltered: 0,
+      domainAuthRecords,
       partialData: collectionIssues.length > 0,
       permissionError: collectionIssues.some(isPermissionIssue),
       collectionIssues,

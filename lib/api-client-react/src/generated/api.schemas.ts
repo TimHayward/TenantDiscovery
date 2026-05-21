@@ -154,6 +154,16 @@ export interface M365OverviewWithMetadata {
   metadataVersion: string;
 }
 
+export interface GhostUserItem {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+  lastSignIn: string | null;
+  daysInactive: number | null;
+  assignedLicenseCount: number;
+  estimatedMonthlyCost: number;
+}
+
 export interface UserItem {
   id: string;
   displayName: string;
@@ -183,6 +193,9 @@ export interface M365UsersData {
   neverSignedIn: number;
   usersByDepartment: M365UsersDataUsersByDepartmentItem[];
   users: UserItem[];
+  ghostUsers: GhostUserItem[];
+  ghostLicensedCount: number;
+  estimatedMonthlyWaste: number;
 }
 
 export interface M365UsersDataWithMetadata {
@@ -238,6 +251,8 @@ export interface M365AdminExposureData {
   eligibleGlobalAdminsWithProductivity: AdminExposureUserItem[];
   eligibleAdmins: AdminExposureUserItem[];
   eligibleAdminsWithProductivity: AdminExposureUserItem[];
+  eligibleAssignmentCount: number;
+  dormantEligibleCount: number;
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];
@@ -371,6 +386,8 @@ export interface M365SecurityData {
   riskDetectionTimeline: M365SecurityDataRiskDetectionTimelineItem[];
   riskyUsersDetail: M365SecurityDataRiskyUsersDetailItem[];
   secureScoreControls: SecureScoreControl[];
+  legacyAuthSignInCount: number | null;
+  legacyAuthBlockedByCA: boolean;
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];
@@ -426,11 +443,33 @@ export type SecurityEstateDataDeviceSummary = {
   byOs: SecurityEstateDataDeviceSummaryByOs;
 };
 
+export type SecurityEstateDataDefenderOfficeStatus = {
+  ok: boolean;
+  error: string | null;
+  totalAlerts: number;
+  high: number;
+  medium: number;
+  low: number;
+  informational: number;
+};
+
+export interface DefenderOfficeAlert {
+  id: string;
+  title: string;
+  severity: string;
+  status: string;
+  serviceSource: string;
+  category: string;
+  createdDateTime: string | null;
+}
+
 export interface SecurityEstateData {
   deviceSummary: SecurityEstateDataDeviceSummary;
   deviceList: DeviceEstateItem[];
   saasApps: SaasAppItem[];
   oauthApps: OAuthAppItem[];
+  defenderOfficeAlerts: DefenderOfficeAlert[];
+  defenderOfficeStatus: SecurityEstateDataDefenderOfficeStatus;
 }
 
 export interface SecurityEstateDataWithMetadata {
@@ -450,6 +489,14 @@ export type M365ExchangeDataEmailActivityLast30Days = {
   read: number;
 };
 
+export interface DomainEmailAuthRecord {
+  domain: string;
+  hasSpf: boolean;
+  hasDkim: boolean;
+  hasDmarc: boolean;
+  mxConfigured: boolean;
+}
+
 export interface M365ExchangeData {
   totalMailboxes: number;
   activeMailboxes: number;
@@ -463,6 +510,7 @@ export interface M365ExchangeData {
   quarantinedMessages: number;
   malwareDetected: number;
   spamFiltered: number;
+  domainAuthRecords: DomainEmailAuthRecord[];
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];
@@ -678,10 +726,6 @@ export interface M365IntuneData {
   totalAppProtectionPolicies: number;
   encryptedDevices: number;
   encryptionPercent: number;
-  tamperProtectionPercent: number | null;
-  tamperProtectionEnabledDevices: number;
-  tamperProtectionDisabledDevices: number;
-  tamperProtectionUnknownDevices: number;
   jailbrokenCount: number;
   permissionRequired: boolean;
   deviceListAvailable: boolean;
@@ -697,6 +741,10 @@ export interface M365IntuneData {
   overallCompliance?: IntuneOverallCompliance | null;
   policySummaryByOS: IntunePolicySummaryByOS[];
   assessmentItems: IntuneAssessmentItem[];
+  tamperProtectionEnabledDevices: number;
+  tamperProtectionDisabledDevices: number;
+  tamperProtectionUnknownDevices: number;
+  tamperProtectionPercent: number | null;
 }
 
 export interface M365IntuneDataWithMetadata {
@@ -997,6 +1045,127 @@ export interface M365LicensesDataWithMetadata {
 
 export interface M365ServiceHealthDataWithMetadata {
   data: M365ServiceHealthData;
+  fieldMetadata: FieldMetadataMap;
+  metadataVersion: string;
+}
+
+export interface WorkloadTrendPoint {
+  period: string;
+  activeUsers: number;
+  licensedUsers: number;
+  adoptionPercent: number;
+}
+
+export interface WorkloadDepthMetrics {
+  teamChatMessages: number | null;
+  privateChatMessages: number | null;
+  calls: number | null;
+  meetings: number | null;
+  odViewedOrEdited: number | null;
+  odSynced: number | null;
+  odSharedInternally: number | null;
+  odSharedExternally: number | null;
+  spVisitedPages: number | null;
+  spViewedOrEdited: number | null;
+  spSynced: number | null;
+  spSharedInternally: number | null;
+  spSharedExternally: number | null;
+  emailSent: number | null;
+  emailReceived: number | null;
+  emailRead: number | null;
+}
+
+export interface AppActivationItem {
+  app: string;
+  displayName: string;
+  activeUsers: number;
+}
+
+export interface CopilotAppUsage {
+  app: string;
+  displayName: string;
+  enabledUsers: number;
+  activeUsers: number;
+}
+
+export interface CopilotAdoptionData {
+  enabledUsers: number;
+  activeUsers: number;
+  adoptionPercent: number;
+  appBreakdown: CopilotAppUsage[];
+}
+
+export interface WorkloadAdoptionItem {
+  workload: string;
+  displayName: string;
+  activeUsers: number;
+  inactiveUsers: number;
+  licensedUsers: number;
+  adoptionPercent: number;
+  isValueGap: boolean;
+  trend: WorkloadTrendPoint[];
+  depth: WorkloadDepthMetrics | null;
+}
+
+export interface M365AdoptionData {
+  workloads: WorkloadAdoptionItem[];
+  totalActiveUsers: number;
+  totalLicensedUsers: number;
+  overallAdoptionPercent: number;
+  valueGapCount: number;
+  appsActivation: AppActivationItem[];
+  copilotAdoption: CopilotAdoptionData | null;
+  partialData: boolean;
+  permissionError: boolean;
+  collectionIssues: CollectionIssue[];
+}
+
+export interface M365AdoptionDataWithMetadata {
+  data: M365AdoptionData;
+  fieldMetadata: FieldMetadataMap;
+  metadataVersion: string;
+}
+
+export interface PowerBIWorkspaceItem {
+  id: string;
+  name: string;
+  type: string;
+  state: string;
+  isOrphaned: boolean;
+  adminCount: number;
+  datasetCount: number;
+  reportCount: number;
+  isOnDedicatedCapacity: boolean;
+  capacityId: string | null;
+}
+
+export interface PowerBICapacityItem {
+  id: string;
+  displayName: string;
+  sku: string;
+  state: string;
+  adminCount: number;
+}
+
+export interface PowerBIData {
+  available: boolean;
+  totalWorkspaces: number;
+  activeWorkspaces: number;
+  orphanedWorkspaces: number;
+  personalWorkspaces: number;
+  dedicatedCapacityWorkspaces: number;
+  totalDatasets: number;
+  refreshableDatasets: number;
+  totalReports: number;
+  capacities: PowerBICapacityItem[];
+  workspaces: PowerBIWorkspaceItem[];
+  partialData: boolean;
+  permissionError: boolean;
+  collectionIssues: CollectionIssue[];
+}
+
+export interface PowerBIDataWithMetadata {
+  data: PowerBIData;
   fieldMetadata: FieldMetadataMap;
   metadataVersion: string;
 }

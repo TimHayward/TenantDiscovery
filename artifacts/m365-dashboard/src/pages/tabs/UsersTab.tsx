@@ -1204,6 +1204,21 @@ export function UsersTab() {
             <KPICard title="Users eligible for admin roles (using PIM)" value={adminExposure?.eligibleAdminsCount} loading={adminExposureLoading} density="compact" />
             <KPICard title="Eligible admins with productivity features enabled" value={adminExposure?.eligibleAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" />
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+            <KPICard
+              title="Total eligible role assignments"
+              value={adminExposure?.eligibleAssignmentCount}
+              loading={adminExposureLoading}
+              density="compact"
+            />
+            <KPICard
+              title="Dormant PIM eligibilities (never activated)"
+              value={adminExposure?.dormantEligibleCount}
+              loading={adminExposureLoading}
+              density="compact"
+              valueColor={(adminExposure?.dormantEligibleCount ?? 0) > 0 ? "#d97706" : undefined}
+            />
+          </div>
         </div>
 
         <AdminExposureTableSection

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CollectionIssue } from './collectionIssue';
+import type { DomainEmailAuthRecord } from './domainEmailAuthRecord';
 import type { M365ExchangeDataEmailActivityLast30Days } from './m365ExchangeDataEmailActivityLast30Days';
 import type { M365ExchangeDataMailboxSizeDistributionItem } from './m365ExchangeDataMailboxSizeDistributionItem';
 
@@ -22,6 +23,7 @@ export interface M365ExchangeData {
   quarantinedMessages: number;
   malwareDetected: number;
   spamFiltered: number;
+  domainAuthRecords: DomainEmailAuthRecord[];
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];

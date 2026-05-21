@@ -25,6 +25,8 @@ export interface M365AdminExposureData {
   eligibleGlobalAdminsWithProductivity: AdminExposureUserItem[];
   eligibleAdmins: AdminExposureUserItem[];
   eligibleAdminsWithProductivity: AdminExposureUserItem[];
+  eligibleAssignmentCount: number;
+  dormantEligibleCount: number;
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];

@@ -36,6 +36,8 @@ export interface M365SecurityData {
   riskDetectionTimeline: M365SecurityDataRiskDetectionTimelineItem[];
   riskyUsersDetail: M365SecurityDataRiskyUsersDetailItem[];
   secureScoreControls: SecureScoreControl[];
+  legacyAuthSignInCount: number | null;
+  legacyAuthBlockedByCA: boolean;
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];

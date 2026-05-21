@@ -9,4 +9,8 @@
 export type M365TeamsDataTeamsBySizeItem = {
   range: string;
   count: number;
+  totalTeamSize: number;
+  owners: number;
+  members: number;
+  guests: number;
 };

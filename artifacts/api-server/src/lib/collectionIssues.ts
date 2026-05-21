@@ -37,6 +37,8 @@ interface PagedFetchResult<T> {
 
 let cachedToken: { token: string; expiresOnTimestamp: number } | null = null;
 
+const FETCH_TIMEOUT_MS = 25_000;
+
 function classifyStatus(status: number | null): CollectionIssueCategory {
   if (status === 401 || status === 403) return "permission";
   if (status === 402) return "license";
@@ -44,6 +46,13 @@ function classifyStatus(status: number | null): CollectionIssueCategory {
   if (status === 429) return "throttled";
   if (status !== null && status >= 500) return "upstream";
   return "unknown";
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "AbortError" || error.name === "TimeoutError")
+  );
 }
 
 function createIssue(
@@ -115,11 +124,13 @@ async function readResponseError(resp: Response): Promise<string> {
 export async function fetchGraphJson<T>(
   url: string,
   source: string,
+  extraHeaders?: Record<string, string>,
 ): Promise<JsonFetchResult<T>> {
   try {
     const token = await getGraphAccessToken();
     const resp = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, ...extraHeaders },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (!resp.ok) {
@@ -133,12 +144,15 @@ export async function fetchGraphJson<T>(
     const data = (await resp.json()) as T;
     return { data, issue: null };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unexpected Graph request failure";
-    return {
-      data: null,
-      issue: createIssue(source, null, message),
-    };
+    const message = isAbortError(error)
+      ? `Graph request timed out after ${FETCH_TIMEOUT_MS / 1000}s`
+      : error instanceof Error ? error.message : "Unexpected Graph request failure";
+    const issue = createIssue(source, null, message);
+    if (isAbortError(error)) {
+      issue.category = "upstream";
+      issue.retryable = true;
+    }
+    return { data: null, issue };
   }
 }
 
@@ -150,6 +164,7 @@ export async function fetchGraphText(
     const token = await getGraphAccessToken();
     const resp = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (!resp.ok) {
@@ -163,12 +178,15 @@ export async function fetchGraphText(
     const text = await resp.text();
     return { text, issue: null };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unexpected Graph request failure";
-    return {
-      text: null,
-      issue: createIssue(source, null, message),
-    };
+    const message = isAbortError(error)
+      ? `Graph request timed out after ${FETCH_TIMEOUT_MS / 1000}s`
+      : error instanceof Error ? error.message : "Unexpected Graph request failure";
+    const issue = createIssue(source, null, message);
+    if (isAbortError(error)) {
+      issue.category = "upstream";
+      issue.retryable = true;
+    }
+    return { text: null, issue };
   }
 }
 

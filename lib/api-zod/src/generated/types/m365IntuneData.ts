@@ -26,10 +26,6 @@ export interface M365IntuneData {
   totalAppProtectionPolicies: number;
   encryptedDevices: number;
   encryptionPercent: number;
-  tamperProtectionPercent: number | null;
-  tamperProtectionEnabledDevices: number;
-  tamperProtectionDisabledDevices: number;
-  tamperProtectionUnknownDevices: number;
   jailbrokenCount: number;
   permissionRequired: boolean;
   deviceListAvailable: boolean;
@@ -45,4 +41,8 @@ export interface M365IntuneData {
   overallCompliance?: IntuneOverallCompliance | null;
   policySummaryByOS: IntunePolicySummaryByOS[];
   assessmentItems: IntuneAssessmentItem[];
+  tamperProtectionEnabledDevices: number;
+  tamperProtectionDisabledDevices: number;
+  tamperProtectionUnknownDevices: number;
+  tamperProtectionPercent: number | null;
 }

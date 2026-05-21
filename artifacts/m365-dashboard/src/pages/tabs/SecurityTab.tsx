@@ -557,7 +557,7 @@ export function SecurityTab() {
       <CollapsibleSection title="Summary" description="Secure Score, MFA coverage, and Conditional Access overview" storageKey="security-summary" defaultOpen={true} density="compact" actions={<Button variant="outline" size="sm" onClick={resetSecuritySections}>Reset Sections</Button>}>
       <div className="space-y-4">
       {/* ── KPIs ───────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         <KPICard
           title="Secure Score"
           value={data ? `${data.secureScore} / ${data.secureScoreMax}` : undefined}
@@ -604,6 +604,17 @@ export function SecurityTab() {
           valueColor={(data?.mfaDisabledUsers ?? 0) > 0 ? C.orange : C.green}
           evidenceStatus={getMetricMeta("security.mfaDisabledUsers")?.evidenceStatus}
           confidenceLabel={getMetricMeta("security.mfaDisabledUsers")?.confidenceLabel}
+        />
+        <KPICard
+          title="Legacy Auth Sign-ins"
+          value={data == null ? undefined : data.legacyAuthSignInCount == null ? "No access" : data.legacyAuthSignInCount > 0 ? `${data.legacyAuthSignInCount}+` : data.legacyAuthBlockedByCA ? "Blocked" : "0"}
+          loading={loading}
+          valueColor={
+            data == null ? undefined :
+            data.legacyAuthSignInCount == null ? undefined :
+            data.legacyAuthSignInCount > 0 ? C.red :
+            data.legacyAuthBlockedByCA ? C.green : C.orange
+          }
         />
       </div>
 

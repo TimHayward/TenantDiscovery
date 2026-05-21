@@ -1,4 +1,4 @@
-import { useGetM365LicensesWithMetadata } from "@workspace/api-client-react";
+import { useGetM365LicensesWithMetadata, useGetM365Users } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import type { LicenseItem } from "@workspace/api-client-react";
+import type { LicenseItem, GhostUserItem } from "@workspace/api-client-react";
 
 const CHART_COLORS = {
   blue: "#1E3D59",
@@ -85,8 +85,58 @@ const columns: ColumnDef<LicenseItem>[] = [
   },
 ];
 
+const ghostColumns: ColumnDef<GhostUserItem>[] = [
+  {
+    accessorKey: "displayName",
+    header: "Name",
+    cell: ({ row }) => (
+      <div>
+        <div className="font-medium text-sm">{row.original.displayName}</div>
+        <div className="text-xs text-muted-foreground">{row.original.userPrincipalName}</div>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "lastSignIn",
+    header: "Last Sign-in",
+    cell: ({ row }) => (
+      <span className="text-sm">
+        {row.original.lastSignIn
+          ? new Date(row.original.lastSignIn).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+          : <span className="text-muted-foreground italic">Never</span>}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "daysInactive",
+    header: "Days Inactive",
+    cell: ({ row }) => (
+      <span className={`font-semibold text-sm ${(row.original.daysInactive ?? 999) > 180 ? "text-red-600" : "text-amber-600"}`}>
+        {row.original.daysInactive != null ? row.original.daysInactive : "—"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "assignedLicenseCount",
+    header: "Licenses",
+    cell: ({ row }) => <span className="text-sm">{row.original.assignedLicenseCount}</span>,
+  },
+  {
+    accessorKey: "estimatedMonthlyCost",
+    header: "Est. Monthly Cost",
+    cell: ({ row }) => (
+      <span className="text-sm font-medium">
+        {row.original.estimatedMonthlyCost > 0
+          ? `$${row.original.estimatedMonthlyCost.toFixed(2)}`
+          : <span className="text-muted-foreground text-xs">Unknown SKU</span>}
+      </span>
+    ),
+  },
+];
+
 export function LicensesTab() {
   const { data: licensesWithMetadata, isLoading, isFetching } = useGetM365LicensesWithMetadata();
+  const { data: usersData } = useGetM365Users();
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
@@ -113,6 +163,13 @@ export function LicensesTab() {
   const [hideFree, setHideFree] = useState(true);
   const [hideZeroAssigned, setHideZeroAssigned] = useState(false);
 
+  const [ghostSorting, setGhostSorting] = useState<SortingState>([{ id: "daysInactive", desc: true }]);
+  const [ghostFilter, setGhostFilter] = useState("");
+
+  const ghostUsers = useMemo(() => usersData?.ghostUsers ?? [], [usersData]);
+  const ghostLicensedCount = usersData?.ghostLicensedCount ?? 0;
+  const estimatedMonthlyWaste = usersData?.estimatedMonthlyWaste ?? 0;
+
   const filteredLicenses = useMemo(() => {
     if (!data?.licenses) return [];
     return data.licenses.filter((lic) => {
@@ -136,6 +193,19 @@ export function LicensesTab() {
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 10 } },
+  });
+
+  const ghostTable = useReactTable({
+    data: ghostUsers,
+    columns: ghostColumns,
+    state: { sorting: ghostSorting, globalFilter: ghostFilter },
+    onSortingChange: setGhostSorting,
+    onGlobalFilterChange: setGhostFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -241,6 +311,109 @@ export function LicensesTab() {
         </CardContent>
       </Card>
       </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Stale Licensed Users"
+        description="Enabled users with assigned licences who have not signed in for 90+ days"
+        storageKey="licenses-ghost-users"
+      >
+        {loading ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <KPICard
+                title="Stale Licensed Users"
+                value={ghostLicensedCount.toLocaleString()}
+                loading={false}
+                valueColor={ghostLicensedCount > 0 ? CHART_COLORS.red : CHART_COLORS.green}
+              />
+              <KPICard
+                title="Est. Monthly Waste"
+                value={estimatedMonthlyWaste > 0 ? `$${estimatedMonthlyWaste.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ghostLicensedCount > 0 ? "SKU unknown" : "$0"}
+                loading={false}
+                valueColor={estimatedMonthlyWaste > 0 ? CHART_COLORS.red : undefined}
+              />
+              <KPICard
+                title="Est. Annual Waste"
+                value={estimatedMonthlyWaste > 0 ? `$${(estimatedMonthlyWaste * 12).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ghostLicensedCount > 0 ? "SKU unknown" : "$0"}
+                loading={false}
+                valueColor={estimatedMonthlyWaste > 0 ? CHART_COLORS.red : undefined}
+              />
+            </div>
+
+            {ghostUsers.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Input
+                    placeholder="Search users..."
+                    value={ghostFilter}
+                    onChange={(e) => setGhostFilter(e.target.value)}
+                    className="max-w-sm"
+                  />
+                  <CSVLink
+                    data={ghostUsers}
+                    filename="stale-licensed-users.csv"
+                    className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80 ml-auto"
+                    style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
+                    aria-label="Export as CSV"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </CSVLink>
+                </div>
+
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      {ghostTable.getHeaderGroups().map((headerGroup) => (
+                        <TableRow key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => (
+                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none">
+                              <div className="flex items-center gap-1">
+                                {flexRender(header.column.columnDef.header, header.getContext())}
+                                {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                              </div>
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableHeader>
+                    <TableBody>
+                      {ghostTable.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {ghostTable.getState().pagination.pageIndex * ghostTable.getState().pagination.pageSize + (ghostTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)} to{" "}
+                    {Math.min((ghostTable.getState().pagination.pageIndex + 1) * ghostTable.getState().pagination.pageSize, ghostTable.getFilteredRowModel().rows.length)}{" "}
+                    of {ghostTable.getFilteredRowModel().rows.length} users
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => ghostTable.previousPage()} disabled={!ghostTable.getCanPreviousPage()}>Previous</Button>
+                    <Button variant="outline" size="sm" onClick={() => ghostTable.nextPage()} disabled={!ghostTable.getCanNextPage()}>Next</Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {ghostUsers.length === 0 && (
+              <p className="text-sm text-muted-foreground py-4 text-center">No stale licensed users found. All licensed users have signed in within the last 90 days.</p>
+            )}
+          </div>
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection title="License Subscriptions" storageKey="licenses-subscriptions">

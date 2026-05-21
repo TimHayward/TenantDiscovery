@@ -33,7 +33,12 @@ async function fetchDefenderMachinesWithDiagnostics(): Promise<{
   let usedScope: string | null = null;
   for (const scope of defenderScopes) {
     try {
-      const candidate = await cred.getToken(scope);
+      const candidate = await Promise.race([
+        cred.getToken(scope),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Defender token acquisition timed out after 8s")), 8_000),
+        ),
+      ]);
       if (candidate?.token) {
         token = { token: candidate.token };
         usedScope = scope;
@@ -60,6 +65,7 @@ async function fetchDefenderMachinesWithDiagnostics(): Promise<{
   while (url) {
     const resp = await fetch(url, {
       headers: { Authorization: `Bearer ${token.token}` },
+      signal: AbortSignal.timeout(25_000),
     });
     lastStatus = resp.status;
     if (!resp.ok) {
@@ -159,14 +165,14 @@ const MFA_METHOD_META: Record<string, { displayName: string; strength: string; s
 
 async function getSecurityData() {
   return getCached("m365-security", async () => {
-    const [secScoreData, secScoreHistoryData, caPoliciesData, mfaDetailData, usersData, riskDetectionsData, riskyUsersData] =
+    const [secScoreData, secScoreHistoryData, caPoliciesData, mfaDetailData, usersData, riskDetectionsData, riskyUsersData, legacyAuthData] =
       await Promise.all([
         fetchGraphJson<any>(
           "https://graph.microsoft.com/v1.0/security/secureScores?$top=1",
           "secureScoresLatest",
         ),
         fetchGraphJson<any>(
-          "https://graph.microsoft.com/v1.0/security/secureScores?$top=30",
+          "https://graph.microsoft.com/v1.0/security/secureScores?$top=90",
           "secureScoresHistory",
         ),
         fetchAllGraphPages(
@@ -196,6 +202,14 @@ async function getSecurityData() {
             "&$top=999",
           "riskyUsers",
         ),
+        // Legacy auth: sign-ins using non-modern auth protocols ($count requires ConsistencyLevel header)
+        fetchGraphJson<any>(
+          "https://graph.microsoft.com/v1.0/auditLogs/signIns" +
+            "?$filter=clientAppUsed eq 'Other clients'" +
+            "&$top=1&$count=true&$select=id",
+          "legacyAuthSignIns",
+          { "ConsistencyLevel": "eventual" },
+        ),
       ]);
 
     const collectionIssues: CollectionIssue[] = [];
@@ -206,6 +220,7 @@ async function getSecurityData() {
     collectionIssues.push(...usersData.issues);
     collectionIssues.push(...riskDetectionsData.issues);
     collectionIssues.push(...riskyUsersData.issues);
+    if (legacyAuthData.issue) collectionIssues.push(legacyAuthData.issue);
 
     const latestScore = secScoreData.data?.value?.[0] ?? null;
     const scoreHistory: any[] = secScoreHistoryData.data?.value ?? [];
@@ -294,7 +309,7 @@ async function getSecurityData() {
     const disabledCAPs = caps.filter((c) => c.state === "disabled").length;
     const reportOnlyCAPs = caps.filter((c) => c.state === "enabledForReportingButNotEnforced").length;
 
-    const secureScoreHistory = scoreHistory.slice(0, 30).reverse().map((s: any) => ({
+    const secureScoreHistory = scoreHistory.slice(0, 90).reverse().map((s: any) => ({
       date: s.createdDateTime?.split("T")[0] ?? "",
       score: s.currentScore ?? 0,
       maxScore: s.maxScore ?? 100,
@@ -341,6 +356,23 @@ async function getSecurityData() {
       };
     });
 
+    // Legacy auth: "@odata.count" is returned when $count=true is used
+    const legacyAuthSignInCount = legacyAuthData.issue
+      ? null
+      : ((legacyAuthData.data?.["@odata.count"] as number | undefined) ?? (legacyAuthData.data?.value?.length ?? 0));
+
+    // Check if any enabled CA policy explicitly blocks legacy auth (Other clients / Exchange ActiveSync)
+    const legacyAuthBlockedByCA = caps.some((p: any) => {
+      if (p.state !== "enabled") return false;
+      const clientTypes: string[] = p.conditions?.clientAppTypes ?? [];
+      const hasLegacyClient = clientTypes.some((t: string) =>
+        ["exchangeActiveSync", "other"].includes(t)
+      );
+      const blocksAccess = p.grantControls?.builtInControls?.includes("block") ||
+        (p.grantControls === null && p.sessionControls !== null);
+      return hasLegacyClient && blocksAccess;
+    });
+
     return {
       secureScore,
       secureScoreMax,
@@ -362,6 +394,8 @@ async function getSecurityData() {
       riskDetectionTimeline,
       riskyUsersDetail,
       secureScoreControls,
+      legacyAuthSignInCount,
+      legacyAuthBlockedByCA,
       partialData: collectionIssues.length > 0,
       permissionError: collectionIssues.some(isPermissionIssue),
       collectionIssues,
@@ -402,6 +436,8 @@ router.get("/m365/security", async (req, res): Promise<void> => {
       riskDetectionTimeline: [],
       riskyUsersDetail: [],
       secureScoreControls: [],
+      legacyAuthSignInCount: null,
+      legacyAuthBlockedByCA: false,
       partialData: true,
       permissionError: isPermissionIssue(fallbackIssue),
       collectionIssues: [fallbackIssue],
@@ -491,6 +527,106 @@ router.get("/m365/security/with-metadata", async (req, res): Promise<void> => {
   }
 });
 
+export interface DefenderOfficeAlert {
+  id: string;
+  title: string;
+  severity: string;
+  status: string;
+  serviceSource: string;
+  category: string;
+  createdDateTime: string | null;
+}
+
+interface IncidentAlert30DaySummary {
+  unresolvedIncidents: number;
+  resolvedIncidents: number;
+  unresolvedAlerts: number;
+  resolvedAlerts: number;
+}
+
+async function fetchDefenderAlertsBySource(
+  serviceSource: string,
+  source: string,
+): Promise<{ alerts: DefenderOfficeAlert[]; error: string | null }> {
+  const endpoint =
+    "https://graph.microsoft.com/v1.0/security/alerts_v2" +
+    `?$filter=serviceSource+eq+'${serviceSource}'` +
+    "&$top=100" +
+    "&$orderby=createdDateTime+desc" +
+    "&$select=id,title,severity,status,serviceSource,category,createdDateTime";
+
+  const result = await fetchGraphJson<{ value?: any[] }>(endpoint, source);
+  if (result.issue) {
+    return { alerts: [], error: result.issue.message };
+  }
+
+  const rawAlerts = Array.isArray(result.data?.value) ? result.data.value : [];
+  const alerts: DefenderOfficeAlert[] = rawAlerts.map((a: any) => ({
+    id: a.id ?? "",
+    title: a.title ?? "",
+    severity: a.severity ?? "Unknown",
+    status: a.status ?? "Unknown",
+    serviceSource: a.serviceSource ?? "",
+    category: a.category ?? "",
+    createdDateTime: a.createdDateTime ?? null,
+  }));
+
+  return { alerts, error: null };
+}
+
+async function fetchDefenderOfficeAlerts(): Promise<{ alerts: DefenderOfficeAlert[]; error: string | null }> {
+  return fetchDefenderAlertsBySource(
+    "microsoftDefenderForOffice365",
+    "securityDefenderOfficeAlerts",
+  );
+}
+
+async function fetchDefenderEndpointAlerts(): Promise<{ alerts: DefenderOfficeAlert[]; error: string | null }> {
+  return fetchDefenderAlertsBySource(
+    "microsoftDefenderForEndpoint",
+    "securityDefenderEndpointAlerts",
+  );
+}
+
+async function fetchIncidentAlert30DaySummary(): Promise<{ summary: IncidentAlert30DaySummary; error: string | null }> {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const filter = encodeURIComponent(`createdDateTime ge ${since}`);
+  const resolvedLikeStatuses = new Set(["resolved", "redirected", "closed", "dismissed"]);
+
+  const incidentsResult = await fetchAllGraphPages<any>(
+    "https://graph.microsoft.com/v1.0/security/incidents" +
+      `?$filter=${filter}` +
+      "&$top=50" +
+      "&$select=id,status,createdDateTime",
+    "securityIncidentSummary30dIncidents",
+  );
+
+  const alertsResult = await fetchAllGraphPages<any>(
+    "https://graph.microsoft.com/v1.0/security/alerts_v2" +
+      `?$filter=${filter}` +
+      "&$top=50" +
+      "&$select=id,status,createdDateTime",
+    "securityIncidentSummary30dAlerts",
+  );
+
+  const resolvedIncidents = incidentsResult.items.filter(
+    (i: any) => resolvedLikeStatuses.has(((i.status as string | undefined) ?? "").toLowerCase()),
+  ).length;
+  const resolvedAlerts = alertsResult.items.filter(
+    (a: any) => resolvedLikeStatuses.has(((a.status as string | undefined) ?? "").toLowerCase()),
+  ).length;
+
+  const summary: IncidentAlert30DaySummary = {
+    unresolvedIncidents: incidentsResult.items.length - resolvedIncidents,
+    resolvedIncidents,
+    unresolvedAlerts: alertsResult.items.length - resolvedAlerts,
+    resolvedAlerts,
+  };
+
+  const firstError = incidentsResult.issues[0]?.message ?? alertsResult.issues[0]?.message ?? null;
+  return { summary, error: firstError };
+}
+
 // ── /m365/security/estate — discovered devices, SaaS apps, OAuth apps ─────────
 
 const MICROSOFT_TENANT_ID = "f8cdef31-a31e-4b4a-93e4-5f571e91255a";
@@ -501,7 +637,7 @@ async function getSecurityEstateData(refreshRequested = false) {
   }
 
   return getCached("m365-security-estate", async () => {
-    const [devicesRawResult, managedDevicesRawResult, servicePrincipalsRawResult, oauthGrantsRawResult, mdeResult] = await Promise.all([
+    const [devicesRawResult, managedDevicesRawResult, servicePrincipalsRawResult, oauthGrantsRawResult, mdeResult, defenderOfficeAlertsResult, defenderEndpointAlertsResult, incidentAlert30dResult] = await Promise.all([
       fetchAllGraphPages<any>(
         "https://graph.microsoft.com/v1.0/devices" +
         "?$select=id,displayName,operatingSystem,operatingSystemVersion,trustType,isManaged,isCompliant,managementType,approximateLastSignInDateTime" +
@@ -527,6 +663,9 @@ async function getSecurityEstateData(refreshRequested = false) {
         "securityEstateOauth2PermissionGrants",
       ),
       fetchDefenderMachinesWithDiagnostics(),
+      fetchDefenderOfficeAlerts(),
+      fetchDefenderEndpointAlerts(),
+      fetchIncidentAlert30DaySummary(),
     ]);
 
     const devicesRaw = devicesRawResult.items;
@@ -736,7 +875,52 @@ async function getSecurityEstateData(refreshRequested = false) {
       error: mdeResult.error,
     };
 
-    return { deviceSummary, deviceList, mdeDeviceInventory, mdeStatus, saasApps, oauthApps };
+    // Defender for Office 365 alert summary
+    const defenderOfficeAlerts = defenderOfficeAlertsResult.alerts;
+    const defenderOfficeAlertsBySeverity = {
+      high:     defenderOfficeAlerts.filter((a) => a.severity.toLowerCase() === "high").length,
+      medium:   defenderOfficeAlerts.filter((a) => a.severity.toLowerCase() === "medium").length,
+      low:      defenderOfficeAlerts.filter((a) => a.severity.toLowerCase() === "low").length,
+      informational: defenderOfficeAlerts.filter((a) => a.severity.toLowerCase() === "informational").length,
+    };
+    const defenderOfficeStatus = {
+      ok: !defenderOfficeAlertsResult.error,
+      error: defenderOfficeAlertsResult.error,
+      totalAlerts: defenderOfficeAlerts.length,
+      ...defenderOfficeAlertsBySeverity,
+    };
+
+    const defenderEndpointAlerts = defenderEndpointAlertsResult.alerts;
+    const defenderEndpointAlertsBySeverity = {
+      high: defenderEndpointAlerts.filter((a) => a.severity.toLowerCase() === "high").length,
+      medium: defenderEndpointAlerts.filter((a) => a.severity.toLowerCase() === "medium").length,
+      low: defenderEndpointAlerts.filter((a) => a.severity.toLowerCase() === "low").length,
+      informational: defenderEndpointAlerts.filter((a) => a.severity.toLowerCase() === "informational").length,
+    };
+    const defenderEndpointStatus = {
+      ok: !defenderEndpointAlertsResult.error,
+      error: defenderEndpointAlertsResult.error,
+      totalAlerts: defenderEndpointAlerts.length,
+      ...defenderEndpointAlertsBySeverity,
+    };
+
+    return {
+      deviceSummary,
+      deviceList,
+      mdeDeviceInventory,
+      mdeStatus,
+      saasApps,
+      oauthApps,
+      defenderOfficeAlerts,
+      defenderOfficeStatus,
+      defenderEndpointAlerts,
+      defenderEndpointStatus,
+      incidentAlert30dSummary: incidentAlert30dResult.summary,
+      incidentAlert30dStatus: {
+        ok: !incidentAlert30dResult.error,
+        error: incidentAlert30dResult.error,
+      },
+    };
   });
 }
 
@@ -777,6 +961,16 @@ router.get("/m365/security/estate/with-metadata", async (req, res): Promise<void
         evidenceStatus: "apiBacked" as const,
         confidenceLabel: "high" as const,
         sourceLabel: "Defender machine API status and diagnostics",
+      },
+      defenderEndpointAlerts: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "high" as const,
+        sourceLabel: "Graph security alerts_v2 filtered to Defender for Endpoint",
+      },
+      incidentAlert30dSummary: {
+        evidenceStatus: "apiBacked" as const,
+        confidenceLabel: "high" as const,
+        sourceLabel: "Graph security incidents + alerts_v2 from last 30 days",
       },
       saasApps: {
         evidenceStatus: "apiBacked" as const,

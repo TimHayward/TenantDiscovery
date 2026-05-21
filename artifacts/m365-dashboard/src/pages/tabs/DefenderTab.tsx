@@ -311,6 +311,31 @@ export function DefenderTab() {
   const estateData = data as unknown as {
     mdeDeviceInventory?: DeviceEstateItem[];
     mdeStatus?: { ok: boolean; status: number | null; count: number; error: string | null };
+    incidentAlert30dSummary?: {
+      unresolvedIncidents: number;
+      resolvedIncidents: number;
+      unresolvedAlerts: number;
+      resolvedAlerts: number;
+    };
+    incidentAlert30dStatus?: { ok: boolean; error: string | null };
+    defenderEndpointAlerts?: Array<{
+      id: string;
+      title: string;
+      severity: string;
+      status: string;
+      serviceSource: string;
+      category: string;
+      createdDateTime: string | null;
+    }>;
+    defenderEndpointStatus?: {
+      ok: boolean;
+      error: string | null;
+      totalAlerts: number;
+      high: number;
+      medium: number;
+      low: number;
+      informational: number;
+    };
   } | undefined;
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -635,6 +660,47 @@ export function DefenderTab() {
 
       <CollapsibleSection title="Summary" description="Device estate overview" storageKey="defender-summary" defaultOpen={true} density="compact">
       <div className="space-y-4">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          Incidents and Alerts (last 30 days)
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KPICard
+            title="Total Unresolved Incidents"
+            value={estateData?.incidentAlert30dSummary?.unresolvedIncidents}
+            loading={loading}
+            valueColor={(estateData?.incidentAlert30dSummary?.unresolvedIncidents ?? 0) > 0 ? C.red : C.green}
+          />
+          <KPICard
+            title="Total Resolved Incidents"
+            value={estateData?.incidentAlert30dSummary?.resolvedIncidents}
+            loading={loading}
+            valueColor={C.green}
+          />
+          <KPICard
+            title="Total Unresolved Alerts"
+            value={estateData?.incidentAlert30dSummary?.unresolvedAlerts}
+            loading={loading}
+            valueColor={(estateData?.incidentAlert30dSummary?.unresolvedAlerts ?? 0) > 0 ? C.red : C.green}
+          />
+          <KPICard
+            title="Total Resolved Alerts"
+            value={estateData?.incidentAlert30dSummary?.resolvedAlerts}
+            loading={loading}
+            valueColor={C.green}
+          />
+        </div>
+        {estateData?.incidentAlert30dStatus?.ok === false && (
+          <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">
+            Unable to fully retrieve incident/alert summary. {estateData.incidentAlert30dStatus.error}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          DEVICE SUMMARY
+        </p>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
           title="Total Devices"
@@ -667,6 +733,7 @@ export function DefenderTab() {
           evidenceStatus={getMetricMeta("defender.deviceSummaryMde")?.evidenceStatus}
           confidenceLabel={getMetricMeta("defender.deviceSummaryMde")?.confidenceLabel}
         />
+      </div>
       </div>
 
       {/* ── Device Breakdown Charts ──────────────────────────────────────────── */}
@@ -1039,6 +1106,70 @@ export function DefenderTab() {
           )}
       </CollapsibleSection>
 
+      {/* ── Defender for Endpoint Alerts ──────────────────────────────────── */}
+      <CollapsibleSection
+        title="Defender for Endpoint Alerts"
+        storageKey="defender-mde-alerts"
+        description="Recent alerts from Microsoft Defender for Endpoint"
+        defaultOpen={true}
+      >
+        {loading ? (
+          <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+        ) : estateData?.defenderEndpointStatus?.ok === false ? (
+          <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40">
+            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              Could not retrieve Defender for Endpoint alerts. Ensure the service principal has access to the Security API.
+              {estateData.defenderEndpointStatus.error && <span className="block mt-0.5 font-mono">{estateData.defenderEndpointStatus.error}</span>}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <KPICard title="Total Alerts" value={estateData?.defenderEndpointStatus?.totalAlerts} loading={false} valueColor={(estateData?.defenderEndpointStatus?.totalAlerts ?? 0) > 0 ? "#A60808" : "#009118"} density="compact" />
+              <KPICard title="High Severity" value={estateData?.defenderEndpointStatus?.high} loading={false} valueColor={(estateData?.defenderEndpointStatus?.high ?? 0) > 0 ? "#A60808" : "#009118"} density="compact" />
+              <KPICard title="Medium Severity" value={estateData?.defenderEndpointStatus?.medium} loading={false} valueColor={(estateData?.defenderEndpointStatus?.medium ?? 0) > 0 ? "#d97706" : "#009118"} density="compact" />
+              <KPICard title="Low + Info" value={(estateData?.defenderEndpointStatus?.low ?? 0) + (estateData?.defenderEndpointStatus?.informational ?? 0)} loading={false} density="compact" />
+            </div>
+            {(estateData?.defenderEndpointAlerts?.length ?? 0) > 0 && (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Severity</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(estateData?.defenderEndpointAlerts ?? []).slice(0, 25).map((alert) => (
+                      <TableRow key={alert.id}>
+                        <TableCell className="text-sm max-w-[300px] truncate font-medium">{alert.title}</TableCell>
+                        <TableCell>
+                          <Badge variant={alert.severity.toLowerCase() === "high" ? "destructive" : "secondary"} className="text-[10px]">
+                            {alert.severity}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{alert.category || "—"}</TableCell>
+                        <TableCell className="text-xs">{alert.status}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {alert.createdDateTime ? new Date(alert.createdDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            {(estateData?.defenderEndpointAlerts?.length ?? 0) === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No Defender for Endpoint alerts found.</p>
+            )}
+          </div>
+        )}
+      </CollapsibleSection>
+
       {/* ── SaaS Apps ────────────────────────────────────────────────────────── */}
       <CollapsibleSection
         title="Enterprise Applications (SaaS)"
@@ -1255,6 +1386,70 @@ export function DefenderTab() {
               </div>
             </div>
           )}
+      </CollapsibleSection>
+
+      {/* ── Defender for Office 365 Alerts ──────────────────────────────────── */}
+      <CollapsibleSection
+        title="Defender for Office 365 Alerts"
+        storageKey="defender-o365-alerts"
+        description="Recent email-borne threat alerts from Microsoft Defender for Office 365"
+        defaultOpen={true}
+      >
+        {loading ? (
+          <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+        ) : data?.defenderOfficeStatus?.ok === false ? (
+          <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40">
+            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              Could not retrieve Defender for Office 365 alerts. Ensure the service principal has access to the Security API.
+              {data.defenderOfficeStatus.error && <span className="block mt-0.5 font-mono">{data.defenderOfficeStatus.error}</span>}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <KPICard title="Total Alerts" value={data?.defenderOfficeStatus?.totalAlerts} loading={false} valueColor={(data?.defenderOfficeStatus?.totalAlerts ?? 0) > 0 ? "#A60808" : "#009118"} density="compact" />
+              <KPICard title="High Severity" value={data?.defenderOfficeStatus?.high} loading={false} valueColor={(data?.defenderOfficeStatus?.high ?? 0) > 0 ? "#A60808" : "#009118"} density="compact" />
+              <KPICard title="Medium Severity" value={data?.defenderOfficeStatus?.medium} loading={false} valueColor={(data?.defenderOfficeStatus?.medium ?? 0) > 0 ? "#d97706" : "#009118"} density="compact" />
+              <KPICard title="Low + Info" value={(data?.defenderOfficeStatus?.low ?? 0) + (data?.defenderOfficeStatus?.informational ?? 0)} loading={false} density="compact" />
+            </div>
+            {(data?.defenderOfficeAlerts?.length ?? 0) > 0 && (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Severity</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(data?.defenderOfficeAlerts ?? []).slice(0, 25).map((alert) => (
+                      <TableRow key={alert.id}>
+                        <TableCell className="text-sm max-w-[300px] truncate font-medium">{alert.title}</TableCell>
+                        <TableCell>
+                          <Badge variant={alert.severity.toLowerCase() === "high" ? "destructive" : "secondary"} className="text-[10px]">
+                            {alert.severity}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{alert.category || "—"}</TableCell>
+                        <TableCell className="text-xs">{alert.status}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {alert.createdDateTime ? new Date(alert.createdDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            {(data?.defenderOfficeAlerts?.length ?? 0) === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No Defender for Office 365 alerts found.</p>
+            )}
+          </div>
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection title="Summary Check List" storageKey="defender-checklist" defaultOpen={false}>

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GhostUserItem } from './ghostUserItem';
 import type { M365UsersDataUsersByDepartmentItem } from './m365UsersDataUsersByDepartmentItem';
 import type { UserItem } from './userItem';
 
@@ -19,4 +20,7 @@ export interface M365UsersData {
   neverSignedIn: number;
   usersByDepartment: M365UsersDataUsersByDepartmentItem[];
   users: UserItem[];
+  ghostUsers: GhostUserItem[];
+  ghostLicensedCount: number;
+  estimatedMonthlyWaste: number;
 }

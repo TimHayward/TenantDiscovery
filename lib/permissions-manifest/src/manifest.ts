@@ -159,8 +159,9 @@ export const permissionsManifest = {
         "/reports/getEmailActivityUserDetail",
         "/reports/getTeamsUserActivityUserDetail",
         "/reports/getSharePointSiteUsageDetail",
+        "/reports/getOffice365ServicesUserCounts",
       ],
-      features: ["overview", "users-identity", "exchange", "teams-sharepoint"],
+      features: ["overview", "users-identity", "exchange", "teams-sharepoint", "adoption"],
       notes: [
         "This covers the current SharePoint usage reports, which is why Sites.Read.All is not required today.",
       ],
@@ -356,6 +357,25 @@ export const permissionsManifest = {
       ],
     },
     {
+      name: "https://analysis.windows.net/powerbi/api/.default",
+      provider: "microsoft-defender",
+      accessKind: "external-scope",
+      tier: "future",
+      adminConsentRequired: true,
+      verificationStatus: "future-roadmap",
+      summary: "Acquire a Power BI Admin API token for workspace governance.",
+      why: "Required for Power BI workspace, capacity, and dataset inventory via the Power BI Admin REST API.",
+      endpoints: [
+        "https://api.powerbi.com/v1.0/myorg/admin/groups",
+        "https://api.powerbi.com/v1.0/myorg/admin/capacities",
+      ],
+      features: ["power-bi-governance"],
+      notes: [
+        "Requires the service principal to be granted Power BI Tenant.Read.All or Tenant.ReadWrite.All in the Power BI admin portal.",
+        "Uses the analysis.windows.net token audience — separate from Microsoft Graph permissions.",
+      ],
+    },
+    {
       name: "Sites.Read.All",
       provider: "microsoft-graph",
       accessKind: "application",
@@ -499,6 +519,34 @@ export const permissionsManifest = {
       backendRoutes: [],
       frontendLocations: [],
       behavior: "future",
+    },
+    {
+      id: "adoption",
+      title: "Workload Adoption and Value Realisation",
+      requiredPermissions: ["Reports.Read.All"],
+      optionalPermissions: [],
+      futurePermissions: [],
+      backendRoutes: ["/m365/adoption"],
+      frontendLocations: ["AdoptionTab"],
+      behavior: "partial-data",
+      notes: [
+        "Uses getOffice365ServicesUserCounts for D30/D90/D180 periods to show per-workload activation rates.",
+        "Value gap logic flags workloads with <20% adoption in the 30-day window.",
+      ],
+    },
+    {
+      id: "power-bi-governance",
+      title: "Power BI Tenant Governance",
+      requiredPermissions: [],
+      optionalPermissions: [],
+      futurePermissions: ["https://analysis.windows.net/powerbi/api/.default"],
+      backendRoutes: ["/m365/powerbi"],
+      frontendLocations: ["PowerBITab"],
+      behavior: "partial-data",
+      notes: [
+        "Requires Power BI Admin API access via a separate token scope.",
+        "Returns available=false with graceful error state when Power BI access is not configured.",
+      ],
     },
   ] satisfies FeatureDefinition[],
 } as const;
@@ -2711,6 +2759,130 @@ export const metricDataSourceRegistry = {
         blocker: "Operational governance records are not integrated into current platform.",
       },
     },
+  },
+
+  "adoption.overallAdoptionPercent": {
+    metricId: "adoption.overallAdoptionPercent",
+    metricName: "Overall M365 Adoption Rate",
+    tab: "adoption",
+    dataSources: [
+      {
+        provider: "microsoft-graph",
+        label: "Microsoft Graph Reports API",
+        endpoint: "GET /v1.0/reports/getOffice365ServicesUserCounts(period='D30')",
+      },
+    ],
+    permissionDependencies: ["Reports.Read.All"],
+    licenseDependencies: ["m365-license-required"],
+    confidenceLabel: "high",
+    evidenceStatus: "apiBacked",
+  },
+
+  "adoption.valueGapCount": {
+    metricId: "adoption.valueGapCount",
+    metricName: "Value Gap Workloads (<20% Adoption)",
+    tab: "adoption",
+    dataSources: [
+      {
+        provider: "microsoft-graph",
+        label: "Microsoft Graph Reports API",
+        endpoint: "GET /v1.0/reports/getOffice365ServicesUserCounts(period='D30')",
+      },
+    ],
+    permissionDependencies: ["Reports.Read.All"],
+    licenseDependencies: ["m365-license-required"],
+    confidenceLabel: "high",
+    evidenceStatus: "apiBacked",
+  },
+
+  "adoption.workloads.Exchange": {
+    metricId: "adoption.workloads.Exchange",
+    metricName: "Exchange Online Adoption Rate",
+    tab: "adoption",
+    dataSources: [
+      {
+        provider: "microsoft-graph",
+        label: "Microsoft Graph Reports API",
+        endpoint: "GET /v1.0/reports/getOffice365ServicesUserCounts(period='D30')",
+        notes: ["Exchange Active / (Exchange Active + Exchange Inactive) columns"],
+      },
+    ],
+    permissionDependencies: ["Reports.Read.All"],
+    licenseDependencies: ["m365-license-required"],
+    confidenceLabel: "high",
+    evidenceStatus: "apiBacked",
+  },
+
+  "adoption.workloads.Teams": {
+    metricId: "adoption.workloads.Teams",
+    metricName: "Microsoft Teams Adoption Rate",
+    tab: "adoption",
+    dataSources: [
+      {
+        provider: "microsoft-graph",
+        label: "Microsoft Graph Reports API",
+        endpoint: "GET /v1.0/reports/getOffice365ServicesUserCounts(period='D30')",
+        notes: ["Teams Active / (Teams Active + Teams Inactive) columns"],
+      },
+    ],
+    permissionDependencies: ["Reports.Read.All"],
+    licenseDependencies: ["m365-license-required"],
+    confidenceLabel: "high",
+    evidenceStatus: "apiBacked",
+  },
+
+  "adoption.workloads.SharePoint": {
+    metricId: "adoption.workloads.SharePoint",
+    metricName: "SharePoint Online Adoption Rate",
+    tab: "adoption",
+    dataSources: [
+      {
+        provider: "microsoft-graph",
+        label: "Microsoft Graph Reports API",
+        endpoint: "GET /v1.0/reports/getOffice365ServicesUserCounts(period='D30')",
+        notes: ["SharePoint Active / (SharePoint Active + SharePoint Inactive) columns"],
+      },
+    ],
+    permissionDependencies: ["Reports.Read.All"],
+    licenseDependencies: ["m365-license-required"],
+    confidenceLabel: "high",
+    evidenceStatus: "apiBacked",
+  },
+
+  "adoption.workloads.OneDrive": {
+    metricId: "adoption.workloads.OneDrive",
+    metricName: "OneDrive for Business Adoption Rate",
+    tab: "adoption",
+    dataSources: [
+      {
+        provider: "microsoft-graph",
+        label: "Microsoft Graph Reports API",
+        endpoint: "GET /v1.0/reports/getOffice365ServicesUserCounts(period='D30')",
+        notes: ["OneDrive Active / (OneDrive Active + OneDrive Inactive) columns"],
+      },
+    ],
+    permissionDependencies: ["Reports.Read.All"],
+    licenseDependencies: ["m365-license-required"],
+    confidenceLabel: "high",
+    evidenceStatus: "apiBacked",
+  },
+
+  "adoption.workloads.Yammer": {
+    metricId: "adoption.workloads.Yammer",
+    metricName: "Viva Engage (Yammer) Adoption Rate",
+    tab: "adoption",
+    dataSources: [
+      {
+        provider: "microsoft-graph",
+        label: "Microsoft Graph Reports API",
+        endpoint: "GET /v1.0/reports/getOffice365ServicesUserCounts(period='D30')",
+        notes: ["Yammer Active / (Yammer Active + Yammer Inactive) columns"],
+      },
+    ],
+    permissionDependencies: ["Reports.Read.All"],
+    licenseDependencies: ["m365-license-required"],
+    confidenceLabel: "high",
+    evidenceStatus: "apiBacked",
   },
 } satisfies Record<string, MetricDataSourceEntry>;
 

@@ -596,6 +596,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/M365DataSourcesResponse"
 
+  /m365/adoption:
+    get:
+      operationId: getM365Adoption
+      tags: [m365]
+      summary: Workload adoption and value realisation scoring across M365 services
+      responses:
+        "200":
+          description: Adoption data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365AdoptionData"
+
+  /m365/adoption/with-metadata:
+    get:
+      operationId: getM365AdoptionWithMetadata
+      tags: [m365]
+      summary: Workload adoption and value realisation scoring with field metadata
+      responses:
+        "200":
+          description: Adoption data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/M365AdoptionDataWithMetadata"
+
+  /m365/powerbi:
+    get:
+      operationId: getM365PowerBI
+      tags: [m365]
+      summary: Power BI tenant governance metrics
+      responses:
+        "200":
+          description: Power BI governance data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PowerBIData"
+
+  /m365/powerbi/with-metadata:
+    get:
+      operationId: getM365PowerBIWithMetadata
+      tags: [m365]
+      summary: Power BI tenant governance metrics with field metadata
+      responses:
+        "200":
+          description: Power BI governance data with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PowerBIDataWithMetadata"
+
 components:
   schemas:
     HealthStatus:
@@ -900,6 +952,34 @@ components:
           type: string
       required: [data, fieldMetadata, metadataVersion]
 
+    GhostUserItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        userPrincipalName:
+          type: string
+        lastSignIn:
+          type: string
+          nullable: true
+        daysInactive:
+          type: integer
+          nullable: true
+        assignedLicenseCount:
+          type: integer
+        estimatedMonthlyCost:
+          type: number
+      required:
+        - id
+        - displayName
+        - userPrincipalName
+        - lastSignIn
+        - daysInactive
+        - assignedLicenseCount
+        - estimatedMonthlyCost
+
     UserItem:
       type: object
       properties:
@@ -971,6 +1051,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/UserItem"
+        ghostUsers:
+          type: array
+          items:
+            $ref: "#/components/schemas/GhostUserItem"
+        ghostLicensedCount:
+          type: integer
+        estimatedMonthlyWaste:
+          type: number
       required:
         - totalUsers
         - activeUsers
@@ -982,6 +1070,9 @@ components:
         - neverSignedIn
         - usersByDepartment
         - users
+        - ghostUsers
+        - ghostLicensedCount
+        - estimatedMonthlyWaste
 
     M365UsersDataWithMetadata:
       type: object
@@ -1072,6 +1163,10 @@ components:
           items:
             $ref: "#/components/schemas/AdminExposureUserItem"
 
+        eligibleAssignmentCount:
+          type: integer
+        dormantEligibleCount:
+          type: integer
         partialData:
           type: boolean
         permissionError:
@@ -1097,6 +1192,8 @@ components:
         - eligibleGlobalAdminsWithProductivity
         - eligibleAdmins
         - eligibleAdminsWithProductivity
+        - eligibleAssignmentCount
+        - dormantEligibleCount
         - partialData
         - permissionError
         - collectionIssues
@@ -1382,6 +1479,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SecureScoreControl"
+        legacyAuthSignInCount:
+          type: integer
+          nullable: true
+        legacyAuthBlockedByCA:
+          type: boolean
         partialData:
           type: boolean
         permissionError:
@@ -1411,6 +1513,8 @@ components:
         - riskDetectionTimeline
         - riskyUsersDetail
         - secureScoreControls
+        - legacyAuthSignInCount
+        - legacyAuthBlockedByCA
         - partialData
         - permissionError
         - collectionIssues
@@ -1556,7 +1660,50 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OAuthAppItem"
-      required: [deviceSummary, deviceList, saasApps, oauthApps]
+        defenderOfficeAlerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/DefenderOfficeAlert"
+        defenderOfficeStatus:
+          type: object
+          properties:
+            ok:
+              type: boolean
+            error:
+              type: string
+              nullable: true
+            totalAlerts:
+              type: integer
+            high:
+              type: integer
+            medium:
+              type: integer
+            low:
+              type: integer
+            informational:
+              type: integer
+          required: [ok, error, totalAlerts, high, medium, low, informational]
+      required: [deviceSummary, deviceList, saasApps, oauthApps, defenderOfficeAlerts, defenderOfficeStatus]
+
+    DefenderOfficeAlert:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        severity:
+          type: string
+        status:
+          type: string
+        serviceSource:
+          type: string
+        category:
+          type: string
+        createdDateTime:
+          type: string
+          nullable: true
+      required: [id, title, severity, status, serviceSource, category, createdDateTime]
 
     SecurityEstateDataWithMetadata:
       type: object
@@ -1612,6 +1759,10 @@ components:
           type: integer
         spamFiltered:
           type: integer
+        domainAuthRecords:
+          type: array
+          items:
+            $ref: "#/components/schemas/DomainEmailAuthRecord"
         partialData:
           type: boolean
         permissionError:
@@ -1633,9 +1784,25 @@ components:
         - quarantinedMessages
         - malwareDetected
         - spamFiltered
+        - domainAuthRecords
         - partialData
         - permissionError
         - collectionIssues
+
+    DomainEmailAuthRecord:
+      type: object
+      properties:
+        domain:
+          type: string
+        hasSpf:
+          type: boolean
+        hasDkim:
+          type: boolean
+        hasDmarc:
+          type: boolean
+        mxConfigured:
+          type: boolean
+      required: [domain, hasSpf, hasDkim, hasDmarc, mxConfigured]
 
     M365ExchangeDataWithMetadata:
       type: object
@@ -2201,6 +2368,16 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/IntuneAssessmentItem"
+        tamperProtectionEnabledDevices:
+          type: integer
+        tamperProtectionDisabledDevices:
+          type: integer
+        tamperProtectionUnknownDevices:
+          type: integer
+        tamperProtectionPercent:
+          oneOf:
+            - type: integer
+            - type: "null"
       required:
         - totalDevices
         - overallCompliancePercent
@@ -2225,6 +2402,10 @@ components:
         - appProtectionList
         - policySummaryByOS
         - assessmentItems
+        - tamperProtectionEnabledDevices
+        - tamperProtectionDisabledDevices
+        - tamperProtectionUnknownDevices
+        - tamperProtectionPercent
 
     M365IntuneDataWithMetadata:
       type: object
@@ -2860,6 +3041,278 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/M365ServiceHealthData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
+    WorkloadTrendPoint:
+      type: object
+      properties:
+        period:
+          type: string
+        activeUsers:
+          type: number
+        licensedUsers:
+          type: number
+        adoptionPercent:
+          type: number
+      required: [period, activeUsers, licensedUsers, adoptionPercent]
+
+    WorkloadDepthMetrics:
+      type: object
+      properties:
+        teamChatMessages:
+          type: integer
+          nullable: true
+        privateChatMessages:
+          type: integer
+          nullable: true
+        calls:
+          type: integer
+          nullable: true
+        meetings:
+          type: integer
+          nullable: true
+        odViewedOrEdited:
+          type: integer
+          nullable: true
+        odSynced:
+          type: integer
+          nullable: true
+        odSharedInternally:
+          type: integer
+          nullable: true
+        odSharedExternally:
+          type: integer
+          nullable: true
+        spVisitedPages:
+          type: integer
+          nullable: true
+        spViewedOrEdited:
+          type: integer
+          nullable: true
+        spSynced:
+          type: integer
+          nullable: true
+        spSharedInternally:
+          type: integer
+          nullable: true
+        spSharedExternally:
+          type: integer
+          nullable: true
+        emailSent:
+          type: integer
+          nullable: true
+        emailReceived:
+          type: integer
+          nullable: true
+        emailRead:
+          type: integer
+          nullable: true
+      required:
+        [teamChatMessages, privateChatMessages, calls, meetings, odViewedOrEdited, odSynced, odSharedInternally, odSharedExternally, spVisitedPages, spViewedOrEdited, spSynced, spSharedInternally, spSharedExternally, emailSent, emailReceived, emailRead]
+
+    AppActivationItem:
+      type: object
+      properties:
+        app:
+          type: string
+        displayName:
+          type: string
+        activeUsers:
+          type: integer
+      required: [app, displayName, activeUsers]
+
+    CopilotAppUsage:
+      type: object
+      properties:
+        app:
+          type: string
+        displayName:
+          type: string
+        enabledUsers:
+          type: integer
+        activeUsers:
+          type: integer
+      required: [app, displayName, enabledUsers, activeUsers]
+
+    CopilotAdoptionData:
+      type: object
+      properties:
+        enabledUsers:
+          type: integer
+        activeUsers:
+          type: integer
+        adoptionPercent:
+          type: number
+        appBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CopilotAppUsage"
+      required: [enabledUsers, activeUsers, adoptionPercent, appBreakdown]
+
+    WorkloadAdoptionItem:
+      type: object
+      properties:
+        workload:
+          type: string
+        displayName:
+          type: string
+        activeUsers:
+          type: number
+        inactiveUsers:
+          type: number
+        licensedUsers:
+          type: number
+        adoptionPercent:
+          type: number
+        isValueGap:
+          type: boolean
+        trend:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkloadTrendPoint"
+        depth:
+          oneOf:
+            - $ref: "#/components/schemas/WorkloadDepthMetrics"
+            - type: "null"
+      required:
+        [workload, displayName, activeUsers, inactiveUsers, licensedUsers, adoptionPercent, isValueGap, trend, depth]
+
+    M365AdoptionData:
+      type: object
+      properties:
+        workloads:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkloadAdoptionItem"
+        totalActiveUsers:
+          type: number
+        totalLicensedUsers:
+          type: number
+        overallAdoptionPercent:
+          type: number
+        valueGapCount:
+          type: number
+        appsActivation:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppActivationItem"
+        copilotAdoption:
+          oneOf:
+            - $ref: "#/components/schemas/CopilotAdoptionData"
+            - type: "null"
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
+      required:
+        [workloads, totalActiveUsers, totalLicensedUsers, overallAdoptionPercent, valueGapCount, appsActivation, copilotAdoption, partialData, permissionError, collectionIssues]
+
+    M365AdoptionDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/M365AdoptionData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
+    PowerBIWorkspaceItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        state:
+          type: string
+        isOrphaned:
+          type: boolean
+        adminCount:
+          type: number
+        datasetCount:
+          type: number
+        reportCount:
+          type: number
+        isOnDedicatedCapacity:
+          type: boolean
+        capacityId:
+          oneOf:
+            - type: string
+            - type: "null"
+      required: [id, name, type, state, isOrphaned, adminCount, datasetCount, reportCount, isOnDedicatedCapacity, capacityId]
+
+    PowerBICapacityItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        sku:
+          type: string
+        state:
+          type: string
+        adminCount:
+          type: number
+      required: [id, displayName, sku, state, adminCount]
+
+    PowerBIData:
+      type: object
+      properties:
+        available:
+          type: boolean
+        totalWorkspaces:
+          type: number
+        activeWorkspaces:
+          type: number
+        orphanedWorkspaces:
+          type: number
+        personalWorkspaces:
+          type: number
+        dedicatedCapacityWorkspaces:
+          type: number
+        totalDatasets:
+          type: number
+        refreshableDatasets:
+          type: number
+        totalReports:
+          type: number
+        capacities:
+          type: array
+          items:
+            $ref: "#/components/schemas/PowerBICapacityItem"
+        workspaces:
+          type: array
+          items:
+            $ref: "#/components/schemas/PowerBIWorkspaceItem"
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
+      required:
+        [available, totalWorkspaces, activeWorkspaces, orphanedWorkspaces, personalWorkspaces, dedicatedCapacityWorkspaces, totalDatasets, refreshableDatasets, totalReports, capacities, workspaces, partialData, permissionError, collectionIssues]
+
+    PowerBIDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/PowerBIData"
         fieldMetadata:
           $ref: "#/components/schemas/FieldMetadataMap"
         metadataVersion:

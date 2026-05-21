@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   RefreshCw, ChevronDown, Printer, Sun, Moon, PanelLeftClose, PanelLeftOpen,
   LayoutDashboard, Users, CreditCard, Shield, Mail,
-  MessageSquare, ClipboardCheck, Smartphone, Swords, AppWindow,
+  MessageSquare, ClipboardCheck, Smartphone, Swords, AppWindow, TrendingUp, BarChart2,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useGetM365Overview, useGetM365DataSources } from "@workspace/api-client-react";
@@ -20,6 +20,8 @@ import { ComplianceTab } from "./tabs/ComplianceTab";
 import { IntuneTab } from "./tabs/IntuneTab";
 import { ServicePrincipalsTab } from "./tabs/ServicePrincipalsTab";
 import { DefenderTab } from "./tabs/DefenderTab";
+import { AdoptionTab } from "./tabs/AdoptionTab";
+import { PowerBITab } from "./tabs/PowerBITab";
 
 const INTERVAL_OPTIONS = [
   { label: "Off", ms: 0 },
@@ -39,6 +41,8 @@ const NAV_ITEMS = [
   { value: "intune",             label: "Intune",               icon: Smartphone      },
   { value: "defender",           label: "Defender",             icon: Swords          },
   { value: "service-principals", label: "Enterprise Apps",      icon: AppWindow       },
+  { value: "adoption",           label: "Adoption",             icon: TrendingUp      },
+  { value: "power-bi",           label: "Power BI",             icon: BarChart2       },
 ] as const;
 
 type NavValue = typeof NAV_ITEMS[number]["value"];
@@ -314,6 +318,8 @@ export default function Dashboard() {
             <div className={activeTab === "intune"             ? "" : "hidden"}><IntuneTab /></div>
             <div className={activeTab === "defender"           ? "" : "hidden"}><DefenderTab /></div>
             <div className={activeTab === "service-principals" ? "" : "hidden"}><ServicePrincipalsTab /></div>
+            <div className={activeTab === "adoption"           ? "" : "hidden"}><AdoptionTab /></div>
+            <div className={activeTab === "power-bi"           ? "" : "hidden"}><PowerBITab /></div>
 
           </div>
         </main>

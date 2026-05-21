@@ -280,6 +280,45 @@ export function ExchangeTab() {
 
       </CollapsibleSection>
 
+      <CollapsibleSection
+        title="Domain Email Authentication"
+        description="SPF, DKIM and MX record configuration for verified email domains"
+        storageKey="exchange-domain-auth"
+        defaultOpen={true}
+      >
+        {loading ? (
+          <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+        ) : (data?.domainAuthRecords?.length ?? 0) === 0 ? (
+          <p className="text-sm text-muted-foreground py-3">No verified email domains found, or Domain.Read.All permission not granted.</p>
+        ) : (
+          <div className="rounded-md border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <th className="text-left px-3 py-2 font-medium text-[12px]">Domain</th>
+                  <th className="text-center px-3 py-2 font-medium text-[12px]">MX</th>
+                  <th className="text-center px-3 py-2 font-medium text-[12px]">SPF</th>
+                  <th className="text-center px-3 py-2 font-medium text-[12px]">DKIM</th>
+                  <th className="text-center px-3 py-2 font-medium text-[12px]">DMARC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.domainAuthRecords ?? []).map((rec) => (
+                  <tr key={rec.domain} className="border-b last:border-0">
+                    <td className="px-3 py-2 font-mono text-[12px]">{rec.domain}</td>
+                    <td className="px-3 py-2 text-center">{rec.mxConfigured ? <span className="text-green-600 font-bold">✓</span> : <span className="text-red-500 font-bold">✗</span>}</td>
+                    <td className="px-3 py-2 text-center">{rec.hasSpf ? <span className="text-green-600 font-bold">✓</span> : <span className="text-red-500 font-bold">✗</span>}</td>
+                    <td className="px-3 py-2 text-center">{rec.hasDkim ? <span className="text-green-600 font-bold">✓</span> : <span className="text-amber-500 font-bold">?</span>}</td>
+                    <td className="px-3 py-2 text-center"><span className="text-muted-foreground text-[11px] italic">Manual</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="text-[11px] text-muted-foreground mt-2">DMARC status requires external DNS lookup and cannot be checked via the Graph API. DKIM detection is based on Microsoft's recommended CName records.</p>
+      </CollapsibleSection>
+
       <CollapsibleSection title="Summary Check List" description="Exchange Online security controls assessment" storageKey="exchange-checklist" defaultOpen={false} density="compact">
         <ChecklistTable sectionTitle="" groups={exchangeChecklist} loading={loading} density="compact" />
       </CollapsibleSection>

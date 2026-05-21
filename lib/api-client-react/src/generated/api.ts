@@ -27,6 +27,8 @@ import type {
   HealthStatus,
   HealthStatusWithMetadata,
   M365AdminExposureData,
+  M365AdoptionData,
+  M365AdoptionDataWithMetadata,
   M365AppsData,
   M365AppsDataWithMetadata,
   M365ComplianceData,
@@ -62,6 +64,8 @@ import type {
   OnboardingSetup,
   OnboardingSetupPatch,
   OnboardingStatus,
+  PowerBIData,
+  PowerBIDataWithMetadata,
   SecurityEstateData,
   SecurityEstateDataWithMetadata
 } from './api.schemas';
@@ -3238,6 +3242,314 @@ export function useGetM365DataSources<TData = Awaited<ReturnType<typeof getM365D
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetM365DataSourcesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Workload adoption and value realisation scoring across M365 services
+ */
+export const getGetM365AdoptionUrl = () => {
+
+
+
+
+  return `/api/m365/adoption`
+}
+
+export const getM365Adoption = async ( options?: RequestInit): Promise<M365AdoptionData> => {
+
+  return customFetch<M365AdoptionData>(getGetM365AdoptionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365AdoptionQueryKey = () => {
+    return [
+    `/api/m365/adoption`
+    ] as const;
+    }
+
+
+export const getGetM365AdoptionQueryOptions = <TData = Awaited<ReturnType<typeof getM365Adoption>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365Adoption>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365AdoptionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Adoption>>> = ({ signal }) => getM365Adoption({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365Adoption>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365AdoptionQueryResult = NonNullable<Awaited<ReturnType<typeof getM365Adoption>>>
+export type GetM365AdoptionQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Workload adoption and value realisation scoring across M365 services
+ */
+
+export function useGetM365Adoption<TData = Awaited<ReturnType<typeof getM365Adoption>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365Adoption>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365AdoptionQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Workload adoption and value realisation scoring with field metadata
+ */
+export const getGetM365AdoptionWithMetadataUrl = () => {
+
+
+
+
+  return `/api/m365/adoption/with-metadata`
+}
+
+export const getM365AdoptionWithMetadata = async ( options?: RequestInit): Promise<M365AdoptionDataWithMetadata> => {
+
+  return customFetch<M365AdoptionDataWithMetadata>(getGetM365AdoptionWithMetadataUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365AdoptionWithMetadataQueryKey = () => {
+    return [
+    `/api/m365/adoption/with-metadata`
+    ] as const;
+    }
+
+
+export const getGetM365AdoptionWithMetadataQueryOptions = <TData = Awaited<ReturnType<typeof getM365AdoptionWithMetadata>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365AdoptionWithMetadata>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365AdoptionWithMetadataQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365AdoptionWithMetadata>>> = ({ signal }) => getM365AdoptionWithMetadata({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365AdoptionWithMetadata>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365AdoptionWithMetadataQueryResult = NonNullable<Awaited<ReturnType<typeof getM365AdoptionWithMetadata>>>
+export type GetM365AdoptionWithMetadataQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Workload adoption and value realisation scoring with field metadata
+ */
+
+export function useGetM365AdoptionWithMetadata<TData = Awaited<ReturnType<typeof getM365AdoptionWithMetadata>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365AdoptionWithMetadata>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365AdoptionWithMetadataQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Power BI tenant governance metrics
+ */
+export const getGetM365PowerBIUrl = () => {
+
+
+
+
+  return `/api/m365/powerbi`
+}
+
+export const getM365PowerBI = async ( options?: RequestInit): Promise<PowerBIData> => {
+
+  return customFetch<PowerBIData>(getGetM365PowerBIUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365PowerBIQueryKey = () => {
+    return [
+    `/api/m365/powerbi`
+    ] as const;
+    }
+
+
+export const getGetM365PowerBIQueryOptions = <TData = Awaited<ReturnType<typeof getM365PowerBI>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365PowerBI>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365PowerBIQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365PowerBI>>> = ({ signal }) => getM365PowerBI({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365PowerBI>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365PowerBIQueryResult = NonNullable<Awaited<ReturnType<typeof getM365PowerBI>>>
+export type GetM365PowerBIQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Power BI tenant governance metrics
+ */
+
+export function useGetM365PowerBI<TData = Awaited<ReturnType<typeof getM365PowerBI>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365PowerBI>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365PowerBIQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Power BI tenant governance metrics with field metadata
+ */
+export const getGetM365PowerBIWithMetadataUrl = () => {
+
+
+
+
+  return `/api/m365/powerbi/with-metadata`
+}
+
+export const getM365PowerBIWithMetadata = async ( options?: RequestInit): Promise<PowerBIDataWithMetadata> => {
+
+  return customFetch<PowerBIDataWithMetadata>(getGetM365PowerBIWithMetadataUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365PowerBIWithMetadataQueryKey = () => {
+    return [
+    `/api/m365/powerbi/with-metadata`
+    ] as const;
+    }
+
+
+export const getGetM365PowerBIWithMetadataQueryOptions = <TData = Awaited<ReturnType<typeof getM365PowerBIWithMetadata>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365PowerBIWithMetadata>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365PowerBIWithMetadataQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365PowerBIWithMetadata>>> = ({ signal }) => getM365PowerBIWithMetadata({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365PowerBIWithMetadata>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365PowerBIWithMetadataQueryResult = NonNullable<Awaited<ReturnType<typeof getM365PowerBIWithMetadata>>>
+export type GetM365PowerBIWithMetadataQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Power BI tenant governance metrics with field metadata
+ */
+
+export function useGetM365PowerBIWithMetadata<TData = Awaited<ReturnType<typeof getM365PowerBIWithMetadata>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365PowerBIWithMetadata>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365PowerBIWithMetadataQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

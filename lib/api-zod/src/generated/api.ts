@@ -109,7 +109,18 @@ export const GetM365UsersResponse = zod.object({
   "assignedLicenses": zod.number(),
   "department": zod.string().nullable(),
   "jobTitle": zod.string().nullable()
-}))
+})),
+  "ghostUsers": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "userPrincipalName": zod.string(),
+  "lastSignIn": zod.string().nullable(),
+  "daysInactive": zod.number().nullable(),
+  "assignedLicenseCount": zod.number(),
+  "estimatedMonthlyCost": zod.number()
+})),
+  "ghostLicensedCount": zod.number(),
+  "estimatedMonthlyWaste": zod.number()
 })
 
 
@@ -141,7 +152,18 @@ export const GetM365UsersWithMetadataResponse = zod.object({
   "assignedLicenses": zod.number(),
   "department": zod.string().nullable(),
   "jobTitle": zod.string().nullable()
-}))
+})),
+  "ghostUsers": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "userPrincipalName": zod.string(),
+  "lastSignIn": zod.string().nullable(),
+  "daysInactive": zod.number().nullable(),
+  "assignedLicenseCount": zod.number(),
+  "estimatedMonthlyCost": zod.number()
+})),
+  "ghostLicensedCount": zod.number(),
+  "estimatedMonthlyWaste": zod.number()
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
   "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
@@ -229,6 +251,8 @@ export const GetM365AdminExposureResponse = zod.object({
   "roles": zod.array(zod.string()),
   "hasProductivityLicense": zod.boolean()
 })),
+  "eligibleAssignmentCount": zod.number(),
+  "dormantEligibleCount": zod.number(),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
   "collectionIssues": zod.array(zod.object({
@@ -392,6 +416,8 @@ export const GetM365SecurityResponse = zod.object({
   "lastSynced": zod.string().nullable(),
   "status": zod.string()
 })),
+  "legacyAuthSignInCount": zod.number().nullable(),
+  "legacyAuthBlockedByCA": zod.boolean(),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
   "collectionIssues": zod.array(zod.object({
@@ -485,6 +511,8 @@ export const GetM365SecurityWithMetadataResponse = zod.object({
   "lastSynced": zod.string().nullable(),
   "status": zod.string()
 })),
+  "legacyAuthSignInCount": zod.number().nullable(),
+  "legacyAuthBlockedByCA": zod.boolean(),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
   "collectionIssues": zod.array(zod.object({
@@ -547,7 +575,25 @@ export const GetM365SecurityEstateResponse = zod.object({
   "consentType": zod.string(),
   "scopes": zod.array(zod.string()),
   "isOrgWide": zod.boolean()
-}))
+})),
+  "defenderOfficeAlerts": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "severity": zod.string(),
+  "status": zod.string(),
+  "serviceSource": zod.string(),
+  "category": zod.string(),
+  "createdDateTime": zod.string().nullable()
+})),
+  "defenderOfficeStatus": zod.object({
+  "ok": zod.boolean(),
+  "error": zod.string().nullable(),
+  "totalAlerts": zod.number(),
+  "high": zod.number(),
+  "medium": zod.number(),
+  "low": zod.number(),
+  "informational": zod.number()
+})
 })
 
 
@@ -593,7 +639,25 @@ export const GetM365SecurityEstateWithMetadataResponse = zod.object({
   "consentType": zod.string(),
   "scopes": zod.array(zod.string()),
   "isOrgWide": zod.boolean()
-}))
+})),
+  "defenderOfficeAlerts": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "severity": zod.string(),
+  "status": zod.string(),
+  "serviceSource": zod.string(),
+  "category": zod.string(),
+  "createdDateTime": zod.string().nullable()
+})),
+  "defenderOfficeStatus": zod.object({
+  "ok": zod.boolean(),
+  "error": zod.string().nullable(),
+  "totalAlerts": zod.number(),
+  "high": zod.number(),
+  "medium": zod.number(),
+  "low": zod.number(),
+  "informational": zod.number()
+})
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
   "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
@@ -628,6 +692,13 @@ export const GetM365ExchangeResponse = zod.object({
   "quarantinedMessages": zod.number(),
   "malwareDetected": zod.number(),
   "spamFiltered": zod.number(),
+  "domainAuthRecords": zod.array(zod.object({
+  "domain": zod.string(),
+  "hasSpf": zod.boolean(),
+  "hasDkim": zod.boolean(),
+  "hasDmarc": zod.boolean(),
+  "mxConfigured": zod.boolean()
+})),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
   "collectionIssues": zod.array(zod.object({
@@ -665,6 +736,13 @@ export const GetM365ExchangeWithMetadataResponse = zod.object({
   "quarantinedMessages": zod.number(),
   "malwareDetected": zod.number(),
   "spamFiltered": zod.number(),
+  "domainAuthRecords": zod.array(zod.object({
+  "domain": zod.string(),
+  "hasSpf": zod.boolean(),
+  "hasDkim": zod.boolean(),
+  "hasDmarc": zod.boolean(),
+  "mxConfigured": zod.boolean()
+})),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
   "collectionIssues": zod.array(zod.object({
@@ -704,7 +782,11 @@ export const GetM365TeamsResponse = zod.object({
   "externalAccessEnabled": zod.boolean(),
   "teamsBySize": zod.array(zod.object({
   "range": zod.string(),
-  "count": zod.number()
+  "count": zod.number(),
+  "totalTeamSize": zod.number(),
+  "owners": zod.number(),
+  "members": zod.number(),
+  "guests": zod.number()
 })),
   "topTeams": zod.array(zod.object({
   "teamId": zod.string(),
@@ -750,7 +832,11 @@ export const GetM365TeamsWithMetadataResponse = zod.object({
   "externalAccessEnabled": zod.boolean(),
   "teamsBySize": zod.array(zod.object({
   "range": zod.string(),
-  "count": zod.number()
+  "count": zod.number(),
+  "totalTeamSize": zod.number(),
+  "owners": zod.number(),
+  "members": zod.number(),
+  "guests": zod.number()
 })),
   "topTeams": zod.array(zod.object({
   "teamId": zod.string(),
@@ -1120,7 +1206,11 @@ export const GetM365IntuneResponse = zod.object({
   "value": zod.string(),
   "status": zod.string(),
   "notes": zod.string()
-}))
+})),
+  "tamperProtectionEnabledDevices": zod.number(),
+  "tamperProtectionDisabledDevices": zod.number(),
+  "tamperProtectionUnknownDevices": zod.number(),
+  "tamperProtectionPercent": zod.union([zod.number(),zod.null()])
 })
 
 
@@ -1237,7 +1327,11 @@ export const GetM365IntuneWithMetadataResponse = zod.object({
   "value": zod.string(),
   "status": zod.string(),
   "notes": zod.string()
-}))
+})),
+  "tamperProtectionEnabledDevices": zod.number(),
+  "tamperProtectionDisabledDevices": zod.number(),
+  "tamperProtectionUnknownDevices": zod.number(),
+  "tamperProtectionPercent": zod.union([zod.number(),zod.null()])
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
   "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
@@ -1733,6 +1827,254 @@ export const GetM365DataSourcesResponse = zod.object({
   "notAssessed": zod.number()
 })
 })
+})
+
+
+/**
+ * @summary Workload adoption and value realisation scoring across M365 services
+ */
+export const GetM365AdoptionResponse = zod.object({
+  "workloads": zod.array(zod.object({
+  "workload": zod.string(),
+  "displayName": zod.string(),
+  "activeUsers": zod.number(),
+  "inactiveUsers": zod.number(),
+  "licensedUsers": zod.number(),
+  "adoptionPercent": zod.number(),
+  "isValueGap": zod.boolean(),
+  "trend": zod.array(zod.object({
+  "period": zod.string(),
+  "activeUsers": zod.number(),
+  "licensedUsers": zod.number(),
+  "adoptionPercent": zod.number()
+})),
+  "depth": zod.union([zod.object({
+  "teamChatMessages": zod.number().nullable(),
+  "privateChatMessages": zod.number().nullable(),
+  "calls": zod.number().nullable(),
+  "meetings": zod.number().nullable(),
+  "odViewedOrEdited": zod.number().nullable(),
+  "odSynced": zod.number().nullable(),
+  "odSharedInternally": zod.number().nullable(),
+  "odSharedExternally": zod.number().nullable(),
+  "spVisitedPages": zod.number().nullable(),
+  "spViewedOrEdited": zod.number().nullable(),
+  "spSynced": zod.number().nullable(),
+  "spSharedInternally": zod.number().nullable(),
+  "spSharedExternally": zod.number().nullable(),
+  "emailSent": zod.number().nullable(),
+  "emailReceived": zod.number().nullable(),
+  "emailRead": zod.number().nullable()
+}),zod.null()])
+})),
+  "totalActiveUsers": zod.number(),
+  "totalLicensedUsers": zod.number(),
+  "overallAdoptionPercent": zod.number(),
+  "valueGapCount": zod.number(),
+  "appsActivation": zod.array(zod.object({
+  "app": zod.string(),
+  "displayName": zod.string(),
+  "activeUsers": zod.number()
+})),
+  "copilotAdoption": zod.union([zod.object({
+  "enabledUsers": zod.number(),
+  "activeUsers": zod.number(),
+  "adoptionPercent": zod.number(),
+  "appBreakdown": zod.array(zod.object({
+  "app": zod.string(),
+  "displayName": zod.string(),
+  "enabledUsers": zod.number(),
+  "activeUsers": zod.number()
+}))
+}),zod.null()]),
+  "partialData": zod.boolean(),
+  "permissionError": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Workload adoption and value realisation scoring with field metadata
+ */
+export const GetM365AdoptionWithMetadataResponse = zod.object({
+  "data": zod.object({
+  "workloads": zod.array(zod.object({
+  "workload": zod.string(),
+  "displayName": zod.string(),
+  "activeUsers": zod.number(),
+  "inactiveUsers": zod.number(),
+  "licensedUsers": zod.number(),
+  "adoptionPercent": zod.number(),
+  "isValueGap": zod.boolean(),
+  "trend": zod.array(zod.object({
+  "period": zod.string(),
+  "activeUsers": zod.number(),
+  "licensedUsers": zod.number(),
+  "adoptionPercent": zod.number()
+})),
+  "depth": zod.union([zod.object({
+  "teamChatMessages": zod.number().nullable(),
+  "privateChatMessages": zod.number().nullable(),
+  "calls": zod.number().nullable(),
+  "meetings": zod.number().nullable(),
+  "odViewedOrEdited": zod.number().nullable(),
+  "odSynced": zod.number().nullable(),
+  "odSharedInternally": zod.number().nullable(),
+  "odSharedExternally": zod.number().nullable(),
+  "spVisitedPages": zod.number().nullable(),
+  "spViewedOrEdited": zod.number().nullable(),
+  "spSynced": zod.number().nullable(),
+  "spSharedInternally": zod.number().nullable(),
+  "spSharedExternally": zod.number().nullable(),
+  "emailSent": zod.number().nullable(),
+  "emailReceived": zod.number().nullable(),
+  "emailRead": zod.number().nullable()
+}),zod.null()])
+})),
+  "totalActiveUsers": zod.number(),
+  "totalLicensedUsers": zod.number(),
+  "overallAdoptionPercent": zod.number(),
+  "valueGapCount": zod.number(),
+  "appsActivation": zod.array(zod.object({
+  "app": zod.string(),
+  "displayName": zod.string(),
+  "activeUsers": zod.number()
+})),
+  "copilotAdoption": zod.union([zod.object({
+  "enabledUsers": zod.number(),
+  "activeUsers": zod.number(),
+  "adoptionPercent": zod.number(),
+  "appBreakdown": zod.array(zod.object({
+  "app": zod.string(),
+  "displayName": zod.string(),
+  "enabledUsers": zod.number(),
+  "activeUsers": zod.number()
+}))
+}),zod.null()]),
+  "partialData": zod.boolean(),
+  "permissionError": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean()
+}))
+}),
+  "fieldMetadata": zod.record(zod.string(), zod.object({
+  "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
+  "confidenceLabel": zod.enum(['high', 'medium', 'low', 'unknown']),
+  "sourceLabel": zod.string().optional(),
+  "notes": zod.array(zod.string()).optional()
+})),
+  "metadataVersion": zod.string()
+})
+
+
+/**
+ * @summary Power BI tenant governance metrics
+ */
+export const GetM365PowerBIResponse = zod.object({
+  "available": zod.boolean(),
+  "totalWorkspaces": zod.number(),
+  "activeWorkspaces": zod.number(),
+  "orphanedWorkspaces": zod.number(),
+  "personalWorkspaces": zod.number(),
+  "dedicatedCapacityWorkspaces": zod.number(),
+  "totalDatasets": zod.number(),
+  "refreshableDatasets": zod.number(),
+  "totalReports": zod.number(),
+  "capacities": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "sku": zod.string(),
+  "state": zod.string(),
+  "adminCount": zod.number()
+})),
+  "workspaces": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "type": zod.string(),
+  "state": zod.string(),
+  "isOrphaned": zod.boolean(),
+  "adminCount": zod.number(),
+  "datasetCount": zod.number(),
+  "reportCount": zod.number(),
+  "isOnDedicatedCapacity": zod.boolean(),
+  "capacityId": zod.union([zod.string(),zod.null()])
+})),
+  "partialData": zod.boolean(),
+  "permissionError": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Power BI tenant governance metrics with field metadata
+ */
+export const GetM365PowerBIWithMetadataResponse = zod.object({
+  "data": zod.object({
+  "available": zod.boolean(),
+  "totalWorkspaces": zod.number(),
+  "activeWorkspaces": zod.number(),
+  "orphanedWorkspaces": zod.number(),
+  "personalWorkspaces": zod.number(),
+  "dedicatedCapacityWorkspaces": zod.number(),
+  "totalDatasets": zod.number(),
+  "refreshableDatasets": zod.number(),
+  "totalReports": zod.number(),
+  "capacities": zod.array(zod.object({
+  "id": zod.string(),
+  "displayName": zod.string(),
+  "sku": zod.string(),
+  "state": zod.string(),
+  "adminCount": zod.number()
+})),
+  "workspaces": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "type": zod.string(),
+  "state": zod.string(),
+  "isOrphaned": zod.boolean(),
+  "adminCount": zod.number(),
+  "datasetCount": zod.number(),
+  "reportCount": zod.number(),
+  "isOnDedicatedCapacity": zod.boolean(),
+  "capacityId": zod.union([zod.string(),zod.null()])
+})),
+  "partialData": zod.boolean(),
+  "permissionError": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean()
+}))
+}),
+  "fieldMetadata": zod.record(zod.string(), zod.object({
+  "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
+  "confidenceLabel": zod.enum(['high', 'medium', 'low', 'unknown']),
+  "sourceLabel": zod.string().optional(),
+  "notes": zod.array(zod.string()).optional()
+})),
+  "metadataVersion": zod.string()
 })
 
 
