@@ -46,11 +46,9 @@ const PALETTE = [C.blue, C.purple, C.green, C.red, C.pink];
 
 // ── staleness helpers ─────────────────────────────────────────────────────────
 
-const NOW = Date.now();
-
 function daysSince(iso: string | null | undefined): number | null {
   if (!iso) return null;
-  const ms = NOW - new Date(iso).getTime();
+  const ms = Date.now() - new Date(iso).getTime();
   return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 

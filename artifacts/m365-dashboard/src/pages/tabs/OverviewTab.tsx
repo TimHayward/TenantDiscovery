@@ -79,7 +79,7 @@ export function OverviewTab() {
         />
         <KPICard
           title="License Utilization"
-          value={overview ? `${Math.round((overview.assignedLicenses / overview.totalLicenses) * 100)}%` : undefined}
+          value={overview ? `${overview.totalLicenses > 0 ? Math.round((overview.assignedLicenses / overview.totalLicenses) * 100) : 0}%` : undefined}
           loading={loading}
           density="compact"
           evidenceStatus={getMetricMeta("overview.licenseUtilization")?.evidenceStatus}

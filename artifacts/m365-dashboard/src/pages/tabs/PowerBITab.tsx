@@ -98,8 +98,9 @@ const workspaceColumns: ColumnDef<PowerBIWorkspaceItem>[] = [
 ];
 
 export function PowerBITab() {
-  const { data: response, isLoading } = useGetM365PowerBIWithMetadata();
+  const { data: response, isLoading, isFetching } = useGetM365PowerBIWithMetadata();
   const data = response?.data;
+  const loading = isLoading || isFetching;
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -113,7 +114,10 @@ export function PowerBITab() {
     data: workspaces,
     columns: workspaceColumns,
     state: { sorting, globalFilter },
-    onSortingChange: setSorting,
+    onSortingChange: (updater) => {
+      setSorting(updater);
+      setPage(0);
+    },
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -139,7 +143,7 @@ export function PowerBITab() {
   return (
     <div className="space-y-6">
       {/* Unavailable banner */}
-      {!isLoading && data && !data.available && (
+      {!loading && data && !data.available && (
         <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 p-4">
           <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <div>
@@ -165,13 +169,13 @@ export function PowerBITab() {
         <KPICard
           title="Total Workspaces"
           value={data?.available ? data.totalWorkspaces : undefined}
-          loading={isLoading}
+          loading={loading}
           density="compact"
         />
         <KPICard
           title="Active Workspaces"
           value={data?.available ? data.activeWorkspaces : undefined}
-          loading={isLoading}
+          loading={loading}
           density="compact"
           valueColor={
             data?.available && (data.activeWorkspaces ?? 0) > 0 ? "#009118" : undefined
@@ -180,7 +184,7 @@ export function PowerBITab() {
         <KPICard
           title="Orphaned Workspaces"
           value={data?.available ? data.orphanedWorkspaces : undefined}
-          loading={isLoading}
+          loading={loading}
           density="compact"
           valueColor={
             (data?.orphanedWorkspaces ?? 0) > 0 ? "#d97706" : undefined
@@ -189,7 +193,7 @@ export function PowerBITab() {
         <KPICard
           title="Total Datasets"
           value={data?.available ? data.totalDatasets : undefined}
-          loading={isLoading}
+          loading={loading}
           density="compact"
         />
       </div>
@@ -200,25 +204,25 @@ export function PowerBITab() {
           <KPICard
             title="Total Reports"
             value={data.totalReports}
-            loading={isLoading}
+            loading={loading}
             density="compact"
           />
           <KPICard
             title="Refreshable Datasets"
             value={data.refreshableDatasets}
-            loading={isLoading}
+            loading={loading}
             density="compact"
           />
           <KPICard
             title="Personal Workspaces"
             value={data.personalWorkspaces}
-            loading={isLoading}
+            loading={loading}
             density="compact"
           />
           <KPICard
             title="Premium Capacity"
             value={data.dedicatedCapacityWorkspaces}
-            loading={isLoading}
+            loading={loading}
             density="compact"
           />
         </div>
@@ -226,7 +230,7 @@ export function PowerBITab() {
 
       {/* Capacities section */}
       {data?.available && (data.capacities?.length ?? 0) > 0 && (
-        <CollapsibleSection title="Premium Capacities" defaultOpen>
+        <CollapsibleSection title="Premium Capacities" storageKey="powerbi-capacities" defaultOpen>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -264,7 +268,7 @@ export function PowerBITab() {
 
       {/* Workspaces table */}
       {data?.available && (
-        <CollapsibleSection title={`Workspaces (${workspaces.length})`} defaultOpen>
+        <CollapsibleSection title={`Workspaces (${workspaces.length})`} storageKey="powerbi-workspaces" defaultOpen>
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <Input

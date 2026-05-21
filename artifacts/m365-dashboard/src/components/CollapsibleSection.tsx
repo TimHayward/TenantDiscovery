@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
@@ -8,6 +8,7 @@ interface CollapsibleSectionProps {
   actions?: React.ReactNode;
   defaultOpen?: boolean;
   storageKey?: string;
+  sectionId?: string;
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
@@ -35,7 +36,7 @@ function usePersistedToggle(storageKey: string | undefined, defaultOpen: boolean
       return next;
     });
 
-  return [open, toggle] as const;
+  return [open, toggle, setOpen] as const;
 }
 
 export function CollapsibleSection({
@@ -44,16 +45,33 @@ export function CollapsibleSection({
   actions,
   defaultOpen = false,
   storageKey,
+  sectionId,
   children,
   className,
   contentClassName,
   density = "default",
 }: CollapsibleSectionProps) {
-  const [open, toggle] = usePersistedToggle(storageKey, defaultOpen);
+  const [open, toggle, setOpen] = usePersistedToggle(storageKey, defaultOpen);
   const isCompact = density === "compact";
+  const elementId = sectionId ?? storageKey;
+
+  useEffect(() => {
+    if (!elementId) return;
+    function handler(e: Event) {
+      const ce = e as CustomEvent<{ id: string }>;
+      if (ce.detail?.id === elementId) {
+        setOpen(true);
+        if (storageKey) {
+          try { localStorage.setItem(`m365-section:${storageKey}`, "true"); } catch {}
+        }
+      }
+    }
+    window.addEventListener("m365:open-section", handler);
+    return () => window.removeEventListener("m365:open-section", handler);
+  }, [elementId, storageKey, setOpen]);
 
   return (
-    <Card className={className}>
+    <Card id={elementId} className={className}>
       <CardHeader
         className={`${isCompact ? "px-3 pt-3 gap-2.5" : "px-4 pt-4 gap-3"} flex-row items-start justify-between space-y-0 cursor-pointer select-none transition-colors hover:bg-muted/30 rounded-t-lg ${open ? (isCompact ? "pb-1.5" : "pb-2") : (isCompact ? "pb-3 rounded-b-lg" : "pb-4 rounded-b-lg")}`}
         onClick={toggle}

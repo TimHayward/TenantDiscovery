@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { CSVLink } from "react-csv";
@@ -54,7 +54,6 @@ const STRENGTH_COLOR: Record<string, string> = {
   "Unknown":            C.gray,
 };
 
-const STRENGTH_ORDER = ["Phishing-resistant", "Strong", "Medium", "Weak", "Unknown"];
 
 function StateBadge({ state }: { state: string }) {
   if (state === "enabled")
@@ -249,6 +248,64 @@ const secureScoreControlColumns: ColumnDef<SecureScoreControl>[] = [
   },
 ];
 
+function RiskTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border bg-popover p-3 shadow-md text-sm space-y-1">
+      <p className="font-medium mb-1">{label}</p>
+      {payload.map((p: any) => (
+        <div key={p.name} className="flex items-center gap-2">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: p.color }} />
+          <span className="text-muted-foreground capitalize">{p.name}:</span>
+          <span className="font-semibold">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function renderTable<T>(table: ReturnType<typeof useReactTable<T>>, emptyMsg = "No data.") {
+  return (
+    <div className="rounded-md border overflow-x-auto">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((hg) => (
+            <TableRow key={hg.id}>
+              {hg.headers.map((header) => (
+                <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
+                  <div className="flex items-center gap-1">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                  </div>
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.length > 0 ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} className="py-2">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={table.getAllColumns().length} className="h-16 text-center text-muted-foreground">
+                {emptyMsg}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 const methodColumns: ColumnDef<MfaMethodStrengthItem>[] = [
   { accessorKey: "strengthLevel", header: "Strength", cell: ({ row }) => <StrengthBadge strength={row.original.strength} /> },
   { accessorKey: "displayName", header: "Method", cell: ({ row }) => <span className="font-medium text-sm">{row.original.displayName}</span> },
@@ -342,6 +399,25 @@ export function SecurityTab() {
   const configuredCount   = controls.filter((c) => c.status === "configured").length;
   const partialCount      = controls.filter((c) => c.status === "partial").length;
   const notConfiguredCount = controls.filter((c) => c.status === "notConfigured").length;
+
+  const scoreBreakdown = useMemo(() => {
+    if (!data) return [];
+    const fmt = (n: number) => (n % 1 === 0 ? String(n) : n.toFixed(2));
+    const overall = {
+      name: "Secure Score",
+      percent: data.secureScorePercent,
+      label: `${data.secureScorePercent}%  (${fmt(data.secureScore)} / ${data.secureScoreMax})`,
+    };
+    const cats = (data.controlCategories ?? []).map((c) => {
+      const pct = c.maxScore > 0 ? Math.round((c.score / c.maxScore) * 100) : 0;
+      return {
+        name: c.category,
+        percent: pct,
+        label: `${pct}%  (${fmt(c.score)} / ${c.maxScore})`,
+      };
+    });
+    return [overall, ...cats];
+  }, [data]);
   const phishingResistantCount = data?.mfaMethodsBreakdown?.find((method) => method.strength === "Phishing-resistant")?.count ?? 0;
 
   const getChecklistMeta = (metricId: string) => getMetricDataSourceEntry(metricId);
@@ -485,74 +561,17 @@ export function SecurityTab() {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const RiskTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="rounded-lg border bg-popover p-3 shadow-md text-sm space-y-1">
-        <p className="font-medium mb-1">{label}</p>
-        {payload.map((p: any) => (
-          <div key={p.name} className="flex items-center gap-2">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: p.color }} />
-            <span className="text-muted-foreground capitalize">{p.name}:</span>
-            <span className="font-semibold">{p.value}</span>
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const [resetKey, setResetKey] = useState(0);
 
   const resetSecuritySections = () => {
-    ["security-mfa-strength", "security-ca-policies", "security-settings", "security-mfa-users", "security-risky-users", "security-risk-timeline"].forEach((key) => {
+    ["security-score-breakdown", "security-mfa", "security-mfa-strength", "security-ca-policies", "security-settings", "security-mfa-users", "security-risky-users", "security-risk-timeline"].forEach((key) => {
       try { localStorage.removeItem(`m365-section:${key}`); } catch {}
     });
-    window.location.reload();
+    setResetKey((k) => k + 1);
   };
 
-  // ── helper to render a generic table with sorting + pagination ──
-  function renderTable<T>(table: ReturnType<typeof useReactTable<T>>, emptyMsg = "No data.") {
-    return (
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id}>
-                {hg.headers.map((header) => (
-                  <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                    </div>
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-2">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={table.getAllColumns().length} className="h-16 text-center text-muted-foreground">
-                  {emptyMsg}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
+    <div key={resetKey} className="space-y-4">
 
       <CollapsibleSection title="Summary" description="Secure Score, MFA coverage, and Conditional Access overview" storageKey="security-summary" defaultOpen={true} density="compact" actions={<Button variant="outline" size="sm" onClick={resetSecuritySections}>Reset Sections</Button>}>
       <div className="space-y-4">
@@ -673,6 +692,49 @@ export function SecurityTab() {
       </div>
       </CollapsibleSection>
 
+      {/* ── Secure Score Breakdown ─────────────────────────────────────────── */}
+      <CollapsibleSection
+        title="Secure Score Breakdown"
+        description={loading ? undefined : `${data?.secureScorePercent ?? 0}% overall · ${(data?.controlCategories ?? []).length} categories`}
+        storageKey="security-score-breakdown"
+        defaultOpen={true}
+        density="compact"
+      >
+        {loading ? (
+          <Skeleton className="w-full h-[220px]" />
+        ) : (
+          <ResponsiveContainer width="100%" height={Math.max(180, scoreBreakdown.length * 44)} debounce={0}>
+            <BarChart data={scoreBreakdown} layout="vertical" margin={{ left: 0, right: 200, top: 4, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+              <XAxis
+                type="number"
+                domain={[0, 100]}
+                tickFormatter={(v: number) => `${v}%`}
+                tick={{ fontSize: 10, fill: tickColor }}
+                stroke={tickColor}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fontSize: 12, fill: tickColor }}
+                stroke="none"
+                width={105}
+              />
+              <Tooltip
+                isAnimationActive={false}
+                formatter={(_v: number, _k: string, entry: { payload?: { label?: string; name?: string } }) => [
+                  entry?.payload?.label ?? "—",
+                  entry?.payload?.name ?? "",
+                ]}
+              />
+              <Bar dataKey="percent" name="Score %" fill={C.blue} fillOpacity={0.85} radius={[0, 3, 3, 0]} isAnimationActive={false}>
+                <LabelList dataKey="label" position="right" fill={tickColor} fontSize={11} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </CollapsibleSection>
+
       {/* ── Risk Detection Timeline ─────────────────────────────────────────── */}
       {(data?.riskDetectionTimeline?.length ?? 0) > 0 && (
         <CollapsibleSection
@@ -740,15 +802,54 @@ export function SecurityTab() {
         </CollapsibleSection>
       )}
 
-      {/* ── MFA Method Strength ────────────────────────────────────────────── */}
+      {/* ── MFA ───────────────────────────────────────────────────────────── */}
       <CollapsibleSection
-        title="MFA Method Strength"
-        description={loading ? undefined : `${data?.mfaMethodsBreakdown?.length ?? 0} authentication methods in use`}
-        storageKey="security-mfa-strength"
+        title="MFA"
+        description="Multi-factor authentication method strength and user registration"
+        storageKey="security-mfa"
         defaultOpen={true}
-        actions={<ExportBtn filename="mfa-methods.csv" csvData={data?.mfaMethodsBreakdown ?? []} />}
+        density="compact"
       >
-        {loading ? <Skeleton className="w-full h-32" /> : renderTable(methodTable, "No MFA method data available.")}
+        <div className="space-y-3">
+          <CollapsibleSection
+            title="MFA Method Strength"
+            description={loading ? undefined : `${data?.mfaMethodsBreakdown?.length ?? 0} authentication methods in use`}
+            storageKey="security-mfa-strength"
+            defaultOpen={true}
+            actions={<ExportBtn filename="mfa-methods.csv" csvData={data?.mfaMethodsBreakdown ?? []} />}
+          >
+            {loading ? <Skeleton className="w-full h-32" /> : renderTable(methodTable, "No MFA method data available.")}
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="MFA User Registration"
+            description={loading ? undefined : `${data?.mfaEnabledUsers ?? 0} registered · ${data?.mfaDisabledUsers ?? 0} not registered`}
+            storageKey="security-mfa-users"
+            defaultOpen={false}
+            actions={<ExportBtn filename="mfa-users.csv" csvData={data?.mfaUsersList ?? []} />}
+          >
+            {loading ? <Skeleton className="w-full h-32" /> : (
+              <div className="space-y-3">
+                <div className="flex gap-2 flex-wrap">
+                  <Input
+                    placeholder="Filter users…"
+                    value={mfaUserFilter}
+                    onChange={(e) => setMfaUserFilter(e.target.value)}
+                    className="h-8 w-60 text-sm"
+                  />
+                </div>
+                {renderTable(mfaUserTable, "No users found.")}
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{mfaUserTable.getFilteredRowModel().rows.length} users</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => mfaUserTable.previousPage()} disabled={!mfaUserTable.getCanPreviousPage()}>Previous</Button>
+                    <Button variant="outline" size="sm" onClick={() => mfaUserTable.nextPage()} disabled={!mfaUserTable.getCanNextPage()}>Next</Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CollapsibleSection>
+        </div>
       </CollapsibleSection>
 
       {/* ── Conditional Access Policies ────────────────────────────────────── */}
@@ -821,36 +922,6 @@ export function SecurityTab() {
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => settingsTable.previousPage()} disabled={!settingsTable.getCanPreviousPage()}>Previous</Button>
                 <Button variant="outline" size="sm" onClick={() => settingsTable.nextPage()} disabled={!settingsTable.getCanNextPage()}>Next</Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </CollapsibleSection>
-
-      {/* ── MFA User Registration ──────────────────────────────────────────── */}
-      <CollapsibleSection
-        title="MFA User Registration"
-        description={loading ? undefined : `${data?.mfaEnabledUsers ?? 0} registered · ${data?.mfaDisabledUsers ?? 0} not registered`}
-        storageKey="security-mfa-users"
-        defaultOpen={false}
-        actions={<ExportBtn filename="mfa-users.csv" csvData={data?.mfaUsersList ?? []} />}
-      >
-        {loading ? <Skeleton className="w-full h-32" /> : (
-          <div className="space-y-3">
-            <div className="flex gap-2 flex-wrap">
-              <Input
-                placeholder="Filter users…"
-                value={mfaUserFilter}
-                onChange={(e) => setMfaUserFilter(e.target.value)}
-                className="h-8 w-60 text-sm"
-              />
-            </div>
-            {renderTable(mfaUserTable, "No users found.")}
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{mfaUserTable.getFilteredRowModel().rows.length} users</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => mfaUserTable.previousPage()} disabled={!mfaUserTable.getCanPreviousPage()}>Previous</Button>
-                <Button variant="outline" size="sm" onClick={() => mfaUserTable.nextPage()} disabled={!mfaUserTable.getCanNextPage()}>Next</Button>
               </div>
             </div>
           </div>
