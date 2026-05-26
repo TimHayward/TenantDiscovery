@@ -48,7 +48,13 @@ const NAV_ITEMS = [
 
 type NavValue = typeof NAV_ITEMS[number]["value"];
 
-const NAV_SECTIONS: Partial<Record<NavValue, Array<{ label: string; id: string }>>> = {
+type NavSectionLink = {
+  label: string;
+  id: string;
+  tab?: NavValue;
+};
+
+const NAV_SECTIONS: Partial<Record<NavValue, Array<NavSectionLink>>> = {
   overview: [
     { label: "Summary",                    id: "overview-summary"           },
     { label: "Licensing & Service Health", id: "overview-licensing-health"  },
@@ -57,11 +63,11 @@ const NAV_SECTIONS: Partial<Record<NavValue, Array<{ label: string; id: string }
     { label: "Summary",                    id: "users-summary"                   },
     { label: "Stale Accounts",             id: "users-stale-section"             },
     { label: "Administrator Exposure",     id: "users-admin-exposure-section"    },
-    { label: "Enterprise Applications",    id: "users-enterprise-apps-section"   },
     { label: "Summary Check List",         id: "users-checklist-section"         },
   ],
   licenses: [
-    { label: "Summary",              id: "licenses-summary"       },
+    { label: "Summary",               id: "licenses-summary"       },
+    { label: "Stale Licensed Users",  id: "licenses-ghost-users"   },
     { label: "License Subscriptions", id: "licenses-subscriptions" },
   ],
   security: [
@@ -83,9 +89,10 @@ const NAV_SECTIONS: Partial<Record<NavValue, Array<{ label: string; id: string }
     { label: "Summary Check List", id: "teams-checklist"  },
   ],
   compliance: [
-    { label: "Summary",            id: "compliance-summary"              },
-    { label: "Service Health",     id: "compliance-service-health-outer" },
-    { label: "Summary Check List", id: "compliance-checklist"            },
+    { label: "Summary",             id: "compliance-summary"              },
+    { label: "Service Health",      id: "compliance-service-health-outer" },
+    { label: "Sensitivity Labels",  id: "compliance-sensitivity-labels"   },
+    { label: "Summary Check List",  id: "compliance-checklist"            },
   ],
   intune: [
     { label: "Summary",               id: "intune-summary"          },
@@ -98,18 +105,26 @@ const NAV_SECTIONS: Partial<Record<NavValue, Array<{ label: string; id: string }
     { label: "Summary Check List",    id: "intune-checklist"        },
   ],
   defender: [
-    { label: "Summary",            id: "defender-summary"   },
-    { label: "Summary Check List", id: "defender-checklist" },
+    { label: "Device Inventory",               id: "defender-device-inventory"    },
+    { label: "Defender for Endpoint Alerts",   id: "defender-mde-alerts"          },
+    { label: "Enterprise Applications (SaaS)", id: "defender-saas-apps"           },
+    { label: "OAuth Applications",             id: "defender-oauth-apps"          },
+    { label: "Defender for Office 365 Alerts", id: "defender-o365-alerts"         },
   ],
   "service-principals": [
-    { label: "Summary",       id: "sp-summary"       },
-    { label: "Risk Overview", id: "sp-risk-overview" },
+    { label: "Summary",                        id: "sp-summary"                 },
+    { label: "Enterprise App Registrations",   id: "enterprise-app-registrations-section" },
+    { label: "Service Principals & Consent",   id: "service-principals-main"   },
+    { label: "Risk Overview",                  id: "sp-risk-overview"           },
+    { label: "Security Check List",            id: "enterprise-apps-checklist-section" },
+    { label: "Value Gaps",                     id: "adoption-value-gaps", tab: "adoption" },
   ],
   adoption: [
-    { label: "Adoption Summary",        id: "adoption-summary" },
-    { label: "Adoption Trend",          id: "adoption-trend"   },
-    { label: "M365 Apps Activation",    id: "adoption-apps"    },
-    { label: "Service Activation Matrix", id: "adoption-matrix" },
+    { label: "Adoption Summary",             id: "adoption-summary" },
+    { label: "Adoption Trend",               id: "adoption-trend"   },
+    { label: "Value Gaps",                   id: "adoption-value-gaps" },
+    { label: "M365 Apps Activation",         id: "adoption-apps"    },
+    { label: "Service Activation Matrix",    id: "adoption-matrix" },
   ],
   "power-bi": [
     { label: "Workspaces", id: "powerbi-workspaces" },
@@ -131,6 +146,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<NavValue>("overview");
   const [visitedTabs, setVisitedTabs] = useState<Set<NavValue>>(new Set(["overview"]));
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [scrollTrigger, setScrollTrigger] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pendingScrollId = useRef<string | null>(null);
 
@@ -201,7 +217,7 @@ export default function Dashboard() {
       }
     };
     tryScroll();
-  }, [activeTab]);
+  }, [activeTab, scrollTrigger]);
 
   const handleRefresh = () => {
     queryClient.invalidateQueries();
@@ -221,6 +237,7 @@ export default function Dashboard() {
     window.dispatchEvent(new CustomEvent("m365:open-section", { detail: { id: sectionId } }));
     pendingScrollId.current = sectionId;
     switchTab(tabValue);
+    setScrollTrigger((t) => t + 1);
   }, [switchTab]);
 
   const lastRefreshed = dataUpdatedAt
@@ -235,8 +252,7 @@ export default function Dashboard() {
   const activeLabel = NAV_ITEMS.find((n) => n.value === activeTab)?.label ?? "";
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-
+    <div className="h-screen flex flex-col bg-background">
       {/* ── Top bar ──────────────────────────────────────────────────────────── */}
       <header className="h-12 shrink-0 flex items-center justify-between px-4 bg-card border-b border-border sticky top-0 z-40 print:hidden">
         <div className="flex items-center gap-3">
@@ -247,13 +263,12 @@ export default function Dashboard() {
           >
             {sidebarExpanded
               ? <PanelLeftClose className="w-4 h-4" />
-              : <PanelLeftOpen  className="w-4 h-4" />}
+              : <PanelLeftOpen className="w-4 h-4" />}
           </button>
           <span className="font-bold text-[15px] text-foreground tracking-tight">M365 Health Dashboard</span>
         </div>
 
         <div className="flex items-center gap-3 print:hidden">
-          {/* Split Refresh Button */}
           <div className="relative" ref={dropdownRef}>
             <div
               className="flex items-center rounded-[6px] overflow-hidden h-[26px] text-[12px]"
@@ -289,7 +304,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Print Button */}
           <button
             onClick={() => window.print()}
             disabled={loading}
@@ -300,7 +314,6 @@ export default function Dashboard() {
             <Printer className="w-3.5 h-3.5" />
           </button>
 
-          {/* Dark Mode Toggle */}
           <button
             onClick={() => setTheme(isDark ? "light" : "dark")}
             className="flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors"
@@ -312,13 +325,10 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* ── Body: sidebar + content ───────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
-
-        {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <aside
           style={{ width: sidebarExpanded ? "240px" : "48px" }}
-          className="shrink-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-[width] duration-200 overflow-hidden print:hidden"
+          className="sticky top-12 h-[calc(100vh-3rem)] shrink-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-[width] duration-200 overflow-hidden print:hidden"
         >
           <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
             {NAV_ITEMS.map(({ value, label, icon: Icon }) => {
@@ -356,10 +366,10 @@ export default function Dashboard() {
                   {mainBtn}
                   {isActive && sections.length > 0 && (
                     <div className="pb-1">
-                      {sections.map(({ label: sLabel, id }) => (
+                      {sections.map(({ label: sLabel, id, tab }) => (
                         <button
                           key={id}
-                          onClick={() => navigateToSection(value, id)}
+                          onClick={() => navigateToSection(tab ?? value, id)}
                           className="w-full flex items-center gap-2 pl-9 pr-3 py-1 text-[12px] text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
                         >
                           <span className="w-1 h-1 rounded-full bg-current opacity-50 shrink-0" />
@@ -381,7 +391,7 @@ export default function Dashboard() {
         </aside>
 
         {/* ── Main content ─────────────────────────────────────────────────────── */}
-        <main className="flex-1 overflow-y-auto min-w-0">
+        <main className="flex-1 min-h-0 overflow-y-auto min-w-0">
           <div className="max-w-[1400px] mx-auto px-6 py-5">
 
             {/* Content area header */}

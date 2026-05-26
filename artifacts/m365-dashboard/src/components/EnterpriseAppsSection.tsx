@@ -4,7 +4,6 @@ import type { AppRegistration, AppCredential, AppPermission } from "@workspace/a
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -19,8 +18,8 @@ import {
   type ColumnDef, type SortingState,
 } from "@tanstack/react-table";
 import {
-  Building2, Key, Lock, Globe, CheckCircle2, XCircle, AlertCircle,
-  ChevronDown, ChevronUp, ShieldAlert, Info, AlertTriangle,
+  Key, Lock, Globe, CheckCircle2, XCircle, AlertCircle,
+  ChevronDown, ChevronUp, ShieldAlert, AlertTriangle,
 } from "lucide-react";
 import { PermissionCodeList } from "@/components/PermissionCodeList";
 import { ENTERPRISE_APPS_PERMISSIONS } from "@/lib/permissions";
@@ -290,7 +289,7 @@ function AppDetailPanel({ app, usersCanRegisterApps }: { app: AppRegistration; u
 
 // ── main exported section ─────────────────────────────────────────────────────
 
-export function EnterpriseAppsSection() {
+export function AppRegistrationsSection() {
   const { data, isLoading, isFetching } = useGetM365Apps();
   const { data: dataSources } = useGetM365DataSources({ tab: "enterprise-apps" });
   const loading = isLoading || isFetching;
@@ -473,97 +472,23 @@ export function EnterpriseAppsSection() {
     initialState: { pagination: { pageSize: 15 } },
   });
 
-  // ── enterprise apps security checklist ─────────────────────────────────────
-  const appChecklist = useMemo<ChecklistGroup[]>(() => [
-    { id: "EA.1", title: "EA.1 Permission Model Hardening — least privilege for all apps", items: [
-      { label: "No app registrations hold high-risk Graph permissions",
-        status: (data?.appsWithHighRisk ?? 0) === 0 ? "pass" : "fail",
-        detail: (data?.appsWithHighRisk ?? 0) === 0
-          ? "No high-risk permissions detected across app registrations"
-          : `${data?.appsWithHighRisk} app(s) hold high-risk permissions (e.g. Directory.ReadWrite.All)` },
-    ]},
-    { id: "EA.2", title: "EA.2 Consent & Governance Controls — admin approval required", items: [
-      { label: "User app registration creation is restricted or governed",
-        status: data?.usersCanRegisterApps ? "warning" : "pass",
-        detail: data?.usersCanRegisterApps
-          ? "Default user role allows app registration — restrict to admins"
-          : "App registration creation is restricted to privileged users" },
-    ]},
-    { id: "EA.3", title: "EA.3 Credential Hygiene — short-lived secrets and certificates", items: [
-      { label: "No long-lived client secrets (>12 months)",
-        status: (data?.appsWithLongLivedSecrets ?? 0) === 0 ? "pass" : "warning",
-        detail: (data?.appsWithLongLivedSecrets ?? 0) === 0
-          ? "All secrets are within 12-month validity"
-          : `${data?.appsWithLongLivedSecrets} app(s) have secrets valid for over 12 months` },
-      { label: "No expired credentials still registered",
-        status: (data?.appsWithExpiredCredentials ?? 0) === 0 ? "pass" : "fail",
-        detail: (data?.appsWithExpiredCredentials ?? 0) === 0
-          ? "No expired credentials found"
-          : `${data?.appsWithExpiredCredentials} app(s) have expired credentials — remove immediately` },
-    ]},
-    { id: "EA.4", title: "EA.4 Ownership & Accountability — every app has an active owner", items: [
-      { label: "All app registrations have at least one assigned owner",
-        status: (data?.appsWithNoOwner ?? 0) === 0 ? "pass" : "fail",
-        detail: (data?.appsWithNoOwner ?? 0) === 0
-          ? "All apps have owners"
-          : `${data?.appsWithNoOwner} orphaned app registration(s) with no owner` },
-    ]},
-    { id: "EA.5", title: "EA.5 App Exposure — single-tenant unless explicitly justified", items: [
-      { label: "No unjustified multi-tenant applications",
-        status: (data?.multiTenantApps ?? 0) === 0 ? "pass" : "warning",
-        detail: (data?.multiTenantApps ?? 0) === 0
-          ? "All apps are single-tenant"
-          : `${data?.multiTenantApps} multi-tenant app(s) — review audience settings` },
-    ]},
-    { id: "EA.6", title: "EA.6 Service Principal & RBAC Alignment — least privileged roles", items: [
-      { label: "Apps do not hold directory roles or high-privilege RBAC assignments", status: "manual",
-        detail: "Manually verify: no service principals are assigned Global Admin or equivalent directory roles" },
-    ]},
-    { id: "EA.7", title: "EA.7 App Lifecycle & Usage Monitoring — remove unused apps", items: [
-      { label: "No unused or inactive applications remain in production", status: "manual",
-        detail: "Review sign-in activity for each app and retire unused registrations" },
-    ]},
-    { id: "EA.8", title: "EA.8 App Registration Creation Controls — restricted to admins", items: [
-      { label: "App registration creation restricted to privileged users only",
-        status: data?.usersCanRegisterApps ? "fail" : "pass",
-        detail: data?.usersCanRegisterApps
-          ? "Authorization policy allows all users to create app registrations — restrict this"
-          : "App registration creation is restricted" },
-    ]},
-    { id: "EA.9", title: "EA.9 Token & Authentication Security — modern flows only", items: [
-      { label: "Only modern OAuth 2.0 flows used; no legacy authentication endpoints", status: "manual",
-        detail: "Check sign-in logs for legacy authentication (Basic Auth, ADAL) and disable if found" },
-    ]},
-    { id: "EA.10", title: "EA.10 Architectural Pattern — certificates or federated over secrets", items: [
-      { label: "Apps prefer certificates or workload identity federation over client secrets",
-        status: "manual",
-        detail: "Review apps using only client secrets and migrate to certificates or managed identities" },
-    ]},
-  ], [data]);
-
   // ── render ──────────────────────────────────────────────────────────────────
 
   if (!loading && data?.permissionError) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-blue-500" />
-          <h2 className="text-base font-semibold">Enterprise Application Registrations</h2>
-        </div>
-        <div className="flex flex-col items-center justify-center py-12 gap-3 text-center border rounded-lg">
-          <ShieldAlert className="w-10 h-10 text-muted-foreground" />
-          <div>
-            <p className="font-medium">Additional permissions required</p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-md">
-              Grant <PermissionCodeList permissions={ENTERPRISE_APPS_PERMISSIONS.requiredPermissions.map((permission) => permission.name)} codeClassName="bg-muted px-1 rounded text-xs" />
-              {" "}to your Azure app registration, then refresh.
-              {ENTERPRISE_APPS_PERMISSIONS.optionalPermissions.length > 0 ? (
-                <>
-                  {" "}Optional: <PermissionCodeList permissions={ENTERPRISE_APPS_PERMISSIONS.optionalPermissions.map((permission) => permission.name)} codeClassName="bg-muted px-1 rounded text-xs" /> improves policy-based app governance context.
-                </>
-              ) : null}
-            </p>
-          </div>
+      <div className="flex flex-col items-center justify-center py-12 gap-3 text-center border rounded-lg">
+        <ShieldAlert className="w-10 h-10 text-muted-foreground" />
+        <div>
+          <p className="font-medium">Additional permissions required</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md">
+            Grant <PermissionCodeList permissions={ENTERPRISE_APPS_PERMISSIONS.requiredPermissions.map((permission) => permission.name)} codeClassName="bg-muted px-1 rounded text-xs" />
+            {" "}to your Azure app registration, then refresh.
+            {ENTERPRISE_APPS_PERMISSIONS.optionalPermissions.length > 0 ? (
+              <>
+                {" "}Optional: <PermissionCodeList permissions={ENTERPRISE_APPS_PERMISSIONS.optionalPermissions.map((permission) => permission.name)} codeClassName="bg-muted px-1 rounded text-xs" /> improves policy-based app governance context.
+              </>
+            ) : null}
+          </p>
         </div>
       </div>
     );
@@ -577,17 +502,6 @@ export function EnterpriseAppsSection() {
 
   return (
     <div className="space-y-3">
-
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <Building2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
-        <h2 className="text-base font-semibold">Enterprise Application Registrations</h2>
-        {!loading && (
-          <Badge variant="outline" className="font-normal text-xs">
-            {data?.totalApps ?? 0} apps
-          </Badge>
-        )}
-      </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -776,14 +690,89 @@ export function EnterpriseAppsSection() {
           )}
       </CollapsibleSection>
 
-      {/* Enterprise Apps Security Checklist */}
-      <ChecklistTable
-        sectionTitle="Enterprise Applications (EA)"
-        groups={appChecklist}
-        loading={loading}
-        density="compact"
-      />
-
     </div>
+  );
+}
+
+// ── standalone checklist component (re-uses cached query) ────────────────────
+
+export function AppRegistrationsChecklist() {
+  const { data, isLoading, isFetching } = useGetM365Apps();
+  const loading = isLoading || isFetching;
+
+  const appChecklist = useMemo<ChecklistGroup[]>(() => [
+    { id: "EA.1", title: "EA.1 Permission Model Hardening — least privilege for all apps", items: [
+      { label: "No app registrations hold high-risk Graph permissions",
+        status: (data?.appsWithHighRisk ?? 0) === 0 ? "pass" : "fail",
+        detail: (data?.appsWithHighRisk ?? 0) === 0
+          ? "No high-risk permissions detected across app registrations"
+          : `${data?.appsWithHighRisk} app(s) hold high-risk permissions (e.g. Directory.ReadWrite.All)` },
+    ]},
+    { id: "EA.2", title: "EA.2 Consent & Governance Controls — admin approval required", items: [
+      { label: "User app registration creation is restricted or governed",
+        status: data?.usersCanRegisterApps ? "warning" : "pass",
+        detail: data?.usersCanRegisterApps
+          ? "Default user role allows app registration — restrict to admins"
+          : "App registration creation is restricted to privileged users" },
+    ]},
+    { id: "EA.3", title: "EA.3 Credential Hygiene — short-lived secrets and certificates", items: [
+      { label: "No long-lived client secrets (>12 months)",
+        status: (data?.appsWithLongLivedSecrets ?? 0) === 0 ? "pass" : "warning",
+        detail: (data?.appsWithLongLivedSecrets ?? 0) === 0
+          ? "All secrets are within 12-month validity"
+          : `${data?.appsWithLongLivedSecrets} app(s) have secrets valid for over 12 months` },
+      { label: "No expired credentials still registered",
+        status: (data?.appsWithExpiredCredentials ?? 0) === 0 ? "pass" : "fail",
+        detail: (data?.appsWithExpiredCredentials ?? 0) === 0
+          ? "No expired credentials found"
+          : `${data?.appsWithExpiredCredentials} app(s) have expired credentials — remove immediately` },
+    ]},
+    { id: "EA.4", title: "EA.4 Ownership & Accountability — every app has an active owner", items: [
+      { label: "All app registrations have at least one assigned owner",
+        status: (data?.appsWithNoOwner ?? 0) === 0 ? "pass" : "fail",
+        detail: (data?.appsWithNoOwner ?? 0) === 0
+          ? "All apps have owners"
+          : `${data?.appsWithNoOwner} orphaned app registration(s) with no owner` },
+    ]},
+    { id: "EA.5", title: "EA.5 App Exposure — single-tenant unless explicitly justified", items: [
+      { label: "No unjustified multi-tenant applications",
+        status: (data?.multiTenantApps ?? 0) === 0 ? "pass" : "warning",
+        detail: (data?.multiTenantApps ?? 0) === 0
+          ? "All apps are single-tenant"
+          : `${data?.multiTenantApps} multi-tenant app(s) — review audience settings` },
+    ]},
+    { id: "EA.6", title: "EA.6 Service Principal & RBAC Alignment — least privileged roles", items: [
+      { label: "Apps do not hold directory roles or high-privilege RBAC assignments", status: "manual",
+        detail: "Manually verify: no service principals are assigned Global Admin or equivalent directory roles" },
+    ]},
+    { id: "EA.7", title: "EA.7 App Lifecycle & Usage Monitoring — remove unused apps", items: [
+      { label: "No unused or inactive applications remain in production", status: "manual",
+        detail: "Review sign-in activity for each app and retire unused registrations" },
+    ]},
+    { id: "EA.8", title: "EA.8 App Registration Creation Controls — restricted to admins", items: [
+      { label: "App registration creation restricted to privileged users only",
+        status: data?.usersCanRegisterApps ? "fail" : "pass",
+        detail: data?.usersCanRegisterApps
+          ? "Authorization policy allows all users to create app registrations — restrict this"
+          : "App registration creation is restricted" },
+    ]},
+    { id: "EA.9", title: "EA.9 Token & Authentication Security — modern flows only", items: [
+      { label: "Only modern OAuth 2.0 flows used; no legacy authentication endpoints", status: "manual",
+        detail: "Check sign-in logs for legacy authentication (Basic Auth, ADAL) and disable if found" },
+    ]},
+    { id: "EA.10", title: "EA.10 Architectural Pattern — certificates or federated over secrets", items: [
+      { label: "Apps prefer certificates or workload identity federation over client secrets",
+        status: "manual",
+        detail: "Review apps using only client secrets and migrate to certificates or managed identities" },
+    ]},
+  ], [data]);
+
+  return (
+    <ChecklistTable
+      sectionTitle="Enterprise Applications (EA)"
+      groups={appChecklist}
+      loading={loading}
+      density="compact"
+    />
   );
 }

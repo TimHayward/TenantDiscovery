@@ -58,8 +58,8 @@ const WORKLOAD_DEFS = [
   {
     key: "Exchange",
     displayName: "Exchange Online",
-    activeCol: "Email Active",
-    inactiveCol: "Email Inactive",
+    activeCol: "Exchange Active",
+    inactiveCol: "Exchange Inactive",
   },
   {
     key: "Teams",

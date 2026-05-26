@@ -48,7 +48,7 @@ export function KPICard({
 
   return (
     <Card>
-      <CardContent className={`${isCompact ? "p-4" : "p-6"} flex flex-col justify-center`}>
+      <CardContent className={`${isCompact ? "p-4" : "p-6"} flex h-full min-w-0 flex-col justify-center`}>
         {loading ? (
           <>
             <Skeleton className="h-4 w-24 mb-2" />
@@ -56,8 +56,8 @@ export function KPICard({
           </>
         ) : (
           <>
-            <p className={`${isCompact ? "text-xs" : "text-sm"} text-muted-foreground font-medium`}>{title}</p>
-            <p className={`${isCompact ? "text-xl mt-0.5" : "text-2xl mt-1"} font-bold`} style={{ color: valueColor }}>
+            <p className={`${isCompact ? "text-xs" : "text-sm"} text-muted-foreground font-medium leading-tight break-words`}>{title}</p>
+            <p className={`${isCompact ? "text-xl mt-0.5" : "text-2xl mt-1"} font-bold leading-tight break-words [overflow-wrap:anywhere]`} style={{ color: valueColor }}>
               {value !== undefined && value !== null ? value : "--"}
             </p>
             {change && trend && trend !== "neutral" && (
@@ -76,12 +76,12 @@ export function KPICard({
             {(evidenceStatus || confidenceLabel) && (
               <div className={`${isCompact ? "mt-1.5" : "mt-2"} flex flex-wrap gap-1`}>
                 {evidenceStatus && (
-                  <Badge variant="outline" className="text-[10px] font-normal">
+                  <Badge variant="outline" className="max-w-full whitespace-normal break-words text-[10px] font-normal leading-tight">
                     {EVIDENCE_STATUS_LABELS[evidenceStatus]}
                   </Badge>
                 )}
                 {confidenceLabel && (
-                  <Badge variant="outline" className="text-[10px] font-normal">
+                  <Badge variant="outline" className="max-w-full whitespace-normal break-words text-[10px] font-normal leading-tight">
                     {CONFIDENCE_LABELS[confidenceLabel]}
                   </Badge>
                 )}

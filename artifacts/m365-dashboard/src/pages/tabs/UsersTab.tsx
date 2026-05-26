@@ -1,5 +1,4 @@
 import { useGetM365AdminExposure, useGetM365UsersWithMetadata, useGetM365Security } from "@workspace/api-client-react";
-import { EnterpriseAppsSection } from "@/components/EnterpriseAppsSection";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1268,11 +1267,6 @@ export function UsersTab() {
           loading={adminExposureLoading}
         />
       </div>
-      </CollapsibleSection>
-
-      {/* ── ENTERPRISE APPLICATIONS ──────────────────────────────────────────── */}
-      <CollapsibleSection title="Enterprise Applications" description="App registrations, credentials, and high-risk permissions" storageKey="users-enterprise-apps-section" defaultOpen={false} density="compact" className="shadow-none">
-        <EnterpriseAppsSection />
       </CollapsibleSection>
 
       {/* ── SUMMARY CHECK LIST ───────────────────────────────────────────────── */}

@@ -165,7 +165,7 @@ const MFA_METHOD_META: Record<string, { displayName: string; strength: string; s
 
 async function getSecurityData() {
   return getCached("m365-security", async () => {
-    const [secScoreData, secScoreHistoryData, caPoliciesData, mfaDetailData, usersData, riskDetectionsData, riskyUsersData, legacyAuthData] =
+    const [secScoreData, secScoreHistoryData, controlProfilesData, caPoliciesData, mfaDetailData, usersData, riskDetectionsData, riskyUsersData, legacyAuthData] =
       await Promise.all([
         fetchGraphJson<any>(
           "https://graph.microsoft.com/v1.0/security/secureScores?$top=1",
@@ -174,6 +174,10 @@ async function getSecurityData() {
         fetchGraphJson<any>(
           "https://graph.microsoft.com/v1.0/security/secureScores?$top=90",
           "secureScoresHistory",
+        ),
+        fetchAllGraphPages<any>(
+          "https://graph.microsoft.com/v1.0/security/secureScoreControlProfiles?$top=999",
+          "secureScoreControlProfiles",
         ),
         fetchAllGraphPages(
           "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies?$top=999",
@@ -215,6 +219,7 @@ async function getSecurityData() {
     const collectionIssues: CollectionIssue[] = [];
     if (secScoreData.issue) collectionIssues.push(secScoreData.issue);
     if (secScoreHistoryData.issue) collectionIssues.push(secScoreHistoryData.issue);
+    collectionIssues.push(...controlProfilesData.issues);
     collectionIssues.push(...caPoliciesData.issues);
     collectionIssues.push(...mfaDetailData.issues);
     collectionIssues.push(...usersData.issues);
@@ -224,6 +229,7 @@ async function getSecurityData() {
 
     const latestScore = secScoreData.data?.value?.[0] ?? null;
     const scoreHistory: any[] = secScoreHistoryData.data?.value ?? [];
+    const controlProfiles: any[] = controlProfilesData.items;
     const caps: any[] = caPoliciesData.items;
     const mfaDetails: any[] = mfaDetailData.items;
     const rawUsers: any[] = usersData.items;
@@ -315,19 +321,33 @@ async function getSecurityData() {
       maxScore: s.maxScore ?? 100,
     }));
 
+    const parseFiniteNumber = (value: unknown): number | undefined => {
+      const n = typeof value === "number" ? value : Number(value);
+      return Number.isFinite(n) ? n : undefined;
+    };
+
     const controlCategories: { category: string; score: number; maxScore: number }[] = [];
     if (latestScore?.controlScores) {
+      const profileMaxById = new Map<string, number>();
+      for (const profile of controlProfiles) {
+        const maxScore = parseFiniteNumber(profile.maxScore);
+        if (!profile.id || maxScore == null) continue;
+        profileMaxById.set(profile.id, maxScore);
+      }
+
       const catMap = new Map<string, { score: number; maxScore: number }>();
       for (const ctrl of latestScore.controlScores) {
         const cat = ctrl.controlCategory ?? "Other";
         const existing = catMap.get(cat) ?? { score: 0, maxScore: 0 };
+        const score = parseFiniteNumber(ctrl.score) ?? 0;
+        const profileMax = profileMaxById.get(ctrl.controlName ?? "") ?? 0;
         catMap.set(cat, {
-          score: existing.score + (ctrl.score ?? 0),
-          maxScore: existing.maxScore + (ctrl.controlContributionToScore ?? ctrl.maxScore ?? 0),
+          score: existing.score + score,
+          maxScore: existing.maxScore + profileMax,
         });
       }
       for (const [category, vals] of catMap.entries()) {
-        controlCategories.push({ category, score: Math.round(vals.score), maxScore: Math.round(vals.maxScore) });
+        controlCategories.push({ category, score: vals.score, maxScore: vals.maxScore });
       }
     }
 
@@ -342,13 +362,16 @@ async function getSecurityData() {
     }));
 
     const secureScoreControls = (latestScore?.controlScores ?? []).map((ctrl: any) => {
-      const pct: number = ctrl.scoreInPercentage ?? 0;
+      const score = parseFiniteNumber(ctrl.score) ?? 0;
+      const maxScore = parseFiniteNumber(ctrl.maxScore) ?? parseFiniteNumber(ctrl.controlContributionToScore) ?? 0;
+      const pct: number = parseFiniteNumber(ctrl.scoreInPercentage)
+        ?? (maxScore > 0 ? Math.round((score / maxScore) * 100) : 0);
       const status = pct >= 80 ? "configured" : pct > 0 ? "partial" : "notConfigured";
       return {
         controlName: ctrl.controlName ?? "",
         controlCategory: ctrl.controlCategory ?? "Other",
         description: ctrl.description ?? "",
-        score: ctrl.score ?? 0,
+        score,
         scoreInPercentage: pct,
         implementationStatus: ctrl.implementationStatus ?? "",
         lastSynced: ctrl.lastSynced ?? null,

@@ -24,6 +24,7 @@ import {
 import { PermissionCodeList } from "@/components/PermissionCodeList";
 import { SERVICE_PRINCIPALS_PERMISSIONS } from "@/lib/permissions";
 import { formatDate } from "@/lib/utils";
+import { AppRegistrationsSection, AppRegistrationsChecklist } from "@/components/EnterpriseAppsSection";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -492,11 +493,22 @@ export function ServicePrincipalsTab() {
       </div>
       </CollapsibleSection>
 
-      {/* Main table card */}
+      {/* ── APP REGISTRATIONS ────────────────────────────────────────────────────── */}
       <CollapsibleSection
-        title="Enterprise Apps & Service Principals"
+        title="Enterprise Application Registrations"
+        storageKey="enterprise-app-registrations-section"
+        description="Application registrations, credentials, permissions, and governance posture."
+        defaultOpen={true}
+        density="compact"
+      >
+        <AppRegistrationsSection />
+      </CollapsibleSection>
+
+      {/* ── ENTERPRISE APPS & SERVICE PRINCIPALS ────────────────────────────────── */}
+      <CollapsibleSection
+        title="Service Principals & Consent Grants"
         storageKey="service-principals-main"
-        description="Consent grants, assigned users, and sign-in activity for all service principals. Click expand for details."
+        description="Running app instances with consent grants, assigned users, and sign-in activity. Click expand for details."
         actions={<div className="flex flex-wrap gap-2 items-center">
             <div className="flex gap-1.5 flex-wrap">
               {(
@@ -706,6 +718,17 @@ export function ServicePrincipalsTab() {
           </Card>
 
         </div>
+      </CollapsibleSection>
+
+      {/* ── SECURITY CHECKLIST ───────────────────────────────────────────────── */}
+      <CollapsibleSection
+        title="Security Check List"
+        description="Enterprise Applications (EA) — security controls assessment"
+        storageKey="enterprise-apps-checklist-section"
+        defaultOpen={false}
+        density="compact"
+      >
+        <AppRegistrationsChecklist />
       </CollapsibleSection>
 
     </div>

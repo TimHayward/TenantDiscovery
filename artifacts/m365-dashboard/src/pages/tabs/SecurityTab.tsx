@@ -409,11 +409,11 @@ export function SecurityTab() {
       label: `${data.secureScorePercent}%  (${fmt(data.secureScore)} / ${data.secureScoreMax})`,
     };
     const cats = (data.controlCategories ?? []).map((c) => {
-      const pct = c.maxScore > 0 ? Math.round((c.score / c.maxScore) * 100) : 0;
+      const pct = c.maxScore > 0 ? Math.round((c.score / c.maxScore) * 10000) / 100 : 0;
       return {
         name: c.category,
         percent: pct,
-        label: `${pct}%  (${fmt(c.score)} / ${c.maxScore})`,
+        label: `${pct.toFixed(2)}%  (${fmt(c.score)} / ${fmt(c.maxScore)})`,
       };
     });
     return [overall, ...cats];
@@ -671,18 +671,19 @@ export function SecurityTab() {
         <Card>
           <CardHeader className="px-4 pt-4 pb-2 space-y-0">
             <CardTitle className="text-base">Score by Category</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Control score distribution</p>
+            <p className="text-xs text-muted-foreground mt-0.5">% of each category's potential score</p>
           </CardHeader>
           <CardContent>
             {loading ? <Skeleton className="w-full h-[200px]" /> : (
               <ResponsiveContainer width="100%" height={200} debounce={0}>
-                <BarChart data={data?.controlCategories ?? []} layout="vertical" margin={{ left: 8, right: 40, top: 0, bottom: 0 }}>
+                <BarChart data={scoreBreakdown.slice(1)} layout="vertical" margin={{ left: 8, right: 60, top: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
-                  <YAxis type="category" dataKey="category" tick={{ fontSize: 11, fill: tickColor }} stroke="none" width={120} />
-                  <Tooltip isAnimationActive={false} />
-                  <Bar dataKey="score" name="Score" fill={C.blue} fillOpacity={0.85} radius={[0, 3, 3, 0]} isAnimationActive={false} />
-                  <Bar dataKey="maxScore" name="Max Score" fill={C.gray} fillOpacity={0.35} radius={[0, 3, 3, 0]} isAnimationActive={false} />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: tickColor }} stroke="none" width={120} />
+                  <Tooltip isAnimationActive={false} formatter={(_v: number, _k: string, entry: { payload?: { label?: string; name?: string } }) => [entry?.payload?.label ?? "—", entry?.payload?.name ?? ""]} />
+                  <Bar dataKey="percent" name="Score %" fill={C.blue} fillOpacity={0.85} radius={[0, 3, 3, 0]} isAnimationActive={false}>
+                    <LabelList dataKey="label" position="right" fill={tickColor} fontSize={10} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}

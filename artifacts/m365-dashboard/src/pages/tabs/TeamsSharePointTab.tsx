@@ -677,7 +677,7 @@ export function TeamsSharePointTab() {
           />
           <KPICard
             title="Storage Used (GB)"
-            value={spData?.totalStorageUsedGB.toFixed(1)}
+            value={spData?.totalStorageUsedGB?.toFixed(1)}
             loading={spLoading}
             evidenceStatus={getSharePointMetricMetaWithFieldFallback("sharepoint.totalStorageUsedGB")?.evidenceStatus}
             confidenceLabel={getSharePointMetricMetaWithFieldFallback("sharepoint.totalStorageUsedGB")?.confidenceLabel}
