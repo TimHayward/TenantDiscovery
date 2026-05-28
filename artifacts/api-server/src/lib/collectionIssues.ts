@@ -129,7 +129,11 @@ export async function fetchGraphJson<T>(
   try {
     const token = await getGraphAccessToken();
     const resp = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, ...extraHeaders },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Accept-Language": "en-US",
+        ...extraHeaders,
+      },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
@@ -163,7 +167,7 @@ export async function fetchGraphText(
   try {
     const token = await getGraphAccessToken();
     const resp = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, "Accept-Language": "en-US" },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 

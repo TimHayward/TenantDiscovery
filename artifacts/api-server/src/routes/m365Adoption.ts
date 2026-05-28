@@ -43,11 +43,13 @@ function adoptionPct(active: number, total: number): number {
 // Walk backwards to find the last row where Office 365 Active is populated.
 function latestRow(
   rows: Record<string, string>[],
+  ...sentinelCols: string[]
 ): Record<string, string> | null {
   if (rows.length === 0) return null;
+  const cols = sentinelCols.length > 0 ? sentinelCols : ["Office 365 Active"];
   for (let i = rows.length - 1; i >= 0; i--) {
     const row = rows[i];
-    if (toNum(row["Office 365 Active"]) > 0) return row;
+    if (cols.some((c) => toNum(row[c]) > 0)) return row;
   }
   // All rows are zero — return the last row rather than null so the caller
   // can still distinguish between "no data" and "empty response".
@@ -321,14 +323,20 @@ async function getAdoptionData(): Promise<M365AdoptionData> {
       };
     });
 
-    // Apps activation
+    // Apps activation — find the best (most recent non-zero) row per app independently,
+    // since Microsoft's pipeline may lag differently across apps on the same report date.
     const appsRows = parseCsv(appsResult.text ?? "");
-    const appsRow = latestRow(appsRows);
-    const appsActivation: AppActivationItem[] = APP_DEFS.map((def) => ({
-      app: def.key,
-      displayName: def.displayName,
-      activeUsers: appsRow ? col(appsRow, def.key) : 0,
-    }));
+    if (appsRows.length > 0) {
+      console.log("[m365Adoption] getM365AppUserCounts CSV headers:", Object.keys(appsRows[0]).join(", "));
+    }
+    const appsActivation: AppActivationItem[] = APP_DEFS.map((def) => {
+      const appRow = latestRow(appsRows, def.key);
+      return {
+        app: def.key,
+        displayName: def.displayName,
+        activeUsers: appRow ? col(appRow, def.key) : 0,
+      };
+    });
 
     // Copilot adoption (null when endpoint errors or no Copilot licences)
     let copilotAdoption: CopilotAdoptionData | null = null;

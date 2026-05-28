@@ -537,19 +537,27 @@ export function ComplianceTab() {
             ) : health?.services && health.services.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
                 {health.services.map((service) => {
-                  const isHealthy = service.status === "Service operational";
-                  const isAdvisory = service.status.toLowerCase().includes("advisory");
+                  const isHealthy = service.status === "serviceOperational";
+                  const isDegraded = service.status === "serviceDegradation" || service.status === "serviceInterruption";
+                  const friendlyStatus = isHealthy ? "Operational" :
+                    service.status === "serviceDegradation" ? "Degraded" :
+                    service.status === "serviceInterruption" ? "Interrupted" :
+                    service.status === "investigating" ? "Investigating" :
+                    service.status === "restoringService" ? "Restoring" :
+                    service.status === "verifyingService" ? "Verifying" :
+                    service.status === "serviceRestored" ? "Restored" :
+                    service.status ?? "Unknown";
 
                   return (
                     <div key={service.service} className="p-3 border rounded-md flex items-center bg-card">
                       <div className="mr-3">
                         {isHealthy ? <CheckCircle className="w-5 h-5 text-green-500" /> :
-                          isAdvisory ? <Info className="w-5 h-5 text-yellow-500" /> :
-                            <AlertTriangle className="w-5 h-5 text-red-500" />}
+                          isDegraded ? <AlertTriangle className="w-5 h-5 text-red-500" /> :
+                            <Info className="w-5 h-5 text-yellow-500" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{service.service}</p>
-                        <p className="text-xs text-muted-foreground truncate">{service.status}</p>
+                        <p className="text-xs text-muted-foreground truncate">{friendlyStatus}</p>
                       </div>
                       {service.hasActiveIssues && (
                         <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900 whitespace-nowrap">

@@ -9,7 +9,7 @@ import { CSVLink } from "react-csv";
 import { Download } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatCompact, formatDate } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -440,6 +440,17 @@ export function TeamsSharePointTab() {
   const [topTeamsGlobalFilter, setTopTeamsGlobalFilter] = useState("");
   const [spSorting, setSpSorting] = useState<SortingState>([]);
   const [spGlobalFilter, setSpGlobalFilter] = useState("");
+  const [spActiveFilter, setSpActiveFilter] = useState<"all" | "active" | "inactive">("all");
+  const [spTeamFilter, setSpTeamFilter] = useState<"all" | "assigned" | "unassigned">("all");
+
+  const filteredSites = useMemo(() => {
+    let sites = spData?.sites ?? [];
+    if (spActiveFilter === "active")   sites = sites.filter(s => s.isActive);
+    if (spActiveFilter === "inactive") sites = sites.filter(s => !s.isActive);
+    if (spTeamFilter === "assigned")   sites = sites.filter(s => !!s.assignedTeamName);
+    if (spTeamFilter === "unassigned") sites = sites.filter(s => !s.assignedTeamName);
+    return sites;
+  }, [spData?.sites, spActiveFilter, spTeamFilter]);
 
   const topTeamsTable = useReactTable({
     data: teamsData?.topTeams || [],
@@ -455,7 +466,7 @@ export function TeamsSharePointTab() {
   });
 
   const spTable = useReactTable({
-    data: spData?.sites || [],
+    data: filteredSites,
     columns: spColumns,
     state: { sorting: spSorting, globalFilter: spGlobalFilter },
     onSortingChange: setSpSorting,
@@ -576,7 +587,7 @@ export function TeamsSharePointTab() {
         </div>
       </div>
 
-        <CollapsibleSection title="Most Active Teams (Last 30 Days)" storageKey="teams-most-active">
+        <CollapsibleSection title="Most Active Teams (Last 30 Days)" storageKey="teams-most-active" className="mt-4">
           {teamsLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
@@ -660,7 +671,7 @@ export function TeamsSharePointTab() {
       <CollapsibleSection title="SharePoint Online" description="Sites, storage, and sharing policies" storageKey="teams-sharepoint" defaultOpen={true} density="compact">
         <div className="space-y-4">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <KPICard
             title="Total Sites"
             value={spData?.totalSites}
@@ -671,6 +682,13 @@ export function TeamsSharePointTab() {
           <KPICard
             title="Active Sites"
             value={spData?.activeSites}
+            loading={spLoading}
+            evidenceStatus={getSharePointMetricMetaWithFieldFallback("sharepoint.activeSites")?.evidenceStatus}
+            confidenceLabel={getSharePointMetricMetaWithFieldFallback("sharepoint.activeSites")?.confidenceLabel}
+          />
+          <KPICard
+            title="Inactive Sites"
+            value={spData ? spData.totalSites - spData.activeSites : undefined}
             loading={spLoading}
             evidenceStatus={getSharePointMetricMetaWithFieldFallback("sharepoint.activeSites")?.evidenceStatus}
             confidenceLabel={getSharePointMetricMetaWithFieldFallback("sharepoint.activeSites")?.confidenceLabel}
@@ -691,7 +709,7 @@ export function TeamsSharePointTab() {
           />
         </div>
 
-        <CollapsibleSection title="Top SharePoint Sites" storageKey="teams-sharepoint-sites">
+        <CollapsibleSection title="SharePoint Site Details" storageKey="teams-sharepoint-sites">
             {spLoading ? (
               <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
@@ -699,12 +717,50 @@ export function TeamsSharePointTab() {
               </div>
             ) : (
               <div className="space-y-4">
-                <Input
-                  placeholder="Search sites..."
-                  value={spGlobalFilter}
-                  onChange={(e) => setSpGlobalFilter(e.target.value)}
-                  className="max-w-sm"
-                />
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <Input
+                      placeholder="Search sites..."
+                      value={spGlobalFilter}
+                      onChange={(e) => setSpGlobalFilter(e.target.value)}
+                      className="max-w-sm"
+                    />
+                    {filteredSites.length > 0 && (
+                      <CSVLink
+                        data={filteredSites}
+                        filename="sharepoint-sites.csv"
+                        className="print:hidden flex items-center gap-1.5 px-3 h-9 rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Export CSV
+                      </CSVLink>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground mr-1">Status:</span>
+                      {(["all", "active", "inactive"] as const).map((v) => (
+                        <Button key={v} size="sm" variant={spActiveFilter === v ? "default" : "outline"}
+                          className="h-7 px-3 text-xs capitalize" onClick={() => setSpActiveFilter(v)}>
+                          {v.charAt(0).toUpperCase() + v.slice(1)}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground mr-1">Team:</span>
+                      {([
+                        { value: "all",        label: "All" },
+                        { value: "assigned",   label: "Assigned" },
+                        { value: "unassigned", label: "Unassigned" },
+                      ] as const).map(({ value, label }) => (
+                        <Button key={value} size="sm" variant={spTeamFilter === value ? "default" : "outline"}
+                          className="h-7 px-3 text-xs" onClick={() => setSpTeamFilter(value)}>
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="rounded-md border">
                   <Table>

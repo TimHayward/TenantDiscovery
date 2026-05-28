@@ -38,20 +38,22 @@ const CURATED_ADMIN_ROLE_TEMPLATE_IDS: Record<string, string> = {
   "e3973bdf-4987-49ae-837a-ba8e231c7286": "Password Administrator",
 };
 
-const PRODUCTIVITY_SKU_PART_NUMBERS = new Set([
-  "SPE_E3",
-  "SPE_E5",
-  "ENTERPRISEPACK",
-  "ENTERPRISEPREMIUM",
-  "STANDARDPACK",
-  "O365_BUSINESS_PREMIUM",
-  "O365_BUSINESS_ESSENTIALS",
-  "M365EDU_A3_FACULTY",
-  "M365EDU_A3_STUDENT",
-  "M365EDU_A5_FACULTY",
-  "M365EDU_A5_STUDENT",
-  "OFFICE365_E3",
-  "OFFICE365_E5",
+const PRODUCTIVITY_SERVICE_PLAN_IDS = new Set([
+  // Exchange Online (any mailbox plan)
+  "9aaf7827-d63c-4b61-89c3-182f06f82e5c", // Exchange Online Plan 1
+  "efb87545-963c-4e0d-99df-69c6916d9eb0", // Exchange Online Plan 2
+  "4a82b400-a79f-41a4-b4e2-e94f5787b113", // Exchange Online Kiosk
+  "7bba6b08-c33f-4b18-bc0e-5bddce03d844", // Exchange Online Essentials
+  // Microsoft Teams
+  "57ff2da0-773e-42df-b2af-ffb7a2317929", // Microsoft Teams
+  // SharePoint
+  "fcfe4581-5f61-4a3b-b20b-74c58d1c680d", // SharePoint Online Plan 1
+  "e95bec33-7c88-4a70-8e19-b8f99b0b57a7", // SharePoint Online Plan 2
+  // OneDrive for Business
+  "e03c7bff-e33d-4810-b0e7-46b98aaf8849", // OneDrive for Business Plan 1
+  "ed9f2c14-9e8e-46d1-a0c2-3dce9248efe0", // OneDrive for Business Plan 2
+  // Microsoft 365 Apps for Enterprise/Business
+  "43de0ff5-c92c-492b-9116-175376d08c38", // Microsoft 365 Apps for Enterprise (OFFICESUBSCRIPTION)
 ]);
 
 interface RoleDefinitionItem {
@@ -66,12 +68,7 @@ interface UserItem {
   displayName?: string;
   userPrincipalName?: string;
   accountEnabled?: boolean;
-  assignedLicenses?: Array<{ skuId?: string }>;
-}
-
-interface SubscribedSkuItem {
-  skuId?: string;
-  skuPartNumber?: string;
+  assignedPlans?: Array<{ service?: string; capabilityStatus?: string; servicePlanId?: string }>;
 }
 
 async function getAdminExposureData() {
@@ -80,7 +77,6 @@ async function getAdminExposureData() {
     roleEligibilityResult,
     roleDefinitionsResult,
     usersResult,
-    subscribedSkusResult,
   ] = await Promise.all([
     fetchAllGraphPages<RoleAssignmentItem>(
       "https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignments" +
@@ -98,13 +94,9 @@ async function getAdminExposureData() {
     ),
     fetchAllGraphPages<UserItem>(
       "https://graph.microsoft.com/v1.0/users" +
-        "?$select=id,displayName,userPrincipalName,accountEnabled,assignedLicenses" +
+        "?$select=id,displayName,userPrincipalName,accountEnabled,assignedPlans" +
         "&$top=999",
       "users",
-    ),
-    fetchAllGraphPages<SubscribedSkuItem>(
-      "https://graph.microsoft.com/v1.0/subscribedSkus?$select=skuId,skuPartNumber",
-      "subscribedSkus",
     ),
   ]);
 
@@ -114,7 +106,6 @@ async function getAdminExposureData() {
       roleEligibilityCount: roleEligibilityResult.items.length,
       roleDefinitionCount: roleDefinitionsResult.items.length,
       userCount: usersResult.items.length,
-      skuCount: subscribedSkusResult.items.length,
     },
     "Initial data fetched from Graph API",
   );
@@ -124,30 +115,20 @@ async function getAdminExposureData() {
     ...roleEligibilityResult.issues,
     ...roleDefinitionsResult.issues,
     ...usersResult.issues,
-    ...subscribedSkusResult.issues,
   ];
 
   if (collectionIssues.length > 0) {
     logger.warn({ collectionIssues }, "Collection issues encountered");
   }
 
-  const productivitySkuIds = new Set(
-    subscribedSkusResult.items
-      .filter((sku) => sku.skuId && PRODUCTIVITY_SKU_PART_NUMBERS.has(sku.skuPartNumber ?? ""))
-      .map((sku) => sku.skuId as string),
-  );
-
-  logger.debug(
-    { productivitySkuCount: productivitySkuIds.size },
-    "Productivity SKUs identified",
-  );
-
   const userById = new Map<string, Omit<AdminExposureUserItem, "roles">>();
   for (const user of usersResult.items) {
     if (!user.id) continue;
 
-    const hasProductivityLicense = (user.assignedLicenses ?? []).some((license) =>
-      productivitySkuIds.has(license.skuId ?? ""),
+    const hasProductivityLicense = (user.assignedPlans ?? []).some(
+      (plan) =>
+        plan.capabilityStatus === "Enabled" &&
+        PRODUCTIVITY_SERVICE_PLAN_IDS.has(plan.servicePlanId ?? ""),
     );
 
     userById.set(user.id, {
@@ -177,7 +158,7 @@ async function getAdminExposureData() {
       unknownPrincipalIds.map(async (principalId) => {
         const groupUsersResult = await fetchAllGraphPages<UserItem>(
           `https://graph.microsoft.com/v1.0/groups/${principalId}/transitiveMembers/microsoft.graph.user` +
-            "?$select=id,displayName,userPrincipalName,accountEnabled,assignedLicenses&$top=999",
+            "?$select=id,displayName,userPrincipalName,accountEnabled,assignedPlans&$top=999",
           `groupMembers:${principalId}`,
         );
 
@@ -199,8 +180,10 @@ async function getAdminExposureData() {
         memberIds.add(user.id);
 
         if (!userById.has(user.id)) {
-          const hasProductivityLicense = (user.assignedLicenses ?? []).some((license) =>
-            productivitySkuIds.has(license.skuId ?? ""),
+          const hasProductivityLicense = (user.assignedPlans ?? []).some(
+            (plan) =>
+              plan.capabilityStatus === "Enabled" &&
+              PRODUCTIVITY_SERVICE_PLAN_IDS.has(plan.servicePlanId ?? ""),
           );
 
           userById.set(user.id, {

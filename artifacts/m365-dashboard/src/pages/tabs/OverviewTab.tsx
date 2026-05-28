@@ -152,19 +152,31 @@ export function OverviewTab() {
                 {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 max-h-[240px] overflow-y-auto pr-2">
-                {health?.services.map(service => (
+              <div className="grid grid-cols-1 gap-2 mt-2 max-h-[240px] overflow-y-auto pr-2">
+                {health?.services.map(service => {
+                  const isOperational = service.status === 'serviceOperational';
+                  const isDegraded = service.status === 'serviceDegradation' || service.status === 'serviceInterruption';
+                  const friendlyStatus = isOperational ? 'Operational' :
+                    service.status === 'serviceDegradation' ? 'Degraded' :
+                    service.status === 'serviceInterruption' ? 'Interrupted' :
+                    service.status === 'investigating' ? 'Investigating' :
+                    service.status === 'restoringService' ? 'Restoring' :
+                    service.status === 'verifyingService' ? 'Verifying' :
+                    service.status === 'serviceRestored' ? 'Restored' :
+                    service.status ?? 'Unknown';
+                  return (
                   <div key={service.service} className="p-2.5 border rounded-md flex justify-between items-center bg-card">
                     <span className="font-medium text-sm truncate mr-2" title={service.service}>{service.service}</span>
                     <Badge className={`font-normal shrink-0 ${
-                      service.status === 'Service operational' ? 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400' :
-                      service.status.includes('advisory') ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                      'bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400'
+                      isOperational ? 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400' :
+                      isDegraded ? 'bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400' :
+                      'bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400'
                     }`}>
-                      {service.status === 'Service operational' ? 'Healthy' : service.status}
+                      {friendlyStatus}
                     </Badge>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

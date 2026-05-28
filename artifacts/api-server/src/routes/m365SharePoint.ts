@@ -176,8 +176,12 @@ async function computeSharePointData() {
     const siteCountRows = parseCsv(siteCountsCsvResult.text ?? "");
     // Site counts report has rows per date × site type; pick the most recent "All" row.
     const siteCountRow = latestSummaryRow(siteCountRows, "All") ?? latestSummaryRow(siteCountRows);
-    const totalSites = parseInt(siteCountRow?.["Total"] ?? "0", 10) || 0;
-    const activeSites = parseInt(siteCountRow?.["Active"] ?? "0", 10) || 0;
+    const totalSites = parseInt(
+      siteCountRow?.["Total"] ?? siteCountRow?.["Site Count"] ?? "0", 10
+    ) || 0;
+    const activeSites = parseInt(
+      siteCountRow?.["Active"] ?? siteCountRow?.["Active Site Count"] ?? "0", 10
+    ) || 0;
 
     const storageRows = parseCsv(storageCsvResult.text ?? "");
     const storageRow = latestSummaryRow(storageRows);
@@ -314,6 +318,15 @@ async function computeSharePointData() {
       }
     }
 
+    // Fallback: if the aggregate site count report returned 0 (failed or missing column),
+    // derive counts from getAllSites data which is already fetched for display names.
+    const resolvedTotalSites = totalSites > 0
+      ? totalSites
+      : getAllSitesItems.filter(s => /\/(sites|teams)\//i.test(s.webUrl)).length;
+    const resolvedActiveSites = activeSites > 0
+      ? activeSites
+      : sites.filter(s => s.isActive).length;
+
     sites.sort((a, b) => b.storageUsedGB - a.storageUsedGB);
     const topSites = sites.slice(0, 50);
 
@@ -328,8 +341,8 @@ async function computeSharePointData() {
     }
 
     return {
-      totalSites,
-      activeSites,
+      totalSites: resolvedTotalSites,
+      activeSites: resolvedActiveSites,
       totalStorageUsedGB: Math.round((totalStorageUsedBytes / 1e9) * 10) / 10,
       totalStorageAllocatedGB:
         Math.round((totalStorageAllocatedBytes / 1e9) * 10) / 10,
@@ -365,7 +378,10 @@ async function getSharePointData() {
 
   const promise = computeSharePointData()
     .then((result) => {
-      const ttl = (result._sitesDebug?.usageJoined ?? 0) > 0 ? 1800 : 60;
+      const hasGoodData =
+        (result._sitesDebug?.usageJoined ?? 0) > 0 &&
+        result.totalSites > 0;
+      const ttl = hasGoodData ? 1800 : 60;
       cache.set(CACHE_KEY, result, ttl);
       return result;
     })
