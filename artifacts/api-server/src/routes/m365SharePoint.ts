@@ -2,6 +2,7 @@ import { Router } from "express";
 import { cache } from "../lib/graphClient.js";
 import {
   fetchAllGraphPages,
+  fetchGraphJson,
   fetchGraphText,
   isPermissionIssue,
   type CollectionIssue,
@@ -10,6 +11,7 @@ import { withMetadata } from "../lib/metadata.js";
 
 const router = Router();
 const spInflight = new Map<string, Promise<unknown>>();
+const spSharingInflight = new Map<string, Promise<unknown>>();
 
 function parseCsv(csv: string): Record<string, string>[] {
   const lines = csv.trim().split("\n").filter(Boolean);
@@ -487,6 +489,113 @@ router.get("/m365/sharepoint/with-metadata", async (req, res): Promise<void> => 
   } catch (err) {
     req.log.error({ err }, "Failed to fetch M365 SharePoint data with metadata");
     res.status(500).json({ error: "Failed to fetch M365 SharePoint data" });
+  }
+});
+
+interface SharingSummary {
+  totalSharingLinks: number;
+  orgWideLinks: number;
+  anonymousLinks: number;
+  sampledSites: number;
+  totalSitesAvailable: number;
+  partialData: boolean;
+  permissionError: boolean;
+}
+
+async function computeSharingSummary(): Promise<SharingSummary> {
+  // If the main SharePoint data fetch is in-flight (same page load), wait for it to
+  // complete before making any Graph calls. Both endpoints fire simultaneously on first
+  // load; without this, concurrent calls throttle the storage/site-count report requests.
+  if (spInflight.has("m365-sharepoint")) {
+    await (spInflight.get("m365-sharepoint") as Promise<unknown>).catch(() => {});
+  }
+
+  const sitesResult = await fetchAllGraphPages<{ id: string; webUrl: string }>(
+    "https://graph.microsoft.com/v1.0/sites/getAllSites?$select=id,webUrl&$top=100",
+    "sharingSummarySiteList",
+  );
+
+  const allSites = sitesResult.items.filter(
+    (s) => s.webUrl && /\/(sites|teams)\//i.test(s.webUrl),
+  );
+  // Limit to 10 sites and process sequentially to avoid Graph API throttling.
+  // Firing 60 parallel calls (30 sites × 2) saturates rate limits and breaks
+  // concurrent storage/site-count report calls.
+  const sitesToSample = allSites.slice(0, 10);
+  const totalSitesAvailable = allSites.length;
+
+  let totalSharingLinks = 0;
+  let orgWideLinks = 0;
+  let anonymousLinks = 0;
+  let permissionErrors = 0;
+
+  for (const site of sitesToSample) {
+    // Use the `shared` facet (a regular property) instead of $expand=permissions.
+    // $expand=permissions on collection endpoints silently returns empty arrays for
+    // sharing-link type permissions; the `shared` facet reliably reflects active sharing.
+    const result = await fetchGraphJson<{
+      value: Array<{ id: string; shared?: { scope: string } }>;
+    }>(
+      `https://graph.microsoft.com/v1.0/sites/${site.id}/drive/root/children?$select=id,shared&$top=200`,
+      "sharingSiteDriveItems",
+    );
+
+    if (result.issue) {
+      if (result.issue.permissionRequired) permissionErrors++;
+      continue;
+    }
+
+    for (const item of result.data?.value ?? []) {
+      if (item.shared && item.shared.scope !== "specificPeople") {
+        totalSharingLinks++;
+        if (item.shared.scope === "organization") orgWideLinks++;
+      }
+    }
+  }
+
+  return {
+    totalSharingLinks,
+    orgWideLinks,
+    anonymousLinks: totalSharingLinks - orgWideLinks,
+    sampledSites: sitesToSample.length,
+    totalSitesAvailable,
+    partialData:
+      sitesResult.partialData ||
+      permissionErrors > 0 ||
+      sitesToSample.length < totalSitesAvailable,
+    permissionError: sitesResult.permissionError || permissionErrors > 0,
+  };
+}
+
+async function getSharingSummary(): Promise<SharingSummary> {
+  const CACHE_KEY = "m365-sharepoint-sharing";
+
+  const hit = cache.get(CACHE_KEY);
+  if (hit !== undefined) return hit as SharingSummary;
+
+  if (spSharingInflight.has(CACHE_KEY)) {
+    return spSharingInflight.get(CACHE_KEY) as Promise<SharingSummary>;
+  }
+
+  const promise = computeSharingSummary()
+    .then((result) => {
+      const ttl = result.partialData && result.totalSharingLinks === 0 ? 60 : 1800;
+      cache.set(CACHE_KEY, result, ttl);
+      return result;
+    })
+    .finally(() => spSharingInflight.delete(CACHE_KEY));
+
+  spSharingInflight.set(CACHE_KEY, promise);
+  return promise;
+}
+
+router.get("/m365/sharepoint/sharing-summary", async (req, res): Promise<void> => {
+  try {
+    const data = await getSharingSummary();
+    res.json({ data });
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch SharePoint sharing summary");
+    res.status(500).json({ error: "Failed to fetch SharePoint sharing summary" });
   }
 });
 

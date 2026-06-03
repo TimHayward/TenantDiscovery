@@ -151,16 +151,40 @@ export function TeamsSharePointTab() {
     },
     staleTime: 60_000,
   });
-  
+
+  const { data: sharingSummaryData, isLoading: isSharingSummaryLoading, isFetching: isSharingSummaryFetching } = useQuery({
+    queryKey: ["m365-sharepoint-sharing-summary"],
+    queryFn: async () => {
+      const response = await fetch("/api/m365/sharepoint/sharing-summary");
+      if (!response.ok) {
+        throw new Error("Failed to fetch SharePoint sharing summary");
+      }
+      return response.json() as Promise<{
+        data: {
+          totalSharingLinks: number;
+          orgWideLinks: number;
+          anonymousLinks: number;
+          sampledSites: number;
+          totalSitesAvailable: number;
+          partialData: boolean;
+          permissionError: boolean;
+        };
+      }>;
+    },
+    staleTime: 60_000,
+  });
+
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   const teamsLoading = isTeamsLoading || isTeamsFetching;
   const spLoading = isSpLoading || isSpFetching;
   const spPoliciesLoading = isSharePointPoliciesLoading || isSharePointPoliciesFetching;
+  const sharingSummaryLoading = isSharingSummaryLoading || isSharingSummaryFetching;
   const teamsData = teamsWithMetadata?.data;
   const spData = spWithMetadata?.data;
   const sharePointPolicies = sharePointPoliciesWithMetadata?.data;
+  const sharingData = sharingSummaryData?.data;
 
   const teamsBySizeBreakdown = (teamsData?.teamsBySize ?? []).map((item) => {
     const breakdown = item as typeof item & {
@@ -708,6 +732,28 @@ export function TeamsSharePointTab() {
             confidenceLabel={getSharePointMetricMetaWithFieldFallback("sharepoint.totalFiles")?.confidenceLabel}
           />
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <KPICard
+            title="Total Sharing Links"
+            value={sharingData ? formatCompact(sharingData.totalSharingLinks) : undefined}
+            loading={sharingSummaryLoading}
+            evidenceStatus="apiBacked"
+            confidenceLabel={sharingData?.partialData ? "medium" : "high"}
+          />
+          <KPICard
+            title="Organisation-Wide Links"
+            value={sharingData ? formatCompact(sharingData.orgWideLinks) : undefined}
+            loading={sharingSummaryLoading}
+            evidenceStatus="apiBacked"
+            confidenceLabel={sharingData?.partialData ? "medium" : "high"}
+          />
+        </div>
+        {sharingData?.partialData && sharingData.sampledSites < sharingData.totalSitesAvailable && (
+          <p className="text-xs text-muted-foreground">
+            Sharing links based on {sharingData.sampledSites} of {sharingData.totalSitesAvailable} sites sampled
+          </p>
+        )}
 
         <CollapsibleSection title="SharePoint Site Details" storageKey="teams-sharepoint-sites">
             {spLoading ? (
