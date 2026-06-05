@@ -19,6 +19,7 @@ import m365PermissionsRouter from "./m365Permissions";
 import m365DataSourcesRouter from "./m365DataSources";
 import m365AdoptionRouter from "./m365Adoption";
 import m365PowerBIRouter from "./m365PowerBI";
+import m365RefreshRouter from "./m365Refresh";
 import onboardingRouter from "./onboarding";
 
 const router: IRouter = Router();
@@ -43,6 +44,7 @@ router.use(m365PermissionsRouter);
 router.use(m365DataSourcesRouter);
 router.use(m365AdoptionRouter);
 router.use(m365PowerBIRouter);
+router.use(m365RefreshRouter);
 router.use(onboardingRouter);
 
 export default router;

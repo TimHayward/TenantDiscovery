@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { start as startBackgroundRefresh } from "./lib/backgroundRefresh.js";
 
 const rawPort = process.env["PORT"] ?? "5100";
 
@@ -26,5 +27,5 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  startBackgroundRefresh();
 });
-

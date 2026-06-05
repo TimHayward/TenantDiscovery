@@ -1,14 +1,22 @@
 import { defineConfig } from "drizzle-kit";
+import os from "os";
 import path from "path";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
+function getDbUrl(): string {
+  const override = process.env.METRIC_DB_PATH?.trim();
+  if (override) return `file:${path.resolve(override)}`;
+
+  const winAppData = process.env.APPDATA;
+  if (process.platform === "win32" && winAppData) {
+    return `file:${path.join(winAppData, "TenentDiscovery", "metrics.db")}`;
+  }
+  return `file:${path.join(os.homedir(), ".config", "tenent-discovery", "metrics.db")}`;
 }
 
 export default defineConfig({
   schema: path.join(__dirname, "./src/schema/index.ts"),
-  dialect: "postgresql",
+  dialect: "sqlite",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: getDbUrl(),
   },
 });

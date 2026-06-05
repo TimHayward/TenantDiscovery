@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   RefreshCw, ChevronDown, Printer, Sun, Moon, PanelLeftClose, PanelLeftOpen,
   LayoutDashboard, Users, CreditCard, Shield, Mail,
   MessageSquare, ClipboardCheck, Smartphone, Swords, AppWindow, TrendingUp, BarChart2,
+  Database, X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useGetM365Overview, useGetM365DataSources } from "@workspace/api-client-react";
@@ -131,6 +132,19 @@ const NAV_SECTIONS: Partial<Record<NavValue, Array<NavSectionLink>>> = {
   ],
 };
 
+type CollectionKeyStatus = { status: "ok" | "error" | "collecting" | "pending"; fetchedAt: string | null; expiresAt: string | null };
+type CollectionStatus = { isCollecting: boolean; keys: Record<string, CollectionKeyStatus> };
+
+async function fetchCollectionStatus(): Promise<CollectionStatus> {
+  const resp = await fetch("/api/m365/collection-status");
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json() as Promise<CollectionStatus>;
+}
+
+async function triggerRefresh(): Promise<void> {
+  await fetch("/api/m365/refresh", { method: "POST" });
+}
+
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
@@ -140,6 +154,21 @@ export default function Dashboard() {
   const { data: dataSourcesData } = useGetM365DataSources();
 
   const [isSpinning, setIsSpinning] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const { data: collectionStatus } = useQuery({
+    queryKey: ["m365-collection-status"],
+    queryFn: fetchCollectionStatus,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      return data?.isCollecting || isRefreshing ? 5000 : false;
+    },
+    retry: false,
+  });
+
+  const showCollectionBanner = !bannerDismissed && (collectionStatus?.isCollecting || isRefreshing);
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showDataSources, setShowDataSources] = useState(false);
   const [selectedIntervalMs, setSelectedIntervalMs] = useState(0);
@@ -223,6 +252,22 @@ export default function Dashboard() {
     queryClient.invalidateQueries();
   };
 
+  const handleRefreshData = async () => {
+    setIsRefreshing(true);
+    setBannerDismissed(false);
+    try {
+      await triggerRefresh();
+      queryClient.invalidateQueries({ queryKey: ["m365-collection-status"] });
+      // Re-read DB data after a short delay to pick up freshly collected data
+      setTimeout(() => {
+        queryClient.invalidateQueries();
+        setIsRefreshing(false);
+      }, 30_000);
+    } catch {
+      setIsRefreshing(false);
+    }
+  };
+
   const switchTab = useCallback((value: NavValue) => {
     setActiveTab(value);
     setVisitedTabs((prev) => {
@@ -269,6 +314,18 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-3 print:hidden">
+          {/* Refresh Data button */}
+          <button
+            onClick={handleRefreshData}
+            disabled={isRefreshing || collectionStatus?.isCollecting}
+            title="Re-collect all data from Microsoft 365"
+            className="flex items-center gap-1.5 px-2 h-[26px] rounded-[6px] text-[12px] transition-colors disabled:opacity-50"
+            style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
+          >
+            <Database className={`w-3.5 h-3.5 ${isRefreshing ? "animate-pulse" : ""}`} />
+            {isRefreshing ? "Refreshing…" : "Refresh Data"}
+          </button>
+
           <div className="relative" ref={dropdownRef}>
             <div
               className="flex items-center rounded-[6px] overflow-hidden h-[26px] text-[12px]"
@@ -443,6 +500,30 @@ export default function Dashboard() {
                 <p className="text-[12px] text-muted-foreground mt-2">Last refresh: {lastRefreshed}</p>
               )}
             </div>
+
+            {/* Collection-in-progress banner */}
+            {showCollectionBanner && (
+              <div
+                className="mb-4 flex items-center justify-between gap-3 rounded-md border px-4 py-3 text-[13px]"
+                style={{
+                  backgroundColor: isDark ? "rgba(59,130,246,0.12)" : "rgba(219,234,254,0.8)",
+                  borderColor: isDark ? "rgba(59,130,246,0.3)" : "rgba(147,197,253,0.8)",
+                  color: isDark ? "#93c5fd" : "#1d4ed8",
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  <span>Data collection in progress — dashboard data will populate within ~3 minutes.</span>
+                </div>
+                <button
+                  onClick={() => setBannerDismissed(true)}
+                  className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100 transition-opacity"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
             {/* Tab content — lazy-mounted on first visit, then kept in DOM to preserve React Query cache */}
             {visitedTabs.has("overview")           && <div className={activeTab === "overview"           ? "" : "hidden"}><TabErrorBoundary><OverviewTab /></TabErrorBoundary></div>}

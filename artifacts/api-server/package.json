@@ -12,15 +12,13 @@
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",
+    "@libsql/client": "^0.14.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@workspace/api-zod": "workspace:*",
-    "@workspace/db": "workspace:*",
     "@workspace/permissions-manifest": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
-    "drizzle-orm": "catalog:",
     "express": "^5",
-    "node-cache": "^5.1.2",
     "pino": "^9",
     "pino-http": "^10"
   },

@@ -1,7 +1,6 @@
 import { ClientSecretCredential } from "@azure/identity";
 import { Client } from "@microsoft/microsoft-graph-client";
 import { TokenCredentialAuthenticationProvider } from "@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials/index.js";
-import NodeCache from "node-cache";
 import { loadOnboardingSettings } from "./setupConfig.js";
 
 export interface GraphCredentialValues {
@@ -60,22 +59,4 @@ export async function getGraphClient(): Promise<Client> {
   cachedClientKey = clientKey;
 
   return cachedClient;
-}
-
-export const cache = new NodeCache({ stdTTL: 300, checkperiod: 60, useClones: false });
-
-const inflight = new Map<string, Promise<unknown>>();
-
-export async function getCached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-  const cached = cache.get<T>(key);
-  if (cached !== undefined) return cached;
-
-  if (inflight.has(key)) return inflight.get(key) as Promise<T>;
-
-  const promise = fetcher()
-    .then((result) => { cache.set(key, result); return result; })
-    .finally(() => inflight.delete(key));
-
-  inflight.set(key, promise);
-  return promise;
 }
