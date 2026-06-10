@@ -8,6 +8,7 @@
 
 export interface SecureScoreControl {
   controlName: string;
+  title: string;
   controlCategory: string;
   description: string;
   score: number;

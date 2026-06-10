@@ -1535,6 +1535,8 @@ components:
       properties:
         controlName:
           type: string
+        title:
+          type: string
         controlCategory:
           type: string
         description:
@@ -1550,7 +1552,7 @@ components:
           nullable: true
         status:
           type: string
-      required: [controlName, controlCategory, description, score, scoreInPercentage, implementationStatus, lastSynced, status]
+      required: [controlName, title, controlCategory, description, score, scoreInPercentage, implementationStatus, lastSynced, status]
 
     DeviceEstateItem:
       type: object

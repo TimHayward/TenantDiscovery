@@ -46,6 +46,14 @@ const C = {
   gray:   "#9ca3af",
 };
 
+const CATEGORY_COLORS: Record<string, string> = {
+  "Identity":       "#1E3D59",
+  "Apps":           "#A60808",
+  "Data":           "#f97316",
+  "Device":         "#eab308",
+  "Infrastructure": "#795EFF",
+};
+
 const STRENGTH_COLOR: Record<string, string> = {
   "Phishing-resistant": C.green,
   "Strong":             C.blue,
@@ -213,9 +221,14 @@ function ScoreBar({ pct }: { pct: number }) {
 
 const secureScoreControlColumns: ColumnDef<SecureScoreControl>[] = [
   {
-    accessorKey: "controlName",
+    accessorKey: "title",
     header: "Control",
-    cell: ({ row }) => <span className="font-medium text-sm">{row.original.controlName}</span>,
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-0.5">
+        <span className="font-medium text-sm">{row.original.title}</span>
+        <span className="text-xs text-muted-foreground">{row.original.controlName}</span>
+      </div>
+    ),
   },
   {
     accessorKey: "controlCategory",
@@ -671,20 +684,52 @@ export function SecurityTab() {
         <Card>
           <CardHeader className="px-4 pt-4 pb-2 space-y-0">
             <CardTitle className="text-base">Score by Category</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">% of each category's potential score</p>
+            <p className="text-xs text-muted-foreground mt-0.5">% of each category's potential score achieved</p>
           </CardHeader>
-          <CardContent>
-            {loading ? <Skeleton className="w-full h-[200px]" /> : (
-              <ResponsiveContainer width="100%" height={200} debounce={0}>
-                <BarChart data={scoreBreakdown.slice(1)} layout="vertical" margin={{ left: 8, right: 60, top: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: tickColor }} stroke="none" width={120} />
-                  <Tooltip isAnimationActive={false} formatter={(_v: number, _k: string, entry: { payload?: { label?: string; name?: string } }) => [entry?.payload?.label ?? "—", entry?.payload?.name ?? ""]} />
-                  <Bar dataKey="percent" name="Score %" fill={C.blue} fillOpacity={0.85} radius={[0, 3, 3, 0]} isAnimationActive={false}>
-                    <LabelList dataKey="label" position="right" fill={tickColor} fontSize={10} />
-                  </Bar>
-                </BarChart>
+          <CardContent className="flex justify-center">
+            {loading ? <Skeleton className="w-full h-[220px]" /> : (
+              <ResponsiveContainer width="100%" height={220} debounce={0}>
+                <PieChart>
+                  <Pie
+                    data={(data?.controlCategories ?? []).map((c) => {
+                      const pct = c.maxScore > 0 ? Math.round((c.score / c.maxScore) * 10000) / 100 : 0;
+                      return { name: c.category, value: 1, pct };
+                    })}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={58}
+                    outerRadius={82}
+                    dataKey="value"
+                    isAnimationActive={false}
+                    label={({ cx, cy, midAngle, outerRadius, pct }: any) => {
+                      const RADIAN = Math.PI / 180;
+                      const r = (outerRadius as number) + 20;
+                      const x = (cx as number) + r * Math.cos(-midAngle * RADIAN);
+                      const y = (cy as number) + r * Math.sin(-midAngle * RADIAN);
+                      return (
+                        <text x={x} y={y} fill={tickColor} textAnchor={x > (cx as number) ? "start" : "end"} dominantBaseline="central" fontSize={11}>
+                          {`${(pct as number).toFixed(1)}%`}
+                        </text>
+                      );
+                    }}
+                    labelLine={{ stroke: tickColor, strokeWidth: 1 }}
+                  >
+                    {(data?.controlCategories ?? []).map((c, i) => (
+                      <Cell key={i} fill={CATEGORY_COLORS[c.category] ?? C.gray} />
+                    ))}
+                  </Pie>
+                  <Legend
+                    iconSize={10}
+                    formatter={(value) => <span style={{ fontSize: 11, color: tickColor }}>{value}</span>}
+                  />
+                  <Tooltip
+                    isAnimationActive={false}
+                    formatter={(_v: number, _k: string, entry: any) => [
+                      `${(entry.payload?.pct as number)?.toFixed(1)}%`,
+                      entry.payload?.name ?? "",
+                    ]}
+                  />
+                </PieChart>
               </ResponsiveContainer>
             )}
           </CardContent>

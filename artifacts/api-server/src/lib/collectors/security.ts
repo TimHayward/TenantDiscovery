@@ -244,6 +244,11 @@ export async function collectSecurity() {
     return Number.isFinite(n) ? n : undefined;
   };
 
+  const profileTitleById = new Map<string, string>();
+  for (const profile of controlProfiles) {
+    if (profile.id && profile.title) profileTitleById.set(profile.id as string, profile.title as string);
+  }
+
   const controlCategories: { category: string; score: number; maxScore: number }[] = [];
   if (latestScore?.controlScores) {
     const profileMaxById = new Map<string, number>();
@@ -281,8 +286,10 @@ export async function collectSecurity() {
     const pct: number = parseFiniteNumber(ctrl.scoreInPercentage)
       ?? (maxScore > 0 ? Math.round((score / maxScore) * 100) : 0);
     const status = pct >= 80 ? "configured" : pct > 0 ? "partial" : "notConfigured";
+    const name = ctrl.controlName ?? "";
     return {
-      controlName: ctrl.controlName ?? "",
+      controlName: name,
+      title: profileTitleById.get(name) ?? name,
       controlCategory: ctrl.controlCategory ?? "Other",
       description: ctrl.description ?? "",
       score, scoreInPercentage: pct,

@@ -408,6 +408,7 @@ export const GetM365SecurityResponse = zod.object({
 })),
   "secureScoreControls": zod.array(zod.object({
   "controlName": zod.string(),
+  "title": zod.string(),
   "controlCategory": zod.string(),
   "description": zod.string(),
   "score": zod.number(),
@@ -503,6 +504,7 @@ export const GetM365SecurityWithMetadataResponse = zod.object({
 })),
   "secureScoreControls": zod.array(zod.object({
   "controlName": zod.string(),
+  "title": zod.string(),
   "controlCategory": zod.string(),
   "description": zod.string(),
   "score": zod.number(),
