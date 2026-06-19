@@ -22,6 +22,7 @@ import m365PowerBIRouter from "./m365PowerBI";
 import m365RefreshRouter from "./m365Refresh";
 import m365FindingsRouter from "./m365Findings";
 import m365ScansRouter from "./m365Scans";
+import m365ExportRouter from "./m365Export";
 import onboardingRouter from "./onboarding";
 
 const router: IRouter = Router();
@@ -49,6 +50,7 @@ router.use(m365PowerBIRouter);
 router.use(m365RefreshRouter);
 router.use(m365FindingsRouter);
 router.use(m365ScansRouter);
+router.use(m365ExportRouter);
 router.use(onboardingRouter);
 
 export default router;

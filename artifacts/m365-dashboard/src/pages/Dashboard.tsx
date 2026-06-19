@@ -6,7 +6,7 @@ import {
   RefreshCw, ChevronDown, Printer, Sun, Moon, PanelLeftClose, PanelLeftOpen,
   LayoutDashboard, Users, CreditCard, Shield, Mail,
   MessageSquare, ClipboardCheck, Smartphone, Swords, AppWindow, TrendingUp, BarChart2,
-  Database, X, ListChecks,
+  Database, X, ListChecks, Download,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useGetM365Overview, useGetM365DataSources } from "@workspace/api-client-react";
@@ -205,6 +205,7 @@ export default function Dashboard() {
     onboardingStatus?.needsOnboarding === false;
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [showDataSources, setShowDataSources] = useState(false);
   const [selectedIntervalMs, setSelectedIntervalMs] = useState(0);
   const [activeTab, setActiveTab] = useState<NavValue>("overview");
@@ -427,12 +428,60 @@ export default function Dashboard() {
             )}
           </div>
 
+          <div className="relative">
+            <button
+              onClick={() => setExportOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-2 h-[26px] rounded-[6px] text-[12px] transition-colors"
+              style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
+              title="Export findings register and reports"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            {exportOpen && (
+              <div className="absolute right-0 top-full mt-1 w-60 bg-popover text-popover-foreground border rounded-md shadow-md z-50 py-1 text-sm">
+                <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Architect evidence</div>
+                {[
+                  { label: "Findings (CSV)", href: "/api/m365/export/findings.csv" },
+                  { label: "Findings (Excel)", href: "/api/m365/export/findings.xlsx" },
+                  { label: "Evidence pack (Excel)", href: "/api/m365/export/evidence.xlsx" },
+                ].map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className="block px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => setExportOpen(false)}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+                <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">Executive report</div>
+                {[
+                  { label: "Executive summary (PDF)", href: "/api/m365/export/executive.pdf" },
+                  { label: "Executive summary (HTML)", href: "/api/m365/export/executive.html", target: "_blank" },
+                ].map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    target={item.target}
+                    rel={item.target ? "noopener noreferrer" : undefined}
+                    className="block px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => setExportOpen(false)}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => window.print()}
             disabled={loading}
             className="flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors disabled:opacity-50"
             style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
-            aria-label="Export as PDF"
+            aria-label="Print page"
           >
             <Printer className="w-3.5 h-3.5" />
           </button>
