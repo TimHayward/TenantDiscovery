@@ -59,6 +59,32 @@ describe("setupConfig", () => {
     });
   });
 
+  it("persists acknowledged missing permissions and resets them when the client id changes", async () => {
+    await withTempSettingsPath(async () => {
+      await patchOnboardingSettings({ clientId: "app-a" });
+
+      const acknowledged = await patchOnboardingSettings({
+        acknowledgedMissingPermissions: ["User.Read.All", "Group.Read.All"],
+        setupComplete: true,
+      });
+      expect(acknowledged.acknowledgedMissingPermissions).toEqual([
+        "Group.Read.All",
+        "User.Read.All",
+      ]);
+
+      // Unrelated patch keeps the acknowledgements.
+      const kept = await patchOnboardingSettings({ tenantId: "tenant-1" });
+      expect(kept.acknowledgedMissingPermissions).toEqual([
+        "Group.Read.All",
+        "User.Read.All",
+      ]);
+
+      // Pointing at a different app invalidates prior acknowledgements.
+      const switched = await patchOnboardingSettings({ clientId: "app-b" });
+      expect(switched.acknowledgedMissingPermissions).toEqual([]);
+    });
+  });
+
   it("clears existing secret when patch receives an empty value", async () => {
     await withTempSettingsPath(async () => {
       await patchOnboardingSettings({

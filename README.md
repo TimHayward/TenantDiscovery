@@ -25,6 +25,16 @@ $env:AZURE_CLIENT_ID = "your-client-id"
 $env:AZURE_CLIENT_SECRET = "your-client-secret"
 ```
 
+### Network exposure (optional)
+
+The API server is unauthenticated and holds Graph credentials, so by default it only listens on `127.0.0.1` and does not send CORS headers. The dashboard reaches it through the Vite `/api` proxy, which works without any of these settings. Override only if you understand the exposure:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `HOST` (api-server) | `127.0.0.1` | Bind address. Set `0.0.0.0` to expose the API on the network. |
+| `CORS_ALLOWED_ORIGINS` (api-server) | _(none)_ | Comma-separated origins allowed to call the API cross-origin, e.g. `https://dashboard.example.com`. Unset = no CORS. |
+| `ALLOWED_HOSTS` (m365-dashboard) | _(none)_ | Comma-separated extra hostnames the Vite dev/preview server responds to. `localhost`, IP addresses, and Replit preview domains (`REPLIT_DOMAINS`/`REPLIT_DEV_DOMAIN`) are always allowed. |
+
 ## Installation
 
 ```bash

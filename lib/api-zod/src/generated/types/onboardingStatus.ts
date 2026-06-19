@@ -12,8 +12,10 @@ export interface OnboardingStatus {
   targetTenantId: string | null;
   targetAppDisplayName: string | null;
   requiredApplicationPermissions: string[];
+  recommendedApplicationPermissions: string[];
   configuredApplicationPermissions: string[];
   missingRequiredPermissions: string[];
+  missingRecommendedPermissions: string[];
   hasMissingRequiredPermissions: boolean;
   permissionCheckError: string | null;
   needsOnboarding: boolean;

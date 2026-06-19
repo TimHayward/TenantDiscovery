@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useGetM365Overview, useGetM365DataSources } from "@workspace/api-client-react";
+import { getOnboardingStatus } from "@/lib/onboardingApi";
 
 import { OverviewTab } from "./tabs/OverviewTab";
 import { UsersTab } from "./tabs/UsersTab";
@@ -150,12 +151,21 @@ export default function Dashboard() {
   const isDark = theme === "dark";
 
   const queryClient = useQueryClient();
-  const { dataUpdatedAt, isLoading, isFetching } = useGetM365Overview();
+  const { data: overviewData, isLoading, isFetching } = useGetM365Overview();
   const { data: dataSourcesData } = useGetM365DataSources();
+
+  // Shares App.tsx's query key — React Query dedupes, so this is cache-only.
+  const { data: onboardingStatus } = useQuery({
+    queryKey: ["onboarding-status"],
+    queryFn: getOnboardingStatus,
+  });
 
   const [isSpinning, setIsSpinning] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [permBannerDismissed, setPermBannerDismissed] = useState(false);
+  const [incompleteBannerDismissed, setIncompleteBannerDismissed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshObservedCollecting = useRef(false);
 
   const { data: collectionStatus } = useQuery({
     queryKey: ["m365-collection-status"],
@@ -168,6 +178,25 @@ export default function Dashboard() {
   });
 
   const showCollectionBanner = !bannerDismissed && (collectionStatus?.isCollecting || isRefreshing);
+
+  // A transient permission re-check failure on an already-set-up tenant no
+  // longer bounces the user to onboarding; surface it as a dismissible note.
+  const showPermissionBanner =
+    !permBannerDismissed &&
+    Boolean(onboardingStatus?.permissionCheckError) &&
+    Boolean(onboardingStatus?.setup.setupComplete);
+
+  // The operator chose to continue past missing permissions: keep a standing
+  // reminder that some dashboard sections may be incomplete. Required gaps gate
+  // onboarding; recommended (optional-tier) gaps never do, but they still empty
+  // the sections that depend on them, so surface both here.
+  const missingPermissions = onboardingStatus?.missingRequiredPermissions ?? [];
+  const missingRecommendedPermissions =
+    onboardingStatus?.missingRecommendedPermissions ?? [];
+  const showIncompleteDataBanner =
+    !incompleteBannerDismissed &&
+    (missingPermissions.length > 0 || missingRecommendedPermissions.length > 0) &&
+    onboardingStatus?.needsOnboarding === false;
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showDataSources, setShowDataSources] = useState(false);
@@ -255,18 +284,33 @@ export default function Dashboard() {
   const handleRefreshData = async () => {
     setIsRefreshing(true);
     setBannerDismissed(false);
+    refreshObservedCollecting.current = false;
     try {
       await triggerRefresh();
       queryClient.invalidateQueries({ queryKey: ["m365-collection-status"] });
-      // Re-read DB data after a short delay to pick up freshly collected data
-      setTimeout(() => {
-        queryClient.invalidateQueries();
-        setIsRefreshing(false);
-      }, 30_000);
     } catch {
       setIsRefreshing(false);
     }
   };
+
+  // Drive refresh completion off real collection-status polling rather than a
+  // fixed timer: once we've seen collection start and then stop, re-read data.
+  useEffect(() => {
+    if (!isRefreshing) return;
+    if (collectionStatus?.isCollecting) {
+      refreshObservedCollecting.current = true;
+    } else if (refreshObservedCollecting.current) {
+      queryClient.invalidateQueries();
+      setIsRefreshing(false);
+    }
+  }, [collectionStatus, isRefreshing, queryClient]);
+
+  // Safety net: clear a stuck refresh if collection never registers.
+  useEffect(() => {
+    if (!isRefreshing) return;
+    const t = setTimeout(() => setIsRefreshing(false), 5 * 60_000);
+    return () => clearTimeout(t);
+  }, [isRefreshing]);
 
   const switchTab = useCallback((value: NavValue) => {
     setActiveTab(value);
@@ -285,16 +329,32 @@ export default function Dashboard() {
     setScrollTrigger((t) => t + 1);
   }, [switchTab]);
 
-  const lastRefreshed = dataUpdatedAt
+  // Newest real Microsoft Graph collection time across all metric keys, rather
+  // than the local React Query fetch time (which can be much fresher than the
+  // underlying snapshots).
+  const lastCollectedAt = useMemo(() => {
+    const times = Object.values(collectionStatus?.keys ?? {})
+      .filter((k) => k.status === "ok" && k.fetchedAt)
+      .map((k) => new Date(k.fetchedAt as string).getTime());
+    return times.length ? new Date(Math.max(...times)) : null;
+  }, [collectionStatus]);
+
+  const lastCollectedLabel = lastCollectedAt
     ? (() => {
-        const d = new Date(dataUpdatedAt);
-        const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
-        const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        const time = lastCollectedAt
+          .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+          .toLowerCase();
+        const date = lastCollectedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
         return `${time} on ${date}`;
       })()
     : null;
 
-  const activeLabel = NAV_ITEMS.find((n) => n.value === activeTab)?.label ?? "";
+  const baseLabel = NAV_ITEMS.find((n) => n.value === activeTab)?.label ?? "";
+  const tenantName = overviewData?.tenantName;
+  const activeLabel =
+    activeTab === "overview" && tenantName && tenantName !== "Unknown Tenant"
+      ? `${baseLabel} - ${tenantName}`
+      : baseLabel;
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -496,10 +556,78 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {lastRefreshed && (
-                <p className="text-[12px] text-muted-foreground mt-2">Last refresh: {lastRefreshed}</p>
+              {lastCollectedLabel && (
+                <p className="text-[12px] text-muted-foreground mt-2">Data collected: {lastCollectedLabel}</p>
               )}
             </div>
+
+            {/* Transient permission re-check failure (non-blocking) */}
+            {showPermissionBanner && (
+              <div
+                className="mb-4 flex items-center justify-between gap-3 rounded-md border px-4 py-3 text-[13px]"
+                style={{
+                  backgroundColor: isDark ? "rgba(245,158,11,0.12)" : "rgba(254,243,199,0.8)",
+                  borderColor: isDark ? "rgba(245,158,11,0.3)" : "rgba(252,211,77,0.8)",
+                  color: isDark ? "#fcd34d" : "#92400e",
+                }}
+              >
+                <span>
+                  Couldn’t re-verify app permissions just now ({onboardingStatus?.permissionCheckError}) — showing the last known data.
+                </span>
+                <button
+                  onClick={() => setPermBannerDismissed(true)}
+                  className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100 transition-opacity"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Missing-permission / incomplete-data banner (operator chose to continue) */}
+            {showIncompleteDataBanner && (
+              <div
+                className="mb-4 flex items-start justify-between gap-3 rounded-md border px-4 py-3 text-[13px]"
+                style={{
+                  backgroundColor: isDark ? "rgba(245,158,11,0.12)" : "rgba(254,243,199,0.8)",
+                  borderColor: isDark ? "rgba(245,158,11,0.3)" : "rgba(252,211,77,0.8)",
+                  color: isDark ? "#fcd34d" : "#92400e",
+                }}
+              >
+                <span>
+                  Data may be incomplete — sections that rely on the following permissions will be
+                  empty until admin consent is granted.
+                  {missingPermissions.length > 0 && (
+                    <>
+                      {" "}
+                      <span className="font-semibold">
+                        Required ({missingPermissions.length}):
+                      </span>{" "}
+                      <span className="font-mono">{missingPermissions.join(", ")}</span>.
+                    </>
+                  )}
+                  {missingRecommendedPermissions.length > 0 && (
+                    <>
+                      {" "}
+                      <span className="font-semibold">
+                        Recommended for complete data ({missingRecommendedPermissions.length}):
+                      </span>{" "}
+                      <span className="font-mono">
+                        {missingRecommendedPermissions.join(", ")}
+                      </span>
+                      .
+                    </>
+                  )}
+                </span>
+                <button
+                  onClick={() => setIncompleteBannerDismissed(true)}
+                  className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100 transition-opacity"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
             {/* Collection-in-progress banner */}
             {showCollectionBanner && (

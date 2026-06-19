@@ -32,6 +32,7 @@ export default function OnboardingPage({
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isContinuing, setIsContinuing] = useState(false);
 
   const missingCount = status.missingRequiredPermissions.length;
   const targetLabel =
@@ -68,6 +69,26 @@ export default function OnboardingPage({
       setSaveError(error instanceof Error ? error.message : "Failed to save setup details.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleContinueAnyway = async () => {
+    setIsContinuing(true);
+    setSaveError(null);
+    try {
+      await patchOnboardingSetup({
+        acknowledgedMissingPermissions: status.missingRequiredPermissions,
+        setupComplete: true,
+      });
+      await onRefreshStatus();
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to continue to the dashboard.",
+      );
+    } finally {
+      // Reset even on success: if the gate legitimately stays (e.g. requirements
+      // changed between click and refetch), the button must not be left stuck.
+      setIsContinuing(false);
     }
   };
 
@@ -122,6 +143,25 @@ export default function OnboardingPage({
               )}
             </div>
 
+            {status.missingRecommendedPermissions.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm text-muted-foreground">
+                  Recommended permissions (for complete data)
+                </p>
+                <div className="rounded-md border bg-muted/40 p-3 text-sm leading-relaxed text-foreground">
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    These do not block the dashboard, but the sections that depend on them will be
+                    empty until consent is granted.
+                  </p>
+                  <PermissionCodeList
+                    permissions={status.missingRecommendedPermissions}
+                    codeClassName="mx-0.5 rounded bg-muted px-1 py-0.5 text-[12px]"
+                    conjunction="and"
+                  />
+                </div>
+              </div>
+            )}
+
             {status.permissionCheckError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -137,6 +177,30 @@ export default function OnboardingPage({
               </Button>
               <span className="text-xs text-muted-foreground">{guidanceText}</span>
             </div>
+
+            {status.canContinueWithMissingPermissions && (
+              <div className="rounded-md border border-dashed bg-muted/40 p-3">
+                <p className="text-sm text-muted-foreground">
+                  You can continue to the dashboard without granting these permissions. Sections
+                  that depend on them will be incomplete or empty until consent is granted.
+                </p>
+                <Button
+                  onClick={handleContinueAnyway}
+                  variant="secondary"
+                  className="mt-2"
+                  disabled={isContinuing}
+                >
+                  {isContinuing ? "Continuing…" : "Continue to dashboard anyway"}
+                </Button>
+              </div>
+            )}
+
+            {status.allRequiredPermissionsMissing && (
+              <p className="text-xs text-muted-foreground">
+                None of the required permissions are present yet, so the dashboard would have no
+                data to show. Grant admin consent, then re-check to continue.
+              </p>
+            )}
           </CardContent>
         </Card>
 

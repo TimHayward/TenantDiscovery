@@ -5,9 +5,9 @@ import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { CSVLink } from "react-csv";
-import { Download, Filter } from "lucide-react";
+import { Download, Filter, EyeOff } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -23,6 +23,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import type { LicenseItem, GhostUserItem } from "@workspace/api-client-react";
 
 const CHART_COLORS = {
@@ -45,6 +49,10 @@ const FREE_SKUS = new Set([
   "DEVELOPERPACK_E5",
   "RIGHTSMANAGEMENT_ADHOC",
   "MCOMEETADV",
+  "STREAM",
+  "FORMS_PRO",
+  "MICROSOFT_BUSINESS_CENTER",
+  "DYN365_ACCOUNTANT_PORTAL_IW_SKU",
 ]);
 
 const columns: ColumnDef<LicenseItem>[] = [
@@ -162,6 +170,31 @@ export function LicensesTab() {
   const [globalFilter, setGlobalFilter] = useState("");
   const [hideFree, setHideFree] = useState(true);
   const [hideZeroAssigned, setHideZeroAssigned] = useState(false);
+  const [hiddenSkus, setHiddenSkus] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("licenses-hidden-skus");
+      return stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("licenses-hidden-skus", JSON.stringify([...hiddenSkus]));
+    } catch {
+      /* ignore persistence errors (e.g. storage disabled) */
+    }
+  }, [hiddenSkus]);
+
+  const toggleHiddenSku = (sku: string) => {
+    setHiddenSkus((prev) => {
+      const next = new Set(prev);
+      if (next.has(sku)) next.delete(sku);
+      else next.add(sku);
+      return next;
+    });
+  };
 
   const [ghostSorting, setGhostSorting] = useState<SortingState>([{ id: "daysInactive", desc: true }]);
   const [ghostFilter, setGhostFilter] = useState("");
@@ -173,11 +206,27 @@ export function LicensesTab() {
   const filteredLicenses = useMemo(() => {
     if (!data?.licenses) return [];
     return data.licenses.filter((lic) => {
-      if (hideFree && FREE_SKUS.has(lic.skuPartNumber)) return false;
+      const isFree = FREE_SKUS.has(lic.skuPartNumber);
+      // Checked: hide free/dev SKUs. Unchecked: show *only* free/dev SKUs.
+      if (hideFree ? isFree : !isFree) return false;
+      if (hideZeroAssigned && lic.assigned === 0) return false;
+      if (hiddenSkus.has(lic.skuPartNumber)) return false;
+      return true;
+    });
+  }, [data?.licenses, hideFree, hideZeroAssigned, hiddenSkus]);
+
+  // SKUs offered in the "Hide specific SKUs" picker: same free/dev + unassigned
+  // toggles as the table, but always include already-hidden SKUs so they can be un-hidden.
+  const pickerLicenses = useMemo(() => {
+    if (!data?.licenses) return [];
+    return data.licenses.filter((lic) => {
+      if (hiddenSkus.has(lic.skuPartNumber)) return true;
+      const isFree = FREE_SKUS.has(lic.skuPartNumber);
+      if (hideFree ? isFree : !isFree) return false;
       if (hideZeroAssigned && lic.assigned === 0) return false;
       return true;
     });
-  }, [data?.licenses, hideFree, hideZeroAssigned]);
+  }, [data?.licenses, hideFree, hideZeroAssigned, hiddenSkus]);
 
   const filteredStats = useMemo(() => {
     const totalLicenses = filteredLicenses.reduce((s, l) => s + l.total, 0);
@@ -239,7 +288,54 @@ export function LicensesTab() {
           />
           <Label htmlFor="hide-zero" className="text-sm cursor-pointer">Hide unassigned licenses</Label>
         </div>
-        {(hideFree || hideZeroAssigned) && data?.licenses && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-2">
+              <EyeOff className="w-3.5 h-3.5" />
+              Hide specific SKUs
+              {hiddenSkus.size > 0 && (
+                <Badge variant="secondary" className="ml-1 px-1.5">{hiddenSkus.size}</Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search SKUs..." />
+              <CommandList>
+                <CommandEmpty>No SKUs found.</CommandEmpty>
+                <CommandGroup>
+                  {pickerLicenses.map((lic) => (
+                    <CommandItem
+                      key={lic.skuId}
+                      value={`${lic.displayName} ${lic.skuPartNumber}`}
+                      onSelect={() => toggleHiddenSku(lic.skuPartNumber)}
+                      className="cursor-pointer"
+                    >
+                      <Checkbox checked={hiddenSkus.has(lic.skuPartNumber)} className="mr-2 pointer-events-none" />
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="text-sm truncate">{lic.displayName}</span>
+                        <span className="text-xs text-muted-foreground truncate">{lic.skuPartNumber}</span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+              {hiddenSkus.size > 0 && (
+                <div className="border-t p-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-7 text-xs"
+                    onClick={() => setHiddenSkus(new Set())}
+                  >
+                    Clear {hiddenSkus.size} hidden
+                  </Button>
+                </div>
+              )}
+            </Command>
+          </PopoverContent>
+        </Popover>
+        {(hideFree || hideZeroAssigned || hiddenSkus.size > 0) && data?.licenses && (
           <span className="text-xs text-muted-foreground ml-auto">
             Showing {filteredLicenses.length} of {data.licenses.length} SKUs
           </span>

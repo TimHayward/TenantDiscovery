@@ -14,6 +14,18 @@ if (Number.isNaN(port) || port <= 0) {
 
 const basePath = process.env.BASE_PATH ?? "/";
 
+// Restrict which Host headers the dev/preview servers respond to. With
+// `allowedHosts: true` any website could use DNS rebinding to reach the
+// proxied /api endpoints. Vite always allows localhost and IP addresses;
+// Replit preview domains and any ALLOWED_HOSTS entries are added on top.
+const allowedHosts = [
+  ...(process.env.ALLOWED_HOSTS ?? "").split(","),
+  ...(process.env.REPLIT_DOMAINS ?? "").split(","),
+  process.env.REPLIT_DEV_DOMAIN ?? "",
+]
+  .map((host) => host.trim())
+  .filter(Boolean);
+
 export default defineConfig({
   base: basePath,
   plugins: [
@@ -68,7 +80,7 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-    allowedHosts: true,
+    allowedHosts,
     fs: {
       strict: true,
     },
@@ -76,6 +88,6 @@ export default defineConfig({
   preview: {
     port,
     host: "0.0.0.0",
-    allowedHosts: true,
+    allowedHosts,
   },
 });

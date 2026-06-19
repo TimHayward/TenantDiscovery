@@ -39,11 +39,73 @@ interface AppRegistrationResponse {
   }>;
 }
 
+/**
+ * Decide whether the dashboard must route to onboarding.
+ *
+ * A transient Microsoft Graph failure during the permission check yields an
+ * empty configured-permissions list, which makes the missing-permissions list
+ * contain every required permission. We must therefore never gate an
+ * established tenant on a check that did not actually succeed — otherwise a
+ * single 429/timeout bounces the user out of the dashboard mid-session.
+ *
+ * When some (but not all) required permissions are missing, the operator may
+ * acknowledge the gap and proceed with partial data. Onboarding then stays
+ * suppressed only while the current missing set is a subset of what was
+ * acknowledged: a newly-missing permission — whether a tenant-side regression
+ * or a manifest requirement change — falls outside the acknowledged set and
+ * re-triggers onboarding. A fully-unconsented app (every required permission
+ * missing) always routes to onboarding and cannot be acknowledged through.
+ */
+export function computeNeedsOnboarding(args: {
+  hasClientId: boolean;
+  setupComplete: boolean;
+  permissionCheckSucceeded: boolean;
+  missingPermissions: string[];
+  acknowledgedPermissions: string[];
+  requiredCount: number;
+}): boolean {
+  if (!args.hasClientId) return true; // nothing configured yet
+  if (!args.permissionCheckSucceeded) {
+    // Initial setup gates until a successful check; an established tenant is
+    // never bounced on a transient/failed check.
+    return !args.setupComplete;
+  }
+  if (args.missingPermissions.length === 0) return false;
+  // A fully-unconsented app has nothing useful to show — always onboard.
+  if (args.requiredCount > 0 && args.missingPermissions.length >= args.requiredCount) {
+    return true;
+  }
+  const acknowledged = new Set(args.acknowledgedPermissions);
+  const allAcknowledged = args.missingPermissions.every((permission) =>
+    acknowledged.has(permission),
+  );
+  return !allAcknowledged;
+}
+
 function getRequiredApplicationPermissions(): string[] {
   return permissionsManifest.permissions
     .filter(
       (permission) =>
         permission.tier === "required" &&
+        permission.provider === "microsoft-graph" &&
+        permission.accessKind === "application",
+    )
+    .map((permission) => permission.name)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Recommended (optional-tier) Graph application permissions. Their absence does
+ * not block the dashboard, but it empties the sections that depend on them — so
+ * we surface them as gaps without gating onboarding on them. Defender/Exchange
+ * external scopes are excluded by the accessKind filter and are checked
+ * separately, never as Graph app roles.
+ */
+export function getRecommendedApplicationPermissions(): string[] {
+  return permissionsManifest.permissions
+    .filter(
+      (permission) =>
+        permission.tier === "optional" &&
         permission.provider === "microsoft-graph" &&
         permission.accessKind === "application",
     )
@@ -137,6 +199,7 @@ router.patch("/onboarding/setup", async (req, res) => {
       clientId?: string | null;
       clientSecret?: string | null;
       setupComplete?: boolean;
+      acknowledgedMissingPermissions?: string[] | null;
     };
 
     const updated = await patchOnboardingSettings({
@@ -144,6 +207,7 @@ router.patch("/onboarding/setup", async (req, res) => {
       clientId: body.clientId,
       clientSecret: body.clientSecret,
       setupComplete: body.setupComplete,
+      acknowledgedMissingPermissions: body.acknowledgedMissingPermissions,
     });
 
     return res.json(redactOnboardingSettings(updated));
@@ -157,6 +221,7 @@ router.get("/onboarding/status", async (req, res) => {
   try {
     const settings = await loadOnboardingSettings();
     const requiredPermissions = getRequiredApplicationPermissions();
+    const recommendedPermissions = getRecommendedApplicationPermissions();
 
     const targetClientId = settings.clientId ?? process.env.AZURE_CLIENT_ID ?? null;
 
@@ -178,20 +243,49 @@ router.get("/onboarding/status", async (req, res) => {
     const missingRequiredPermissions = requiredPermissions.filter(
       (permission) => !configuredSet.has(permission),
     );
+    // Surfaced as informational gaps only — these never gate onboarding.
+    const missingRecommendedPermissions = recommendedPermissions.filter(
+      (permission) => !configuredSet.has(permission),
+    );
 
-    const hasMissingRequiredPermissions =
-      missingRequiredPermissions.length > 0 || permissionCheckError !== null;
+    const permissionCheckSucceeded = permissionCheckError === null;
+    const hasMissingRequiredPermissions = missingRequiredPermissions.length > 0;
+
+    const allRequiredPermissionsMissing =
+      requiredPermissions.length > 0 &&
+      missingRequiredPermissions.length >= requiredPermissions.length;
+
+    // The operator may proceed with partial data only when some — but not all —
+    // required permissions are present, and the check actually succeeded.
+    const canContinueWithMissingPermissions =
+      permissionCheckSucceeded &&
+      hasMissingRequiredPermissions &&
+      !allRequiredPermissionsMissing;
+
+    const needsOnboarding = computeNeedsOnboarding({
+      hasClientId: Boolean(targetClientId),
+      setupComplete: settings.setupComplete,
+      permissionCheckSucceeded,
+      missingPermissions: missingRequiredPermissions,
+      acknowledgedPermissions: settings.acknowledgedMissingPermissions,
+      requiredCount: requiredPermissions.length,
+    });
 
     return res.json({
       targetClientId,
       targetTenantId: settings.tenantId ?? process.env.AZURE_TENANT_ID ?? null,
       targetAppDisplayName: appDisplayName,
       requiredApplicationPermissions: requiredPermissions,
+      recommendedApplicationPermissions: recommendedPermissions,
       configuredApplicationPermissions,
       missingRequiredPermissions,
+      missingRecommendedPermissions,
       hasMissingRequiredPermissions,
+      allRequiredPermissionsMissing,
+      canContinueWithMissingPermissions,
       permissionCheckError,
-      needsOnboarding: hasMissingRequiredPermissions,
+      permissionCheckSucceeded,
+      needsOnboarding,
       setup: redactOnboardingSettings(settings),
     });
   } catch (error) {

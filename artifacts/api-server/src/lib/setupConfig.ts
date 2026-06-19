@@ -10,6 +10,12 @@ export interface OnboardingSettings {
   clientSecret: string | null;
   setupComplete: boolean;
   setupCompletedAt: string | null;
+  /**
+   * Missing required permissions the operator has explicitly chosen to proceed
+   * without. Onboarding stays suppressed only while the current missing set is a
+   * subset of this list; any newly-missing permission re-triggers onboarding.
+   */
+  acknowledgedMissingPermissions: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -25,6 +31,7 @@ export interface OnboardingSettingsPatch {
   clientId?: string | null;
   clientSecret?: string | null;
   setupComplete?: boolean;
+  acknowledgedMissingPermissions?: string[] | null;
 }
 
 function getDefaultSettings(): OnboardingSettings {
@@ -35,6 +42,7 @@ function getDefaultSettings(): OnboardingSettings {
     clientSecret: null,
     setupComplete: false,
     setupCompletedAt: null,
+    acknowledgedMissingPermissions: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -44,6 +52,16 @@ function normalizeString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    const normalized = normalizeString(entry);
+    if (normalized) seen.add(normalized);
+  }
+  return Array.from(seen).sort((a, b) => a.localeCompare(b));
 }
 
 function getDefaultSettingsPath(): string {
@@ -79,6 +97,7 @@ export async function loadOnboardingSettings(): Promise<OnboardingSettings> {
       clientSecret: normalizeString(parsed.clientSecret) ?? defaults.clientSecret,
       setupComplete: Boolean(parsed.setupComplete),
       setupCompletedAt: normalizeString(parsed.setupCompletedAt) ?? null,
+      acknowledgedMissingPermissions: normalizeStringArray(parsed.acknowledgedMissingPermissions),
       createdAt: normalizeString(parsed.createdAt) ?? defaults.createdAt,
       updatedAt: normalizeString(parsed.updatedAt) ?? defaults.updatedAt,
     };
@@ -121,17 +140,30 @@ export async function patchOnboardingSettings(
   const setupComplete =
     patch.setupComplete === undefined ? current.setupComplete : Boolean(patch.setupComplete);
 
+  const nextClientId =
+    patch.clientId === undefined ? current.clientId : normalizeString(patch.clientId);
+  const clientIdChanged = nextClientId !== current.clientId;
+
+  // Acknowledgements are scoped to the configured app: an explicit patch wins,
+  // otherwise pointing at a different client ID invalidates prior acknowledgements.
+  const acknowledgedMissingPermissions =
+    patch.acknowledgedMissingPermissions !== undefined
+      ? normalizeStringArray(patch.acknowledgedMissingPermissions)
+      : clientIdChanged
+        ? []
+        : current.acknowledgedMissingPermissions;
+
   const next: OnboardingSettings = {
     ...current,
     tenantId:
       patch.tenantId === undefined ? current.tenantId : normalizeString(patch.tenantId),
-    clientId:
-      patch.clientId === undefined ? current.clientId : normalizeString(patch.clientId),
+    clientId: nextClientId,
     clientSecret: mergeSecret(current.clientSecret, patch.clientSecret),
     setupComplete,
     setupCompletedAt: setupComplete
       ? current.setupCompletedAt ?? now
       : null,
+    acknowledgedMissingPermissions,
     updatedAt: now,
   };
 

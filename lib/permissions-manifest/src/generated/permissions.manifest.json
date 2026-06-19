@@ -89,13 +89,15 @@
         "/reports/getMailboxUsageDetail",
         "/reports/getEmailActivityUserDetail",
         "/reports/getTeamsUserActivityUserDetail",
-        "/reports/getSharePointSiteUsageDetail"
+        "/reports/getSharePointSiteUsageDetail",
+        "/reports/getOffice365ServicesUserCounts"
       ],
       "features": [
         "overview",
         "users-identity",
         "exchange",
-        "teams-sharepoint"
+        "teams-sharepoint",
+        "adoption"
       ],
       "notes": [
         "This covers the current SharePoint usage reports, which is why Sites.Read.All is not required today."
@@ -305,6 +307,72 @@
       ]
     },
     {
+      "name": "RoleManagement.Read.Directory",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read directory role assignments, eligibility, and role definitions.",
+      "why": "Used for the admin exposure / privileged role report; sections degrade to empty without it.",
+      "endpoints": [
+        "/roleManagement/directory/roleAssignments",
+        "/roleManagement/directory/roleEligibilityScheduleInstances",
+        "/roleManagement/directory/roleDefinitions"
+      ],
+      "features": [
+        "security"
+      ]
+    },
+    {
+      "name": "SecurityIncident.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read Microsoft 365 Defender security incidents.",
+      "why": "Used for the 30-day incident summary on the Defender view; the card is empty without it.",
+      "endpoints": [
+        "/security/incidents"
+      ],
+      "features": [
+        "security"
+      ]
+    },
+    {
+      "name": "SecurityAlert.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read Microsoft 365 Defender security alerts (alerts_v2).",
+      "why": "Used for Defender alert summaries and the 30-day alert count; cards are empty without it.",
+      "endpoints": [
+        "/security/alerts_v2"
+      ],
+      "features": [
+        "security"
+      ]
+    },
+    {
+      "name": "SharePointTenantSettings.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read SharePoint and OneDrive tenant-level sharing settings.",
+      "why": "Used for the SharePoint sharing-policy summary; the section is empty without it.",
+      "endpoints": [
+        "/admin/sharepoint/settings"
+      ],
+      "features": [
+        "teams-sharepoint"
+      ]
+    },
+    {
       "name": "https://api.security.microsoft.com/.default",
       "provider": "microsoft-defender",
       "accessKind": "external-scope",
@@ -321,6 +389,27 @@
       ],
       "notes": [
         "The code also attempts the legacy alias https://api.securitycenter.microsoft.com/.default."
+      ]
+    },
+    {
+      "name": "https://analysis.windows.net/powerbi/api/.default",
+      "provider": "microsoft-defender",
+      "accessKind": "external-scope",
+      "tier": "future",
+      "adminConsentRequired": true,
+      "verificationStatus": "future-roadmap",
+      "summary": "Acquire a Power BI Admin API token for workspace governance.",
+      "why": "Required for Power BI workspace, capacity, and dataset inventory via the Power BI Admin REST API.",
+      "endpoints": [
+        "https://api.powerbi.com/v1.0/myorg/admin/groups",
+        "https://api.powerbi.com/v1.0/myorg/admin/capacities"
+      ],
+      "features": [
+        "power-bi-governance"
+      ],
+      "notes": [
+        "Requires the service principal to be granted Power BI Tenant.Read.All or Tenant.ReadWrite.All in the Power BI admin portal.",
+        "Uses the analysis.windows.net token audience — separate from Microsoft Graph permissions."
       ]
     },
     {
@@ -468,6 +557,9 @@
       ],
       "optionalPermissions": [
         "IdentityRiskEvent.Read.All",
+        "RoleManagement.Read.Directory",
+        "SecurityIncident.Read.All",
+        "SecurityAlert.Read.All",
         "https://api.security.microsoft.com/.default"
       ],
       "futurePermissions": [],
@@ -521,6 +613,46 @@
       "backendRoutes": [],
       "frontendLocations": [],
       "behavior": "future"
+    },
+    {
+      "id": "adoption",
+      "title": "Workload Adoption and Value Realisation",
+      "requiredPermissions": [
+        "Reports.Read.All"
+      ],
+      "optionalPermissions": [],
+      "futurePermissions": [],
+      "backendRoutes": [
+        "/m365/adoption"
+      ],
+      "frontendLocations": [
+        "AdoptionTab"
+      ],
+      "behavior": "partial-data",
+      "notes": [
+        "Uses getOffice365ServicesUserCounts for D30/D90/D180 periods to show per-workload activation rates.",
+        "Value gap logic flags workloads with <20% adoption in the 30-day window."
+      ]
+    },
+    {
+      "id": "power-bi-governance",
+      "title": "Power BI Tenant Governance",
+      "requiredPermissions": [],
+      "optionalPermissions": [],
+      "futurePermissions": [
+        "https://analysis.windows.net/powerbi/api/.default"
+      ],
+      "backendRoutes": [
+        "/m365/powerbi"
+      ],
+      "frontendLocations": [
+        "PowerBITab"
+      ],
+      "behavior": "partial-data",
+      "notes": [
+        "Requires Power BI Admin API access via a separate token scope.",
+        "Returns available=false with graceful error state when Power BI access is not configured."
+      ]
     }
   ]
 }

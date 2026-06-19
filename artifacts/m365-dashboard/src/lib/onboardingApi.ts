@@ -5,6 +5,7 @@ export interface OnboardingSetup {
   hasClientSecret: boolean;
   setupComplete: boolean;
   setupCompletedAt: string | null;
+  acknowledgedMissingPermissions: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -14,10 +15,15 @@ export interface OnboardingStatus {
   targetTenantId: string | null;
   targetAppDisplayName: string | null;
   requiredApplicationPermissions: string[];
+  recommendedApplicationPermissions: string[];
   configuredApplicationPermissions: string[];
   missingRequiredPermissions: string[];
+  missingRecommendedPermissions: string[];
   hasMissingRequiredPermissions: boolean;
+  allRequiredPermissionsMissing: boolean;
+  canContinueWithMissingPermissions: boolean;
   permissionCheckError: string | null;
+  permissionCheckSucceeded: boolean;
   needsOnboarding: boolean;
   setup: OnboardingSetup;
 }
@@ -27,6 +33,7 @@ export interface OnboardingSetupPatch {
   clientId?: string | null;
   clientSecret?: string | null;
   setupComplete?: boolean;
+  acknowledgedMissingPermissions?: string[] | null;
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {

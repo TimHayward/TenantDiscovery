@@ -26,7 +26,19 @@ app.use(
     },
   }),
 );
-app.use(cors());
+// The dashboard reaches the API through the Vite same-origin proxy, so CORS
+// is unnecessary by default. A wildcard policy would let any website read
+// tenant data through the user's browser; only allow origins explicitly
+// listed in CORS_ALLOWED_ORIGINS (comma-separated).
+const corsAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (corsAllowedOrigins.length > 0) {
+  app.use(cors({ origin: corsAllowedOrigins }));
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
