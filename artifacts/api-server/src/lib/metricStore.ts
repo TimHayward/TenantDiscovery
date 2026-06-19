@@ -73,6 +73,43 @@ async function initClient(): Promise<void> {
       updated_at  INTEGER NOT NULL
     )
   `);
+  // A discrete scan run groups archived snapshots and findings for drift/history.
+  await _client.execute(`
+    CREATE TABLE IF NOT EXISTS scan_runs (
+      id           TEXT PRIMARY KEY,
+      started_at   INTEGER NOT NULL,
+      completed_at INTEGER,
+      status       TEXT NOT NULL,
+      triggered_by TEXT NOT NULL
+    )
+  `);
+  // Full metric snapshot archive, one row per (scan, key).
+  await _client.execute(`
+    CREATE TABLE IF NOT EXISTS metric_snapshots_history (
+      scan_id    TEXT NOT NULL,
+      key        TEXT NOT NULL,
+      data       TEXT NOT NULL,
+      fetched_at INTEGER NOT NULL,
+      status     TEXT NOT NULL,
+      error_msg  TEXT,
+      PRIMARY KEY (scan_id, key)
+    )
+  `);
+  // Findings archive, one row per (scan, fingerprint), for drift computation.
+  await _client.execute(`
+    CREATE TABLE IF NOT EXISTS findings_history (
+      scan_id          TEXT NOT NULL,
+      fingerprint      TEXT NOT NULL,
+      rule_id          TEXT NOT NULL,
+      category         TEXT NOT NULL,
+      title            TEXT NOT NULL,
+      severity         TEXT NOT NULL,
+      check_status     TEXT NOT NULL,
+      evidence_status  TEXT NOT NULL,
+      confidence_label TEXT NOT NULL,
+      PRIMARY KEY (scan_id, fingerprint)
+    )
+  `);
 }
 
 export async function getClient(): Promise<Client> {

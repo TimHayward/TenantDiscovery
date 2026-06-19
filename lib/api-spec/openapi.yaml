@@ -623,6 +623,64 @@ paths:
         "404":
           description: Finding not found
 
+  /m365/scans:
+    get:
+      operationId: getM365Scans
+      tags: [m365]
+      summary: List historical scan runs (newest first)
+      responses:
+        "200":
+          description: Scan run list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanListResponse"
+
+  /m365/drift:
+    get:
+      operationId: getM365Drift
+      tags: [m365]
+      summary: Findings drift between two scans (defaults to the two most recent — "what changed since last scan")
+      parameters:
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Drift report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriftReport"
+
+  /m365/scans/{id}:
+    get:
+      operationId: getM365Scan
+      tags: [m365]
+      summary: Detail for a single scan run
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scan detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanDetail"
+        "404":
+          description: Scan not found
+
   /m365/data-sources:
     get:
       operationId: getM365DataSources
@@ -2276,6 +2334,107 @@ components:
         dueDate:
           type: string
           nullable: true
+
+    ScanRun:
+      type: object
+      properties:
+        id:
+          type: string
+        startedAt:
+          type: string
+        completedAt:
+          type: string
+          nullable: true
+        status:
+          type: string
+        triggeredBy:
+          type: string
+        findingCount:
+          type: integer
+      required: [id, startedAt, completedAt, status, triggeredBy, findingCount]
+
+    ScanListResponse:
+      type: object
+      properties:
+        scans:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanRun"
+      required: [scans]
+
+    ScanFinding:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        ruleId:
+          type: string
+        category:
+          type: string
+        title:
+          type: string
+        severity:
+          type: string
+        checkStatus:
+          type: string
+      required: [fingerprint, ruleId, category, title, severity, checkStatus]
+
+    ScanDetail:
+      allOf:
+        - $ref: "#/components/schemas/ScanRun"
+        - type: object
+          properties:
+            snapshotKeys:
+              type: array
+              items:
+                type: string
+            findings:
+              type: array
+              items:
+                $ref: "#/components/schemas/ScanFinding"
+          required: [snapshotKeys, findings]
+
+    DriftEntry:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        severity:
+          type: string
+        checkStatus:
+          type: string
+        previousCheckStatus:
+          type: string
+        previousSeverity:
+          type: string
+      required: [fingerprint, title, category, severity, checkStatus]
+
+    DriftReport:
+      type: object
+      properties:
+        fromScanId:
+          type: string
+          nullable: true
+        toScanId:
+          type: string
+          nullable: true
+        added:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriftEntry"
+        resolved:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriftEntry"
+        changed:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriftEntry"
+      required: [fromScanId, toScanId, added, resolved, changed]
 
     IntuneDeviceItem:
       type: object

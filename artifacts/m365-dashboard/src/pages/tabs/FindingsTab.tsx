@@ -3,10 +3,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetM365Findings,
   usePatchM365Finding,
+  useGetM365Drift,
   getGetM365FindingsQueryKey,
   type FindingWithState,
   type FindingSeverity,
   type FindingStatus,
+  type DriftEntry,
 } from "@workspace/api-client-react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,6 +35,30 @@ const CHECK_STATUS_LABEL: Record<string, string> = {
   manual: "Manual",
 };
 
+function DriftColumn({ title, entries, tone }: { title: string; entries: DriftEntry[]; tone: string }) {
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <p className={`text-sm font-semibold mb-2 ${tone}`}>{title} ({entries.length})</p>
+        {entries.length === 0 ? (
+          <p className="text-xs text-muted-foreground">None</p>
+        ) : (
+          <ul className="space-y-1">
+            {entries.map((e) => (
+              <li key={e.fingerprint} className="text-xs">
+                <span className="capitalize text-muted-foreground">[{e.severity}]</span> {e.title}
+                {e.previousCheckStatus && (
+                  <span className="text-muted-foreground"> ({e.previousCheckStatus} → {e.checkStatus})</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function FindingsTab() {
   const [severityFilter, setSeverityFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -41,6 +67,7 @@ export function FindingsTab() {
 
   const queryClient = useQueryClient();
   const { data, isLoading, isFetching } = useGetM365Findings();
+  const { data: drift } = useGetM365Drift();
   const loading = isLoading || isFetching;
 
   const patch = usePatchM365Finding({
@@ -75,8 +102,33 @@ export function FindingsTab() {
 
   const openCount = summary?.byStatus?.open ?? 0;
 
+  const hasDrift =
+    drift && (drift.added.length > 0 || drift.resolved.length > 0 || drift.changed.length > 0);
+
   return (
     <div className="space-y-4">
+      <CollapsibleSection
+        title="What Changed Since Last Scan"
+        description="Findings that appeared, were resolved, or changed between the two most recent scans"
+        storageKey="findings-drift"
+        defaultOpen={true}
+        density="compact"
+      >
+        {!drift || !drift.fromScanId ? (
+          <p className="text-sm text-muted-foreground">
+            Not enough scan history yet. Drift appears once at least two scans have been recorded.
+          </p>
+        ) : !hasDrift ? (
+          <p className="text-sm text-muted-foreground">No changes since the previous scan.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <DriftColumn title="New" entries={drift.added} tone="text-red-600 dark:text-red-400" />
+            <DriftColumn title="Resolved" entries={drift.resolved} tone="text-green-600 dark:text-green-400" />
+            <DriftColumn title="Changed" entries={drift.changed} tone="text-yellow-600 dark:text-yellow-400" />
+          </div>
+        )}
+      </CollapsibleSection>
+
       <CollapsibleSection
         title="Findings Summary"
         description="Consolidated remediation register across Security and Compliance"

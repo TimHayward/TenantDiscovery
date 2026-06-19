@@ -718,6 +718,51 @@ export interface FindingStateUpdate {
   dueDate?: string | null;
 }
 
+export interface ScanRun {
+  id: string;
+  startedAt: string;
+  completedAt: string | null;
+  status: string;
+  triggeredBy: string;
+  findingCount: number;
+}
+
+export interface ScanListResponse {
+  scans: ScanRun[];
+}
+
+export interface ScanFinding {
+  fingerprint: string;
+  ruleId: string;
+  category: string;
+  title: string;
+  severity: string;
+  checkStatus: string;
+}
+
+export type ScanDetail = ScanRun & {
+  snapshotKeys: string[];
+  findings: ScanFinding[];
+};
+
+export interface DriftEntry {
+  fingerprint: string;
+  title: string;
+  category: string;
+  severity: string;
+  checkStatus: string;
+  previousCheckStatus?: string;
+  previousSeverity?: string;
+}
+
+export interface DriftReport {
+  fromScanId: string | null;
+  toScanId: string | null;
+  added: DriftEntry[];
+  resolved: DriftEntry[];
+  changed: DriftEntry[];
+}
+
 export interface IntuneDeviceItem {
   id: string;
   deviceName: string;
@@ -1275,6 +1320,11 @@ export type GetM365FindingsParams = {
 severity?: FindingSeverity;
 status?: FindingStatus;
 category?: string;
+};
+
+export type GetM365DriftParams = {
+from?: string;
+to?: string;
 };
 
 export type GetM365DataSourcesParams = {

@@ -1868,6 +1868,89 @@ export const PatchM365FindingResponse = zod.object({
 
 
 /**
+ * @summary List historical scan runs (newest first)
+ */
+export const GetM365ScansResponse = zod.object({
+  "scans": zod.array(zod.object({
+  "id": zod.string(),
+  "startedAt": zod.string(),
+  "completedAt": zod.string().nullable(),
+  "status": zod.string(),
+  "triggeredBy": zod.string(),
+  "findingCount": zod.number()
+}))
+})
+
+
+/**
+ * @summary Findings drift between two scans (defaults to the two most recent — "what changed since last scan")
+ */
+export const GetM365DriftQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetM365DriftResponse = zod.object({
+  "fromScanId": zod.string().nullable(),
+  "toScanId": zod.string().nullable(),
+  "added": zod.array(zod.object({
+  "fingerprint": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "severity": zod.string(),
+  "checkStatus": zod.string(),
+  "previousCheckStatus": zod.string().optional(),
+  "previousSeverity": zod.string().optional()
+})),
+  "resolved": zod.array(zod.object({
+  "fingerprint": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "severity": zod.string(),
+  "checkStatus": zod.string(),
+  "previousCheckStatus": zod.string().optional(),
+  "previousSeverity": zod.string().optional()
+})),
+  "changed": zod.array(zod.object({
+  "fingerprint": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "severity": zod.string(),
+  "checkStatus": zod.string(),
+  "previousCheckStatus": zod.string().optional(),
+  "previousSeverity": zod.string().optional()
+}))
+})
+
+
+/**
+ * @summary Detail for a single scan run
+ */
+export const GetM365ScanParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetM365ScanResponse = zod.object({
+  "id": zod.string(),
+  "startedAt": zod.string(),
+  "completedAt": zod.string().nullable(),
+  "status": zod.string(),
+  "triggeredBy": zod.string(),
+  "findingCount": zod.number()
+}).and(zod.object({
+  "snapshotKeys": zod.array(zod.string()),
+  "findings": zod.array(zod.object({
+  "fingerprint": zod.string(),
+  "ruleId": zod.string(),
+  "category": zod.string(),
+  "title": zod.string(),
+  "severity": zod.string(),
+  "checkStatus": zod.string()
+}))
+}))
+
+
+/**
  * @summary Data source registry for dashboard metrics
  */
 export const GetM365DataSourcesQueryParams = zod.object({

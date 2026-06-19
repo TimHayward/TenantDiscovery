@@ -21,10 +21,12 @@ import type {
 
 import type {
   DeviceComplianceDetail,
+  DriftReport,
   FindingStateUpdate,
   FindingWithState,
   FindingsRegisterResponse,
   GetM365DataSourcesParams,
+  GetM365DriftParams,
   GetM365FindingsParams,
   GetM365GroupsParams,
   GetM365GroupsWithMetadataParams,
@@ -70,6 +72,8 @@ import type {
   OnboardingStatus,
   PowerBIData,
   PowerBIDataWithMetadata,
+  ScanDetail,
+  ScanListResponse,
   SecurityEstateData,
   SecurityEstateDataWithMetadata
 } from './api.schemas';
@@ -3329,6 +3333,244 @@ export const usePatchM365Finding = <TError = ErrorType<void>,
       > => {
       return useMutation(getPatchM365FindingMutationOptions(options));
     }
+
+/**
+ * @summary List historical scan runs (newest first)
+ */
+export const getGetM365ScansUrl = () => {
+
+
+
+
+  return `/api/m365/scans`
+}
+
+export const getM365Scans = async ( options?: RequestInit): Promise<ScanListResponse> => {
+
+  return customFetch<ScanListResponse>(getGetM365ScansUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365ScansQueryKey = () => {
+    return [
+    `/api/m365/scans`
+    ] as const;
+    }
+
+
+export const getGetM365ScansQueryOptions = <TData = Awaited<ReturnType<typeof getM365Scans>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365Scans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365ScansQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Scans>>> = ({ signal }) => getM365Scans({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365Scans>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365ScansQueryResult = NonNullable<Awaited<ReturnType<typeof getM365Scans>>>
+export type GetM365ScansQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List historical scan runs (newest first)
+ */
+
+export function useGetM365Scans<TData = Awaited<ReturnType<typeof getM365Scans>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365Scans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365ScansQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Findings drift between two scans (defaults to the two most recent — "what changed since last scan")
+ */
+export const getGetM365DriftUrl = (params?: GetM365DriftParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/m365/drift?${stringifiedParams}` : `/api/m365/drift`
+}
+
+export const getM365Drift = async (params?: GetM365DriftParams, options?: RequestInit): Promise<DriftReport> => {
+
+  return customFetch<DriftReport>(getGetM365DriftUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365DriftQueryKey = (params?: GetM365DriftParams,) => {
+    return [
+    `/api/m365/drift`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetM365DriftQueryOptions = <TData = Awaited<ReturnType<typeof getM365Drift>>, TError = ErrorType<unknown>>(params?: GetM365DriftParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365Drift>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365DriftQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Drift>>> = ({ signal }) => getM365Drift(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365Drift>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365DriftQueryResult = NonNullable<Awaited<ReturnType<typeof getM365Drift>>>
+export type GetM365DriftQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Findings drift between two scans (defaults to the two most recent — "what changed since last scan")
+ */
+
+export function useGetM365Drift<TData = Awaited<ReturnType<typeof getM365Drift>>, TError = ErrorType<unknown>>(
+ params?: GetM365DriftParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365Drift>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365DriftQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Detail for a single scan run
+ */
+export const getGetM365ScanUrl = (id: string,) => {
+
+
+
+
+  return `/api/m365/scans/${id}`
+}
+
+export const getM365Scan = async (id: string, options?: RequestInit): Promise<ScanDetail> => {
+
+  return customFetch<ScanDetail>(getGetM365ScanUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365ScanQueryKey = (id: string,) => {
+    return [
+    `/api/m365/scans/${id}`
+    ] as const;
+    }
+
+
+export const getGetM365ScanQueryOptions = <TData = Awaited<ReturnType<typeof getM365Scan>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365Scan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365ScanQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Scan>>> = ({ signal }) => getM365Scan(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365Scan>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365ScanQueryResult = NonNullable<Awaited<ReturnType<typeof getM365Scan>>>
+export type GetM365ScanQueryError = ErrorType<void>
+
+
+/**
+ * @summary Detail for a single scan run
+ */
+
+export function useGetM365Scan<TData = Awaited<ReturnType<typeof getM365Scan>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365Scan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365ScanQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 /**
  * @summary Data source registry for dashboard metrics

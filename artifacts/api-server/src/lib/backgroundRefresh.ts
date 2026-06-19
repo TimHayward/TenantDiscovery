@@ -1,6 +1,7 @@
 import { logger } from "./logger.js";
 import * as metricStore from "./metricStore.js";
 import type { SnapshotEntry } from "./metricStore.js";
+import { recordScan } from "./scanStore.js";
 import { collectOverview } from "./collectors/overview.js";
 import { collectUsers } from "./collectors/users.js";
 import { collectAdminExposure } from "./collectors/adminExposure.js";
@@ -88,12 +89,16 @@ async function refreshStale(): Promise<void> {
 export function start(): void {
   logger.info("Starting background refresh scheduler");
 
-  // Stagger initial collection
+  // Stagger initial collection, then record a baseline scan once they have run.
   TASKS.forEach((task, index) => {
     setTimeout(() => {
       runTask(task).catch(() => {});
     }, index * STAGGER_MS);
   });
+  const bootDelay = TASKS.length * STAGGER_MS + 30_000;
+  setTimeout(() => {
+    recordScan("startup").catch((err) => logger.warn({ err }, "Startup scan failed"));
+  }, bootDelay);
 
   // Periodic re-warm
   setInterval(() => {
@@ -101,11 +106,16 @@ export function start(): void {
   }, TICK_INTERVAL_MS);
 }
 
-export async function triggerAll(): Promise<void> {
+/**
+ * Run every collector to completion, then record a scan (archives snapshots,
+ * regenerates + archives findings, computes drift baseline). Callers typically
+ * fire-and-forget this; the HTTP refresh route returns 202 immediately.
+ */
+export async function triggerAll(triggeredBy: string = "manual"): Promise<void> {
+  const startedAt = Date.now();
   await metricStore.markAllStale();
-  for (const task of TASKS) {
-    runTask(task).catch(() => {});
-  }
+  await Promise.all(TASKS.map((task) => runTask(task)));
+  await recordScan(triggeredBy, startedAt);
 }
 
 export type KeyStatus = {
