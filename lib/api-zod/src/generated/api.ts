@@ -962,7 +962,9 @@ export const GetM365SharePointWithMetadataResponse = zod.object({
 export const GetM365ComplianceResponse = zod.object({
   "dlpPolicies": zod.number(),
   "activeDlpPolicies": zod.number(),
-  "retentionPolicies": zod.number(),
+  "retentionPolicies": zod.number().describe('Deprecated alias of retentionLabelCount (0 when unavailable). Use retentionLabelCount\/retentionEvidence.'),
+  "retentionLabelCount": zod.number().nullable().describe('Count of published retention labels, or null when the API is unavailable\/unpermitted (manual check required).'),
+  "retentionEvidence": zod.enum(['apiBacked', 'manual']).describe('Whether the retention count is API-backed or requires a manual check.'),
   "sensitivityLabels": zod.number(),
   "dlpPolicyMatches": zod.number(),
   "complianceScore": zod.number(),
@@ -994,7 +996,9 @@ export const GetM365ComplianceWithMetadataResponse = zod.object({
   "data": zod.object({
   "dlpPolicies": zod.number(),
   "activeDlpPolicies": zod.number(),
-  "retentionPolicies": zod.number(),
+  "retentionPolicies": zod.number().describe('Deprecated alias of retentionLabelCount (0 when unavailable). Use retentionLabelCount\/retentionEvidence.'),
+  "retentionLabelCount": zod.number().nullable().describe('Count of published retention labels, or null when the API is unavailable\/unpermitted (manual check required).'),
+  "retentionEvidence": zod.enum(['apiBacked', 'manual']).describe('Whether the retention count is API-backed or requires a manual check.'),
   "sensitivityLabels": zod.number(),
   "dlpPolicyMatches": zod.number(),
   "complianceScore": zod.number(),
@@ -1787,6 +1791,163 @@ export const GetOnboardingStatusResponse = zod.object({
   "updatedAt": zod.string()
 })
 })
+
+
+/**
+ * @summary Consolidated findings register (Security + Compliance), joined with lifecycle state
+ */
+export const GetM365FindingsQueryParams = zod.object({
+  "severity": zod.enum(['critical', 'high', 'medium', 'low', 'info']).optional(),
+  "status": zod.enum(['open', 'acknowledged', 'remediated', 'suppressed']).optional(),
+  "category": zod.coerce.string().optional()
+})
+
+export const GetM365FindingsResponse = zod.object({
+  "findings": zod.array(zod.object({
+  "fingerprint": zod.string(),
+  "ruleId": zod.string(),
+  "category": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "severity": zod.enum(['critical', 'high', 'medium', 'low', 'info']),
+  "checkStatus": zod.enum(['pass', 'fail', 'warning', 'manual']),
+  "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
+  "confidenceLabel": zod.enum(['high', 'medium', 'low', 'unknown']),
+  "metricId": zod.string().nullish(),
+  "remediation": zod.string().nullish(),
+  "status": zod.enum(['open', 'acknowledged', 'remediated', 'suppressed']),
+  "owner": zod.string().nullable(),
+  "stateNotes": zod.string().nullable(),
+  "dueDate": zod.string().nullable(),
+  "firstSeen": zod.string(),
+  "lastSeen": zod.string(),
+  "stateUpdatedAt": zod.string().nullable()
+})),
+  "total": zod.number(),
+  "summary": zod.object({
+  "bySeverity": zod.record(zod.string(), zod.number()),
+  "byStatus": zod.record(zod.string(), zod.number())
+})
+})
+
+
+/**
+ * @summary Update the remediation lifecycle state of a finding
+ */
+export const PatchM365FindingParams = zod.object({
+  "fingerprint": zod.coerce.string()
+})
+
+export const PatchM365FindingBody = zod.object({
+  "status": zod.enum(['open', 'acknowledged', 'remediated', 'suppressed']).optional(),
+  "owner": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "dueDate": zod.string().nullish()
+})
+
+export const PatchM365FindingResponse = zod.object({
+  "fingerprint": zod.string(),
+  "ruleId": zod.string(),
+  "category": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "severity": zod.enum(['critical', 'high', 'medium', 'low', 'info']),
+  "checkStatus": zod.enum(['pass', 'fail', 'warning', 'manual']),
+  "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
+  "confidenceLabel": zod.enum(['high', 'medium', 'low', 'unknown']),
+  "metricId": zod.string().nullish(),
+  "remediation": zod.string().nullish(),
+  "status": zod.enum(['open', 'acknowledged', 'remediated', 'suppressed']),
+  "owner": zod.string().nullable(),
+  "stateNotes": zod.string().nullable(),
+  "dueDate": zod.string().nullable(),
+  "firstSeen": zod.string(),
+  "lastSeen": zod.string(),
+  "stateUpdatedAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary List historical scan runs (newest first)
+ */
+export const GetM365ScansResponse = zod.object({
+  "scans": zod.array(zod.object({
+  "id": zod.string(),
+  "startedAt": zod.string(),
+  "completedAt": zod.string().nullable(),
+  "status": zod.string(),
+  "triggeredBy": zod.string(),
+  "findingCount": zod.number()
+}))
+})
+
+
+/**
+ * @summary Findings drift between two scans (defaults to the two most recent — "what changed since last scan")
+ */
+export const GetM365DriftQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetM365DriftResponse = zod.object({
+  "fromScanId": zod.string().nullable(),
+  "toScanId": zod.string().nullable(),
+  "added": zod.array(zod.object({
+  "fingerprint": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "severity": zod.string(),
+  "checkStatus": zod.string(),
+  "previousCheckStatus": zod.string().optional(),
+  "previousSeverity": zod.string().optional()
+})),
+  "resolved": zod.array(zod.object({
+  "fingerprint": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "severity": zod.string(),
+  "checkStatus": zod.string(),
+  "previousCheckStatus": zod.string().optional(),
+  "previousSeverity": zod.string().optional()
+})),
+  "changed": zod.array(zod.object({
+  "fingerprint": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "severity": zod.string(),
+  "checkStatus": zod.string(),
+  "previousCheckStatus": zod.string().optional(),
+  "previousSeverity": zod.string().optional()
+}))
+})
+
+
+/**
+ * @summary Detail for a single scan run
+ */
+export const GetM365ScanParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetM365ScanResponse = zod.object({
+  "id": zod.string(),
+  "startedAt": zod.string(),
+  "completedAt": zod.string().nullable(),
+  "status": zod.string(),
+  "triggeredBy": zod.string(),
+  "findingCount": zod.number()
+}).and(zod.object({
+  "snapshotKeys": zod.array(zod.string()),
+  "findings": zod.array(zod.object({
+  "fingerprint": zod.string(),
+  "ruleId": zod.string(),
+  "category": zod.string(),
+  "title": zod.string(),
+  "severity": zod.string(),
+  "checkStatus": zod.string()
+}))
+}))
 
 
 /**

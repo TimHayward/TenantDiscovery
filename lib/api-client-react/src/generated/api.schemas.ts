@@ -607,10 +607,26 @@ export interface M365SharePointDataWithMetadata {
   metadataVersion: string;
 }
 
+/**
+ * Whether the retention count is API-backed or requires a manual check.
+ */
+export type M365ComplianceDataRetentionEvidence = typeof M365ComplianceDataRetentionEvidence[keyof typeof M365ComplianceDataRetentionEvidence];
+
+
+export const M365ComplianceDataRetentionEvidence = {
+  apiBacked: 'apiBacked',
+  manual: 'manual',
+} as const;
+
 export interface M365ComplianceData {
   dlpPolicies: number;
   activeDlpPolicies: number;
+  /** Deprecated alias of retentionLabelCount (0 when unavailable). Use retentionLabelCount/retentionEvidence. */
   retentionPolicies: number;
+  /** Count of published retention labels, or null when the API is unavailable/unpermitted (manual check required). */
+  retentionLabelCount: number | null;
+  /** Whether the retention count is API-backed or requires a manual check. */
+  retentionEvidence: M365ComplianceDataRetentionEvidence;
   sensitivityLabels: number;
   dlpPolicyMatches: number;
   complianceScore: number;
@@ -626,6 +642,125 @@ export interface M365ComplianceDataWithMetadata {
   data: M365ComplianceData;
   fieldMetadata: FieldMetadataMap;
   metadataVersion: string;
+}
+
+export type FindingSeverity = typeof FindingSeverity[keyof typeof FindingSeverity];
+
+
+export const FindingSeverity = {
+  critical: 'critical',
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+  info: 'info',
+} as const;
+
+export type FindingCheckStatus = typeof FindingCheckStatus[keyof typeof FindingCheckStatus];
+
+
+export const FindingCheckStatus = {
+  pass: 'pass',
+  fail: 'fail',
+  warning: 'warning',
+  manual: 'manual',
+} as const;
+
+export type FindingStatus = typeof FindingStatus[keyof typeof FindingStatus];
+
+
+export const FindingStatus = {
+  open: 'open',
+  acknowledged: 'acknowledged',
+  remediated: 'remediated',
+  suppressed: 'suppressed',
+} as const;
+
+export interface FindingWithState {
+  fingerprint: string;
+  ruleId: string;
+  category: string;
+  title: string;
+  description: string;
+  severity: FindingSeverity;
+  checkStatus: FindingCheckStatus;
+  evidenceStatus: EvidenceStatus;
+  confidenceLabel: ConfidenceLabel;
+  metricId?: string | null;
+  remediation?: string | null;
+  status: FindingStatus;
+  owner: string | null;
+  stateNotes: string | null;
+  dueDate: string | null;
+  firstSeen: string;
+  lastSeen: string;
+  stateUpdatedAt: string | null;
+}
+
+export type FindingsRegisterResponseSummaryBySeverity = {[key: string]: number};
+
+export type FindingsRegisterResponseSummaryByStatus = {[key: string]: number};
+
+export type FindingsRegisterResponseSummary = {
+  bySeverity: FindingsRegisterResponseSummaryBySeverity;
+  byStatus: FindingsRegisterResponseSummaryByStatus;
+};
+
+export interface FindingsRegisterResponse {
+  findings: FindingWithState[];
+  total: number;
+  summary: FindingsRegisterResponseSummary;
+}
+
+export interface FindingStateUpdate {
+  status?: FindingStatus;
+  owner?: string | null;
+  notes?: string | null;
+  dueDate?: string | null;
+}
+
+export interface ScanRun {
+  id: string;
+  startedAt: string;
+  completedAt: string | null;
+  status: string;
+  triggeredBy: string;
+  findingCount: number;
+}
+
+export interface ScanListResponse {
+  scans: ScanRun[];
+}
+
+export interface ScanFinding {
+  fingerprint: string;
+  ruleId: string;
+  category: string;
+  title: string;
+  severity: string;
+  checkStatus: string;
+}
+
+export type ScanDetail = ScanRun & {
+  snapshotKeys: string[];
+  findings: ScanFinding[];
+};
+
+export interface DriftEntry {
+  fingerprint: string;
+  title: string;
+  category: string;
+  severity: string;
+  checkStatus: string;
+  previousCheckStatus?: string;
+  previousSeverity?: string;
+}
+
+export interface DriftReport {
+  fromScanId: string | null;
+  toScanId: string | null;
+  added: DriftEntry[];
+  resolved: DriftEntry[];
+  changed: DriftEntry[];
 }
 
 export interface IntuneDeviceItem {
@@ -1179,6 +1314,17 @@ q?: string;
 
 export type GetM365GroupsWithMetadataParams = {
 q?: string;
+};
+
+export type GetM365FindingsParams = {
+severity?: FindingSeverity;
+status?: FindingStatus;
+category?: string;
+};
+
+export type GetM365DriftParams = {
+from?: string;
+to?: string;
 };
 
 export type GetM365DataSourcesParams = {

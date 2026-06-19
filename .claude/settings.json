@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(METRIC_DB_PATH=/tmp/td-test/metrics.db ONBOARDING_SETTINGS_DIR=/tmp/td-test PORT=5199 node ./dist/index.mjs)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s -i -H \"Origin: https://evil.example.com\" http://127.0.0.1:5199/api/health)",
+      "Bash(kill %1)"
+    ]
+  }
+}

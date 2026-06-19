@@ -61,16 +61,27 @@ export async function collectCompliance() {
     parent: l.parent?.id ?? null,
   }));
 
-  let retentionPolicies = 0;
+  // Real retention evidence: published retention labels via the records-management API.
+  // managedAppPolicies (Intune MAM) was a misleading proxy and has been removed.
+  // When the endpoint is unavailable or unpermitted we surface a manual check rather than a fabricated count.
+  let retentionLabelCount: number | null = null;
+  let retentionEvidence: "apiBacked" | "manual" = "manual";
   try {
-    const { data: retData } = await fetchWithToken(
-      "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies?$top=999", token,
+    const { data, status } = await fetchWithToken(
+      "https://graph.microsoft.com/beta/security/labels/retentionLabels?$top=999", token,
     );
-    retentionPolicies = retData?.value?.length ?? 0;
-  } catch { retentionPolicies = 0; }
+    // Only treat a real 200 + value array as evidence. 401/403 (no permission),
+    // 404 (endpoint unavailable on tenant) and anything else fall back to a manual check.
+    if (status === 200 && Array.isArray(data?.value)) {
+      retentionLabelCount = data.value.length;
+      retentionEvidence = "apiBacked";
+    }
+  } catch { /* leave as manual fallback */ }
 
   return {
-    dlpPolicies, activeDlpPolicies, retentionPolicies,
+    dlpPolicies, activeDlpPolicies,
+    retentionPolicies: retentionLabelCount ?? 0,
+    retentionLabelCount, retentionEvidence,
     sensitivityLabels: sensitivityLabelsList.length,
     dlpPolicyMatches: 0, complianceScore, complianceScoreMax,
     auditLogEnabled: true, unifiedAuditLogEnabled: true,

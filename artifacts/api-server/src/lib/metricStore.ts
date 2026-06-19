@@ -42,9 +42,77 @@ async function initClient(): Promise<void> {
       error_msg TEXT
     )
   `);
+  // Current generated findings (one row per fingerprint, latest scan).
+  await _client.execute(`
+    CREATE TABLE IF NOT EXISTS findings (
+      fingerprint     TEXT PRIMARY KEY,
+      rule_id         TEXT NOT NULL,
+      category        TEXT NOT NULL,
+      title           TEXT NOT NULL,
+      description     TEXT NOT NULL,
+      severity        TEXT NOT NULL,
+      check_status    TEXT NOT NULL,
+      evidence_status TEXT NOT NULL,
+      confidence_label TEXT NOT NULL,
+      metric_id       TEXT,
+      remediation     TEXT,
+      evidence        TEXT,
+      first_seen      INTEGER NOT NULL,
+      last_seen       INTEGER NOT NULL
+    )
+  `);
+  // User lifecycle state, keyed by fingerprint and kept separate so regeneration
+  // never clobbers user input.
+  await _client.execute(`
+    CREATE TABLE IF NOT EXISTS finding_state (
+      fingerprint TEXT PRIMARY KEY,
+      status      TEXT NOT NULL DEFAULT 'open',
+      owner       TEXT,
+      notes       TEXT,
+      due_date    INTEGER,
+      updated_at  INTEGER NOT NULL
+    )
+  `);
+  // A discrete scan run groups archived snapshots and findings for drift/history.
+  await _client.execute(`
+    CREATE TABLE IF NOT EXISTS scan_runs (
+      id           TEXT PRIMARY KEY,
+      started_at   INTEGER NOT NULL,
+      completed_at INTEGER,
+      status       TEXT NOT NULL,
+      triggered_by TEXT NOT NULL
+    )
+  `);
+  // Full metric snapshot archive, one row per (scan, key).
+  await _client.execute(`
+    CREATE TABLE IF NOT EXISTS metric_snapshots_history (
+      scan_id    TEXT NOT NULL,
+      key        TEXT NOT NULL,
+      data       TEXT NOT NULL,
+      fetched_at INTEGER NOT NULL,
+      status     TEXT NOT NULL,
+      error_msg  TEXT,
+      PRIMARY KEY (scan_id, key)
+    )
+  `);
+  // Findings archive, one row per (scan, fingerprint), for drift computation.
+  await _client.execute(`
+    CREATE TABLE IF NOT EXISTS findings_history (
+      scan_id          TEXT NOT NULL,
+      fingerprint      TEXT NOT NULL,
+      rule_id          TEXT NOT NULL,
+      category         TEXT NOT NULL,
+      title            TEXT NOT NULL,
+      severity         TEXT NOT NULL,
+      check_status     TEXT NOT NULL,
+      evidence_status  TEXT NOT NULL,
+      confidence_label TEXT NOT NULL,
+      PRIMARY KEY (scan_id, fingerprint)
+    )
+  `);
 }
 
-async function getClient(): Promise<Client> {
+export async function getClient(): Promise<Client> {
   if (_client) return _client;
   if (!_initPromise) _initPromise = initClient();
   await _initPromise;
@@ -70,6 +138,26 @@ export async function getIfFresh<T>(key: string): Promise<T | null> {
   const result = await client.execute({
     sql: "SELECT * FROM metric_snapshots WHERE key = ? AND expires_at > ? AND status = 'ok'",
     args: [key, now],
+  });
+  const row = result.rows[0];
+  if (!row) return null;
+  try {
+    return JSON.parse(row.data as string) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns the latest successfully-collected snapshot for a key regardless of TTL.
+ * Used by the findings engine, which evaluates whatever data was most recently
+ * collected (freshness is governed by the background refresh, not this read).
+ */
+export async function getLatest<T>(key: string): Promise<T | null> {
+  const client = await getClient();
+  const result = await client.execute({
+    sql: "SELECT data FROM metric_snapshots WHERE key = ? AND status = 'ok'",
+    args: [key],
   });
   const row = result.rows[0];
   if (!row) return null;

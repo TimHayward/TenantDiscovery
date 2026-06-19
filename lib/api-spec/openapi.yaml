@@ -567,6 +567,120 @@ paths:
               schema:
                 $ref: "#/components/schemas/OnboardingStatus"
 
+  /m365/findings:
+    get:
+      operationId: getM365Findings
+      tags: [m365]
+      summary: Consolidated findings register (Security + Compliance), joined with lifecycle state
+      parameters:
+        - in: query
+          name: severity
+          required: false
+          schema:
+            $ref: "#/components/schemas/FindingSeverity"
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: "#/components/schemas/FindingStatus"
+        - in: query
+          name: category
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Findings register with summary counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindingsRegisterResponse"
+
+  /m365/findings/{fingerprint}:
+    patch:
+      operationId: patchM365Finding
+      tags: [m365]
+      summary: Update the remediation lifecycle state of a finding
+      parameters:
+        - in: path
+          name: fingerprint
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FindingStateUpdate"
+      responses:
+        "200":
+          description: Updated finding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindingWithState"
+        "404":
+          description: Finding not found
+
+  /m365/scans:
+    get:
+      operationId: getM365Scans
+      tags: [m365]
+      summary: List historical scan runs (newest first)
+      responses:
+        "200":
+          description: Scan run list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanListResponse"
+
+  /m365/drift:
+    get:
+      operationId: getM365Drift
+      tags: [m365]
+      summary: Findings drift between two scans (defaults to the two most recent — "what changed since last scan")
+      parameters:
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Drift report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriftReport"
+
+  /m365/scans/{id}:
+    get:
+      operationId: getM365Scan
+      tags: [m365]
+      summary: Detail for a single scan run
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scan detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanDetail"
+        "404":
+          description: Scan not found
+
   /m365/data-sources:
     get:
       operationId: getM365DataSources
@@ -2052,6 +2166,15 @@ components:
           type: integer
         retentionPolicies:
           type: integer
+          description: Deprecated alias of retentionLabelCount (0 when unavailable). Use retentionLabelCount/retentionEvidence.
+        retentionLabelCount:
+          type: integer
+          nullable: true
+          description: Count of published retention labels, or null when the API is unavailable/unpermitted (manual check required).
+        retentionEvidence:
+          type: string
+          enum: [apiBacked, manual]
+          description: Whether the retention count is API-backed or requires a manual check.
         sensitivityLabels:
           type: integer
         dlpPolicyMatches:
@@ -2076,6 +2199,8 @@ components:
         - dlpPolicies
         - activeDlpPolicies
         - retentionPolicies
+        - retentionLabelCount
+        - retentionEvidence
         - sensitivityLabels
         - dlpPolicyMatches
         - complianceScore
@@ -2096,6 +2221,220 @@ components:
         metadataVersion:
           type: string
       required: [data, fieldMetadata, metadataVersion]
+
+    FindingSeverity:
+      type: string
+      enum: [critical, high, medium, low, info]
+
+    FindingCheckStatus:
+      type: string
+      enum: [pass, fail, warning, manual]
+
+    FindingStatus:
+      type: string
+      enum: [open, acknowledged, remediated, suppressed]
+
+    FindingWithState:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        ruleId:
+          type: string
+        category:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          $ref: "#/components/schemas/FindingSeverity"
+        checkStatus:
+          $ref: "#/components/schemas/FindingCheckStatus"
+        evidenceStatus:
+          $ref: "#/components/schemas/EvidenceStatus"
+        confidenceLabel:
+          $ref: "#/components/schemas/ConfidenceLabel"
+        metricId:
+          type: string
+          nullable: true
+        remediation:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/FindingStatus"
+        owner:
+          type: string
+          nullable: true
+        stateNotes:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
+        firstSeen:
+          type: string
+        lastSeen:
+          type: string
+        stateUpdatedAt:
+          type: string
+          nullable: true
+      required:
+        - fingerprint
+        - ruleId
+        - category
+        - title
+        - description
+        - severity
+        - checkStatus
+        - evidenceStatus
+        - confidenceLabel
+        - status
+        - owner
+        - stateNotes
+        - dueDate
+        - firstSeen
+        - lastSeen
+        - stateUpdatedAt
+
+    FindingsRegisterResponse:
+      type: object
+      properties:
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/FindingWithState"
+        total:
+          type: integer
+        summary:
+          type: object
+          properties:
+            bySeverity:
+              type: object
+              additionalProperties:
+                type: integer
+            byStatus:
+              type: object
+              additionalProperties:
+                type: integer
+          required: [bySeverity, byStatus]
+      required: [findings, total, summary]
+
+    FindingStateUpdate:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/FindingStatus"
+        owner:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
+
+    ScanRun:
+      type: object
+      properties:
+        id:
+          type: string
+        startedAt:
+          type: string
+        completedAt:
+          type: string
+          nullable: true
+        status:
+          type: string
+        triggeredBy:
+          type: string
+        findingCount:
+          type: integer
+      required: [id, startedAt, completedAt, status, triggeredBy, findingCount]
+
+    ScanListResponse:
+      type: object
+      properties:
+        scans:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanRun"
+      required: [scans]
+
+    ScanFinding:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        ruleId:
+          type: string
+        category:
+          type: string
+        title:
+          type: string
+        severity:
+          type: string
+        checkStatus:
+          type: string
+      required: [fingerprint, ruleId, category, title, severity, checkStatus]
+
+    ScanDetail:
+      allOf:
+        - $ref: "#/components/schemas/ScanRun"
+        - type: object
+          properties:
+            snapshotKeys:
+              type: array
+              items:
+                type: string
+            findings:
+              type: array
+              items:
+                $ref: "#/components/schemas/ScanFinding"
+          required: [snapshotKeys, findings]
+
+    DriftEntry:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        severity:
+          type: string
+        checkStatus:
+          type: string
+        previousCheckStatus:
+          type: string
+        previousSeverity:
+          type: string
+      required: [fingerprint, title, category, severity, checkStatus]
+
+    DriftReport:
+      type: object
+      properties:
+        fromScanId:
+          type: string
+          nullable: true
+        toScanId:
+          type: string
+          nullable: true
+        added:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriftEntry"
+        resolved:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriftEntry"
+        changed:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriftEntry"
+      required: [fromScanId, toScanId, added, resolved, changed]
 
     IntuneDeviceItem:
       type: object
