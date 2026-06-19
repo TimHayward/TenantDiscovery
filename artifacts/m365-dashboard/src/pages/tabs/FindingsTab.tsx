@@ -1,0 +1,248 @@
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetM365Findings,
+  usePatchM365Finding,
+  getGetM365FindingsQueryKey,
+  type FindingWithState,
+  type FindingSeverity,
+  type FindingStatus,
+} from "@workspace/api-client-react";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+const SEVERITY_ORDER: FindingSeverity[] = ["critical", "high", "medium", "low", "info"];
+const STATUS_OPTIONS: FindingStatus[] = ["open", "acknowledged", "remediated", "suppressed"];
+
+const SEVERITY_STYLES: Record<FindingSeverity, string> = {
+  critical: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  high: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  low: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  info: "bg-muted text-muted-foreground",
+};
+
+const CHECK_STATUS_LABEL: Record<string, string> = {
+  pass: "Pass",
+  fail: "Fail",
+  warning: "Review",
+  manual: "Manual",
+};
+
+export function FindingsTab() {
+  const [severityFilter, setSeverityFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [search, setSearch] = useState("");
+
+  const queryClient = useQueryClient();
+  const { data, isLoading, isFetching } = useGetM365Findings();
+  const loading = isLoading || isFetching;
+
+  const patch = usePatchM365Finding({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetM365FindingsQueryKey() });
+      },
+    },
+  });
+
+  const findings = useMemo(() => data?.findings ?? [], [data]);
+  const summary = data?.summary;
+
+  const categories = useMemo(
+    () => ["All", ...Array.from(new Set(findings.map((f) => f.category))).sort()],
+    [findings],
+  );
+
+  const filtered = useMemo(() => {
+    return findings.filter((f) => {
+      if (severityFilter !== "All" && f.severity !== severityFilter) return false;
+      if (statusFilter !== "All" && f.status !== statusFilter) return false;
+      if (categoryFilter !== "All" && f.category !== categoryFilter) return false;
+      if (search && !`${f.title} ${f.description}`.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+  }, [findings, severityFilter, statusFilter, categoryFilter, search]);
+
+  const updateField = (f: FindingWithState, field: "status" | "owner" | "notes", value: string) => {
+    patch.mutate({ fingerprint: f.fingerprint, data: { [field]: value } });
+  };
+
+  const openCount = summary?.byStatus?.open ?? 0;
+
+  return (
+    <div className="space-y-4">
+      <CollapsibleSection
+        title="Findings Summary"
+        description="Consolidated remediation register across Security and Compliance"
+        storageKey="findings-summary"
+        defaultOpen={true}
+        density="compact"
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {SEVERITY_ORDER.map((sev) => (
+            <Card key={sev}>
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground capitalize">{sev}</p>
+                {loading ? (
+                  <Skeleton className="h-7 w-10 mx-auto mt-1" />
+                ) : (
+                  <p className="text-2xl font-bold mt-0.5">{summary?.bySeverity?.[sev] ?? 0}</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-xs text-muted-foreground">Open</p>
+              {loading ? (
+                <Skeleton className="h-7 w-10 mx-auto mt-1" />
+              ) : (
+                <p className="text-2xl font-bold mt-0.5 text-red-600 dark:text-red-400">{openCount}</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        sectionId="findings-register"
+        title="Findings Register"
+        description="Filter, assign, and track remediation of each finding"
+        storageKey="findings-register"
+        defaultOpen={true}
+        density="compact"
+      >
+        <div className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            <Input
+              placeholder="Search findings…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 w-60 text-sm"
+            />
+            <select
+              value={severityFilter}
+              onChange={(e) => setSeverityFilter(e.target.value)}
+              className="h-8 rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="All">All Severities</option>
+              {SEVERITY_ORDER.map((s) => (
+                <option key={s} value={s} className="capitalize">{s}</option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-8 rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="All">All Statuses</option>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s} className="capitalize">{s}</option>
+              ))}
+            </select>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="h-8 rounded-md border bg-background px-2 text-sm"
+            >
+              {categories.map((c) => (
+                <option key={c} value={c}>{c === "All" ? "All Categories" : c}</option>
+              ))}
+            </select>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-4 space-y-2">
+                  {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-4 h-8 w-[90px]">Severity</TableHead>
+                      <TableHead className="h-8">Finding</TableHead>
+                      <TableHead className="h-8 w-[110px]">Category</TableHead>
+                      <TableHead className="h-8 w-[90px]">Check</TableHead>
+                      <TableHead className="h-8 w-[140px]">Status</TableHead>
+                      <TableHead className="h-8 w-[140px]">Owner</TableHead>
+                      <TableHead className="h-8 w-[200px]">Notes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                          No findings match the current filters.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filtered.map((f) => (
+                        <TableRow key={f.fingerprint}>
+                          <TableCell className="pl-4 py-2 align-top">
+                            <Badge className={`${SEVERITY_STYLES[f.severity]} font-normal text-xs border-0 capitalize`}>
+                              {f.severity}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-2 align-top">
+                            <p className="text-sm font-medium">{f.title}</p>
+                            <p className="text-xs text-muted-foreground">{f.description}</p>
+                            {f.remediation && (
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                <span className="font-medium">Fix:</span> {f.remediation}
+                              </p>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-2 align-top text-xs capitalize">{f.category}</TableCell>
+                          <TableCell className="py-2 align-top text-xs">{CHECK_STATUS_LABEL[f.checkStatus] ?? f.checkStatus}</TableCell>
+                          <TableCell className="py-2 align-top">
+                            <select
+                              value={f.status}
+                              onChange={(e) => updateField(f, "status", e.target.value)}
+                              className="h-8 rounded-md border bg-background px-2 text-xs capitalize w-full"
+                            >
+                              {STATUS_OPTIONS.map((s) => (
+                                <option key={s} value={s} className="capitalize">{s}</option>
+                              ))}
+                            </select>
+                          </TableCell>
+                          <TableCell className="py-2 align-top">
+                            <Input
+                              defaultValue={f.owner ?? ""}
+                              placeholder="Unassigned"
+                              onBlur={(e) => {
+                                if (e.target.value !== (f.owner ?? "")) updateField(f, "owner", e.target.value);
+                              }}
+                              className="h-8 text-xs"
+                            />
+                          </TableCell>
+                          <TableCell className="py-2 align-top">
+                            <Input
+                              defaultValue={f.stateNotes ?? ""}
+                              placeholder="Add note…"
+                              onBlur={(e) => {
+                                if (e.target.value !== (f.stateNotes ?? "")) updateField(f, "notes", e.target.value);
+                              }}
+                              className="h-8 text-xs"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </CollapsibleSection>
+    </div>
+  );
+}

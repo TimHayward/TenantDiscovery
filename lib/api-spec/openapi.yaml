@@ -567,6 +567,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/OnboardingStatus"
 
+  /m365/findings:
+    get:
+      operationId: getM365Findings
+      tags: [m365]
+      summary: Consolidated findings register (Security + Compliance), joined with lifecycle state
+      parameters:
+        - in: query
+          name: severity
+          required: false
+          schema:
+            $ref: "#/components/schemas/FindingSeverity"
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: "#/components/schemas/FindingStatus"
+        - in: query
+          name: category
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Findings register with summary counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindingsRegisterResponse"
+
+  /m365/findings/{fingerprint}:
+    patch:
+      operationId: patchM365Finding
+      tags: [m365]
+      summary: Update the remediation lifecycle state of a finding
+      parameters:
+        - in: path
+          name: fingerprint
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FindingStateUpdate"
+      responses:
+        "200":
+          description: Updated finding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindingWithState"
+        "404":
+          description: Finding not found
+
   /m365/data-sources:
     get:
       operationId: getM365DataSources
@@ -2107,6 +2163,119 @@ components:
         metadataVersion:
           type: string
       required: [data, fieldMetadata, metadataVersion]
+
+    FindingSeverity:
+      type: string
+      enum: [critical, high, medium, low, info]
+
+    FindingCheckStatus:
+      type: string
+      enum: [pass, fail, warning, manual]
+
+    FindingStatus:
+      type: string
+      enum: [open, acknowledged, remediated, suppressed]
+
+    FindingWithState:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        ruleId:
+          type: string
+        category:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          $ref: "#/components/schemas/FindingSeverity"
+        checkStatus:
+          $ref: "#/components/schemas/FindingCheckStatus"
+        evidenceStatus:
+          $ref: "#/components/schemas/EvidenceStatus"
+        confidenceLabel:
+          $ref: "#/components/schemas/ConfidenceLabel"
+        metricId:
+          type: string
+          nullable: true
+        remediation:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/FindingStatus"
+        owner:
+          type: string
+          nullable: true
+        stateNotes:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
+        firstSeen:
+          type: string
+        lastSeen:
+          type: string
+        stateUpdatedAt:
+          type: string
+          nullable: true
+      required:
+        - fingerprint
+        - ruleId
+        - category
+        - title
+        - description
+        - severity
+        - checkStatus
+        - evidenceStatus
+        - confidenceLabel
+        - status
+        - owner
+        - stateNotes
+        - dueDate
+        - firstSeen
+        - lastSeen
+        - stateUpdatedAt
+
+    FindingsRegisterResponse:
+      type: object
+      properties:
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/FindingWithState"
+        total:
+          type: integer
+        summary:
+          type: object
+          properties:
+            bySeverity:
+              type: object
+              additionalProperties:
+                type: integer
+            byStatus:
+              type: object
+              additionalProperties:
+                type: integer
+          required: [bySeverity, byStatus]
+      required: [findings, total, summary]
+
+    FindingStateUpdate:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/FindingStatus"
+        owner:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
 
     IntuneDeviceItem:
       type: object

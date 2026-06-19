@@ -21,7 +21,11 @@ import type {
 
 import type {
   DeviceComplianceDetail,
+  FindingStateUpdate,
+  FindingWithState,
+  FindingsRegisterResponse,
   GetM365DataSourcesParams,
+  GetM365FindingsParams,
   GetM365GroupsParams,
   GetM365GroupsWithMetadataParams,
   HealthStatus,
@@ -3169,6 +3173,162 @@ export function useGetOnboardingStatus<TData = Awaited<ReturnType<typeof getOnbo
 
 
 
+
+/**
+ * @summary Consolidated findings register (Security + Compliance), joined with lifecycle state
+ */
+export const getGetM365FindingsUrl = (params?: GetM365FindingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/m365/findings?${stringifiedParams}` : `/api/m365/findings`
+}
+
+export const getM365Findings = async (params?: GetM365FindingsParams, options?: RequestInit): Promise<FindingsRegisterResponse> => {
+
+  return customFetch<FindingsRegisterResponse>(getGetM365FindingsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365FindingsQueryKey = (params?: GetM365FindingsParams,) => {
+    return [
+    `/api/m365/findings`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetM365FindingsQueryOptions = <TData = Awaited<ReturnType<typeof getM365Findings>>, TError = ErrorType<unknown>>(params?: GetM365FindingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365Findings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365FindingsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365Findings>>> = ({ signal }) => getM365Findings(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365Findings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365FindingsQueryResult = NonNullable<Awaited<ReturnType<typeof getM365Findings>>>
+export type GetM365FindingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Consolidated findings register (Security + Compliance), joined with lifecycle state
+ */
+
+export function useGetM365Findings<TData = Awaited<ReturnType<typeof getM365Findings>>, TError = ErrorType<unknown>>(
+ params?: GetM365FindingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365Findings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365FindingsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Update the remediation lifecycle state of a finding
+ */
+export const getPatchM365FindingUrl = (fingerprint: string,) => {
+
+
+
+
+  return `/api/m365/findings/${fingerprint}`
+}
+
+export const patchM365Finding = async (fingerprint: string,
+    findingStateUpdate: FindingStateUpdate, options?: RequestInit): Promise<FindingWithState> => {
+
+  return customFetch<FindingWithState>(getPatchM365FindingUrl(fingerprint),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      findingStateUpdate,)
+  }
+);}
+
+
+
+
+export const getPatchM365FindingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchM365Finding>>, TError,{fingerprint: string;data: BodyType<FindingStateUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof patchM365Finding>>, TError,{fingerprint: string;data: BodyType<FindingStateUpdate>}, TContext> => {
+
+const mutationKey = ['patchM365Finding'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof patchM365Finding>>, {fingerprint: string;data: BodyType<FindingStateUpdate>}> = (props) => {
+          const {fingerprint,data} = props ?? {};
+
+          return  patchM365Finding(fingerprint,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PatchM365FindingMutationResult = NonNullable<Awaited<ReturnType<typeof patchM365Finding>>>
+    export type PatchM365FindingMutationBody = BodyType<FindingStateUpdate>
+    export type PatchM365FindingMutationError = ErrorType<void>
+
+    /**
+ * @summary Update the remediation lifecycle state of a finding
+ */
+export const usePatchM365Finding = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchM365Finding>>, TError,{fingerprint: string;data: BodyType<FindingStateUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof patchM365Finding>>,
+        TError,
+        {fingerprint: string;data: BodyType<FindingStateUpdate>},
+        TContext
+      > => {
+      return useMutation(getPatchM365FindingMutationOptions(options));
+    }
 
 /**
  * @summary Data source registry for dashboard metrics

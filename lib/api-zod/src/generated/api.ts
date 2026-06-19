@@ -1794,6 +1794,80 @@ export const GetOnboardingStatusResponse = zod.object({
 
 
 /**
+ * @summary Consolidated findings register (Security + Compliance), joined with lifecycle state
+ */
+export const GetM365FindingsQueryParams = zod.object({
+  "severity": zod.enum(['critical', 'high', 'medium', 'low', 'info']).optional(),
+  "status": zod.enum(['open', 'acknowledged', 'remediated', 'suppressed']).optional(),
+  "category": zod.coerce.string().optional()
+})
+
+export const GetM365FindingsResponse = zod.object({
+  "findings": zod.array(zod.object({
+  "fingerprint": zod.string(),
+  "ruleId": zod.string(),
+  "category": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "severity": zod.enum(['critical', 'high', 'medium', 'low', 'info']),
+  "checkStatus": zod.enum(['pass', 'fail', 'warning', 'manual']),
+  "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
+  "confidenceLabel": zod.enum(['high', 'medium', 'low', 'unknown']),
+  "metricId": zod.string().nullish(),
+  "remediation": zod.string().nullish(),
+  "status": zod.enum(['open', 'acknowledged', 'remediated', 'suppressed']),
+  "owner": zod.string().nullable(),
+  "stateNotes": zod.string().nullable(),
+  "dueDate": zod.string().nullable(),
+  "firstSeen": zod.string(),
+  "lastSeen": zod.string(),
+  "stateUpdatedAt": zod.string().nullable()
+})),
+  "total": zod.number(),
+  "summary": zod.object({
+  "bySeverity": zod.record(zod.string(), zod.number()),
+  "byStatus": zod.record(zod.string(), zod.number())
+})
+})
+
+
+/**
+ * @summary Update the remediation lifecycle state of a finding
+ */
+export const PatchM365FindingParams = zod.object({
+  "fingerprint": zod.coerce.string()
+})
+
+export const PatchM365FindingBody = zod.object({
+  "status": zod.enum(['open', 'acknowledged', 'remediated', 'suppressed']).optional(),
+  "owner": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "dueDate": zod.string().nullish()
+})
+
+export const PatchM365FindingResponse = zod.object({
+  "fingerprint": zod.string(),
+  "ruleId": zod.string(),
+  "category": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "severity": zod.enum(['critical', 'high', 'medium', 'low', 'info']),
+  "checkStatus": zod.enum(['pass', 'fail', 'warning', 'manual']),
+  "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
+  "confidenceLabel": zod.enum(['high', 'medium', 'low', 'unknown']),
+  "metricId": zod.string().nullish(),
+  "remediation": zod.string().nullish(),
+  "status": zod.enum(['open', 'acknowledged', 'remediated', 'suppressed']),
+  "owner": zod.string().nullable(),
+  "stateNotes": zod.string().nullable(),
+  "dueDate": zod.string().nullable(),
+  "firstSeen": zod.string(),
+  "lastSeen": zod.string(),
+  "stateUpdatedAt": zod.string().nullable()
+})
+
+
+/**
  * @summary Data source registry for dashboard metrics
  */
 export const GetM365DataSourcesQueryParams = zod.object({

@@ -6,7 +6,7 @@ import {
   RefreshCw, ChevronDown, Printer, Sun, Moon, PanelLeftClose, PanelLeftOpen,
   LayoutDashboard, Users, CreditCard, Shield, Mail,
   MessageSquare, ClipboardCheck, Smartphone, Swords, AppWindow, TrendingUp, BarChart2,
-  Database, X,
+  Database, X, ListChecks,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useGetM365Overview, useGetM365DataSources } from "@workspace/api-client-react";
@@ -19,6 +19,7 @@ import { SecurityTab } from "./tabs/SecurityTab";
 import { ExchangeTab } from "./tabs/ExchangeTab";
 import { TeamsSharePointTab } from "./tabs/TeamsSharePointTab";
 import { ComplianceTab } from "./tabs/ComplianceTab";
+import { FindingsTab } from "./tabs/FindingsTab";
 import { IntuneTab } from "./tabs/IntuneTab";
 import { ServicePrincipalsTab } from "./tabs/ServicePrincipalsTab";
 import { DefenderTab } from "./tabs/DefenderTab";
@@ -35,6 +36,7 @@ const INTERVAL_OPTIONS = [
 
 const NAV_ITEMS = [
   { value: "overview",           label: "Overview",             icon: LayoutDashboard },
+  { value: "findings",           label: "Findings",             icon: ListChecks      },
   { value: "users",              label: "Users & Identity",     icon: Users           },
   { value: "licenses",           label: "Licenses",             icon: CreditCard      },
   { value: "security",           label: "Security",             icon: Shield          },
@@ -60,6 +62,10 @@ const NAV_SECTIONS: Partial<Record<NavValue, Array<NavSectionLink>>> = {
   overview: [
     { label: "Summary",                    id: "overview-summary"           },
     { label: "Licensing & Service Health", id: "overview-licensing-health"  },
+  ],
+  findings: [
+    { label: "Findings Summary",  id: "findings-summary"  },
+    { label: "Findings Register", id: "findings-register" },
   ],
   users: [
     { label: "Summary",                    id: "users-summary"                   },
@@ -655,6 +661,7 @@ export default function Dashboard() {
 
             {/* Tab content — lazy-mounted on first visit, then kept in DOM to preserve React Query cache */}
             {visitedTabs.has("overview")           && <div className={activeTab === "overview"           ? "" : "hidden"}><TabErrorBoundary><OverviewTab /></TabErrorBoundary></div>}
+            {visitedTabs.has("findings")           && <div className={activeTab === "findings"           ? "" : "hidden"}><TabErrorBoundary><FindingsTab /></TabErrorBoundary></div>}
             {visitedTabs.has("users")              && <div className={activeTab === "users"              ? "" : "hidden"}><TabErrorBoundary><UsersTab /></TabErrorBoundary></div>}
             {visitedTabs.has("licenses")           && <div className={activeTab === "licenses"           ? "" : "hidden"}><TabErrorBoundary><LicensesTab /></TabErrorBoundary></div>}
             {visitedTabs.has("security")           && <div className={activeTab === "security"           ? "" : "hidden"}><TabErrorBoundary><SecurityTab /></TabErrorBoundary></div>}

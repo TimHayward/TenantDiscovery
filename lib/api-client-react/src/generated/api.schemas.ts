@@ -644,6 +644,80 @@ export interface M365ComplianceDataWithMetadata {
   metadataVersion: string;
 }
 
+export type FindingSeverity = typeof FindingSeverity[keyof typeof FindingSeverity];
+
+
+export const FindingSeverity = {
+  critical: 'critical',
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+  info: 'info',
+} as const;
+
+export type FindingCheckStatus = typeof FindingCheckStatus[keyof typeof FindingCheckStatus];
+
+
+export const FindingCheckStatus = {
+  pass: 'pass',
+  fail: 'fail',
+  warning: 'warning',
+  manual: 'manual',
+} as const;
+
+export type FindingStatus = typeof FindingStatus[keyof typeof FindingStatus];
+
+
+export const FindingStatus = {
+  open: 'open',
+  acknowledged: 'acknowledged',
+  remediated: 'remediated',
+  suppressed: 'suppressed',
+} as const;
+
+export interface FindingWithState {
+  fingerprint: string;
+  ruleId: string;
+  category: string;
+  title: string;
+  description: string;
+  severity: FindingSeverity;
+  checkStatus: FindingCheckStatus;
+  evidenceStatus: EvidenceStatus;
+  confidenceLabel: ConfidenceLabel;
+  metricId?: string | null;
+  remediation?: string | null;
+  status: FindingStatus;
+  owner: string | null;
+  stateNotes: string | null;
+  dueDate: string | null;
+  firstSeen: string;
+  lastSeen: string;
+  stateUpdatedAt: string | null;
+}
+
+export type FindingsRegisterResponseSummaryBySeverity = {[key: string]: number};
+
+export type FindingsRegisterResponseSummaryByStatus = {[key: string]: number};
+
+export type FindingsRegisterResponseSummary = {
+  bySeverity: FindingsRegisterResponseSummaryBySeverity;
+  byStatus: FindingsRegisterResponseSummaryByStatus;
+};
+
+export interface FindingsRegisterResponse {
+  findings: FindingWithState[];
+  total: number;
+  summary: FindingsRegisterResponseSummary;
+}
+
+export interface FindingStateUpdate {
+  status?: FindingStatus;
+  owner?: string | null;
+  notes?: string | null;
+  dueDate?: string | null;
+}
+
 export interface IntuneDeviceItem {
   id: string;
   deviceName: string;
@@ -1195,6 +1269,12 @@ q?: string;
 
 export type GetM365GroupsWithMetadataParams = {
 q?: string;
+};
+
+export type GetM365FindingsParams = {
+severity?: FindingSeverity;
+status?: FindingStatus;
+category?: string;
 };
 
 export type GetM365DataSourcesParams = {
