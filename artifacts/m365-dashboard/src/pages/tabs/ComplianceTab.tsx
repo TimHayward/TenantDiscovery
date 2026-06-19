@@ -172,7 +172,10 @@ export function ComplianceTab() {
   const hasLabels = (compliance?.sensitivityLabels ?? 0) > 0;
   const hasDlp = (compliance?.dlpPolicies ?? 0) > 0;
   const hasActiveDlp = (compliance?.activeDlpPolicies ?? 0) > 0;
-  const hasRetention = (compliance?.retentionPolicies ?? 0) > 0;
+  // Retention is API-backed only when the retention labels endpoint responded; otherwise it is a manual check.
+  const retentionApiBacked = compliance?.retentionEvidence === "apiBacked" && compliance?.retentionLabelCount != null;
+  const retentionCount = compliance?.retentionLabelCount ?? 0;
+  const hasRetention = retentionApiBacked && retentionCount > 0;
   const complianceChecklist: ChecklistGroup[] = [
     { id: "7.1", title: "7.1 Data Backups are configured and tested", items: [
       { label: "Microsoft 365 backup or 3rd party backup solution is configured", status: "manual",
@@ -199,13 +202,15 @@ export function ComplianceTab() {
       },
     ]},
     { id: "7.3", title: "7.3 Retention Policies are configured", items: [
-      { label: "Retention policies are configured for key data sources",
-        status: hasRetention ? "pass" : "fail",
-        detail: hasRetention ? `${compliance?.retentionPolicies} policies configured` : "No retention policies found",
+      { label: "Retention labels are published for key data sources",
+        status: retentionApiBacked ? (hasRetention ? "pass" : "fail") : "manual",
+        detail: retentionApiBacked
+          ? (hasRetention ? `${retentionCount} retention labels published` : "No retention labels found")
+          : undefined,
         evidenceStatus: getMetricMetaWithFieldFallback("compliance.checklist.7.3.retentionPolicies")?.evidenceStatus,
         confidenceLabel: getMetricMetaWithFieldFallback("compliance.checklist.7.3.retentionPolicies")?.confidenceLabel,
         metricId: "compliance.checklist.7.3.retentionPolicies",
-        sourceLabel: "Graph API",
+        sourceLabel: retentionApiBacked ? "Graph API" : undefined,
       },
     ]},
     { id: "7.4", title: "7.4 Sensitivity Labels are implemented", items: [
@@ -284,8 +289,8 @@ export function ComplianceTab() {
             confidenceLabel={getMetricMetaWithFieldFallback("compliance.activeDlpPolicies")?.confidenceLabel}
           />
           <KPICard
-            title="Retention Policies"
-            value={compliance?.retentionPolicies}
+            title="Retention Labels"
+            value={retentionApiBacked ? retentionCount : "Manual check"}
             loading={compLoading}
             evidenceStatus={getMetricMetaWithFieldFallback("compliance.retentionPolicies")?.evidenceStatus}
             confidenceLabel={getMetricMetaWithFieldFallback("compliance.retentionPolicies")?.confidenceLabel}

@@ -962,7 +962,9 @@ export const GetM365SharePointWithMetadataResponse = zod.object({
 export const GetM365ComplianceResponse = zod.object({
   "dlpPolicies": zod.number(),
   "activeDlpPolicies": zod.number(),
-  "retentionPolicies": zod.number(),
+  "retentionPolicies": zod.number().describe('Deprecated alias of retentionLabelCount (0 when unavailable). Use retentionLabelCount\/retentionEvidence.'),
+  "retentionLabelCount": zod.number().nullable().describe('Count of published retention labels, or null when the API is unavailable\/unpermitted (manual check required).'),
+  "retentionEvidence": zod.enum(['apiBacked', 'manual']).describe('Whether the retention count is API-backed or requires a manual check.'),
   "sensitivityLabels": zod.number(),
   "dlpPolicyMatches": zod.number(),
   "complianceScore": zod.number(),
@@ -994,7 +996,9 @@ export const GetM365ComplianceWithMetadataResponse = zod.object({
   "data": zod.object({
   "dlpPolicies": zod.number(),
   "activeDlpPolicies": zod.number(),
-  "retentionPolicies": zod.number(),
+  "retentionPolicies": zod.number().describe('Deprecated alias of retentionLabelCount (0 when unavailable). Use retentionLabelCount\/retentionEvidence.'),
+  "retentionLabelCount": zod.number().nullable().describe('Count of published retention labels, or null when the API is unavailable\/unpermitted (manual check required).'),
+  "retentionEvidence": zod.enum(['apiBacked', 'manual']).describe('Whether the retention count is API-backed or requires a manual check.'),
   "sensitivityLabels": zod.number(),
   "dlpPolicyMatches": zod.number(),
   "complianceScore": zod.number(),

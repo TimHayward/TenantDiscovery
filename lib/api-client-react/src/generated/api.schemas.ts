@@ -607,10 +607,26 @@ export interface M365SharePointDataWithMetadata {
   metadataVersion: string;
 }
 
+/**
+ * Whether the retention count is API-backed or requires a manual check.
+ */
+export type M365ComplianceDataRetentionEvidence = typeof M365ComplianceDataRetentionEvidence[keyof typeof M365ComplianceDataRetentionEvidence];
+
+
+export const M365ComplianceDataRetentionEvidence = {
+  apiBacked: 'apiBacked',
+  manual: 'manual',
+} as const;
+
 export interface M365ComplianceData {
   dlpPolicies: number;
   activeDlpPolicies: number;
+  /** Deprecated alias of retentionLabelCount (0 when unavailable). Use retentionLabelCount/retentionEvidence. */
   retentionPolicies: number;
+  /** Count of published retention labels, or null when the API is unavailable/unpermitted (manual check required). */
+  retentionLabelCount: number | null;
+  /** Whether the retention count is API-backed or requires a manual check. */
+  retentionEvidence: M365ComplianceDataRetentionEvidence;
   sensitivityLabels: number;
   dlpPolicyMatches: number;
   complianceScore: number;

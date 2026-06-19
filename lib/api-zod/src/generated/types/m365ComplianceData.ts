@@ -5,12 +5,18 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { M365ComplianceDataRetentionEvidence } from './m365ComplianceDataRetentionEvidence';
 import type { SensitivityLabelItem } from './sensitivityLabelItem';
 
 export interface M365ComplianceData {
   dlpPolicies: number;
   activeDlpPolicies: number;
+  /** Deprecated alias of retentionLabelCount (0 when unavailable). Use retentionLabelCount/retentionEvidence. */
   retentionPolicies: number;
+  /** Count of published retention labels, or null when the API is unavailable/unpermitted (manual check required). */
+  retentionLabelCount: number | null;
+  /** Whether the retention count is API-backed or requires a manual check. */
+  retentionEvidence: M365ComplianceDataRetentionEvidence;
   sensitivityLabels: number;
   dlpPolicyMatches: number;
   complianceScore: number;

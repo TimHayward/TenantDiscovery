@@ -61,6 +61,7 @@ export * from './m365AdoptionDataWithMetadata';
 export * from './m365AppsData';
 export * from './m365AppsDataWithMetadata';
 export * from './m365ComplianceData';
+export * from './m365ComplianceDataRetentionEvidence';
 export * from './m365ComplianceDataWithMetadata';
 export * from './m365DataSourcesResponse';
 export * from './m365DataSourcesSummary';

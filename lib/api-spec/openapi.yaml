@@ -2052,6 +2052,15 @@ components:
           type: integer
         retentionPolicies:
           type: integer
+          description: Deprecated alias of retentionLabelCount (0 when unavailable). Use retentionLabelCount/retentionEvidence.
+        retentionLabelCount:
+          type: integer
+          nullable: true
+          description: Count of published retention labels, or null when the API is unavailable/unpermitted (manual check required).
+        retentionEvidence:
+          type: string
+          enum: [apiBacked, manual]
+          description: Whether the retention count is API-backed or requires a manual check.
         sensitivityLabels:
           type: integer
         dlpPolicyMatches:
@@ -2076,6 +2085,8 @@ components:
         - dlpPolicies
         - activeDlpPolicies
         - retentionPolicies
+        - retentionLabelCount
+        - retentionEvidence
         - sensitivityLabels
         - dlpPolicyMatches
         - complianceScore

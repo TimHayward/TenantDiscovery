@@ -22,7 +22,13 @@ router.get("/m365/compliance/with-metadata", async (req, res): Promise<void> => 
     const fieldMetadata = {
       dlpPolicies: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "InformationProtectionPolicy.Read.All" },
       activeDlpPolicies: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "InformationProtectionPolicy.Read.All" },
-      retentionPolicies: { evidenceStatus: "partial" as const, confidenceLabel: "medium" as const, sourceLabel: "DeviceAppManagement.Read.All", notes: ["Proxy count from managed app policies"] },
+      retentionPolicies: data.retentionEvidence === "apiBacked"
+        ? { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "RecordsManagement.Read.All" }
+        : { evidenceStatus: "manual" as const, confidenceLabel: "low" as const, sourceLabel: "RecordsManagement.Read.All", notes: ["Retention labels API unavailable — manual check required"] },
+      retentionLabelCount: data.retentionEvidence === "apiBacked"
+        ? { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "RecordsManagement.Read.All" }
+        : { evidenceStatus: "manual" as const, confidenceLabel: "low" as const, sourceLabel: "RecordsManagement.Read.All", notes: ["Retention labels API unavailable — manual check required"] },
+      retentionEvidence: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Derived from retention labels endpoint probe" },
       sensitivityLabels: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "InformationProtectionPolicy.Read.All" },
       complianceScore: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "SecurityEvents.Read.All" },
       complianceScoreMax: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "SecurityEvents.Read.All" },
