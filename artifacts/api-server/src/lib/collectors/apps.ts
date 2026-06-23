@@ -1,4 +1,9 @@
-import { getGraphCredentialValues } from "../graphClient.js";
+import {
+  fetchAllGraphPages,
+  fetchGraphJson,
+  isPermissionIssue,
+  type CollectionIssue,
+} from "../collectionIssues.js";
 
 const HIGH_RISK_SCOPES = new Set([
   "Directory.ReadWrite.All", "Directory.Read.All", "User.ReadWrite.All", "User.ManageIdentities.All",
@@ -18,65 +23,47 @@ const RESOURCE_NAMES: Record<string, string> = {
   "00000003-0000-0ff1-ce00-000000000000": "SharePoint Online",
 };
 
-async function getToken(): Promise<string> {
-  const { ClientSecretCredential } = await import("@azure/identity");
-  const { tenantId, clientId, clientSecret } = await getGraphCredentialValues();
-  const cred = new ClientSecretCredential(tenantId, clientId, clientSecret, { tokenCachePersistenceOptions: { enabled: false } });
-  const token = await cred.getToken("https://graph.microsoft.com/.default");
-  return token!.token;
-}
-
-async function gfetch(url: string, token: string, extraHeaders?: Record<string, string>): Promise<{ data: any; ok: boolean; status: number }> {
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}`, ...extraHeaders } });
-  if (!resp.ok) return { data: null, ok: false, status: resp.status };
-  return { data: await resp.json(), ok: true, status: resp.status };
-}
-
-async function gfetchAllPages(firstUrl: string, token: string): Promise<{ items: any[]; denied: boolean }> {
-  const items: any[] = [];
-  let url: string | null = firstUrl;
-  while (url) {
-    const { data, ok, status } = await gfetch(url, token);
-    if (!ok) return { items: [], denied: status === 401 || status === 403 };
-    if (!data?.value) break;
-    items.push(...(data.value as any[]));
-    url = (data["@odata.nextLink"] as string) ?? null;
-  }
-  return { items, denied: false };
-}
-
 export async function collectApps() {
-  const token = await getToken();
+  const collectionIssues: CollectionIssue[] = [];
 
   const [appsResult, grantsResult, authPolicyResp, graphSPResp] = await Promise.all([
-    gfetchAllPages(
+    fetchAllGraphPages<any>(
       "https://graph.microsoft.com/v1.0/applications" +
         "?$expand=owners($select=id,displayName,accountEnabled)" +
         "&$select=id,appId,displayName,createdDateTime,signInAudience,requiredResourceAccess,passwordCredentials,keyCredentials,web,spa,publicClient&$top=999",
-      token,
+      "applications",
     ),
-    gfetchAllPages("https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$select=clientId,consentType,principalId,resourceId,scope&$top=999", token),
-    gfetch("https://graph.microsoft.com/v1.0/policies/authorizationPolicy", token),
-    gfetch("https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'&$select=id,appId,appRoles,oauth2PermissionScopes", token),
+    fetchAllGraphPages<any>("https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$select=clientId,consentType,principalId,resourceId,scope&$top=999", "oauth2PermissionGrants"),
+    fetchGraphJson<any>("https://graph.microsoft.com/v1.0/policies/authorizationPolicy", "authorizationPolicy"),
+    fetchGraphJson<any>("https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'&$select=id,appId,appRoles,oauth2PermissionScopes", "graphServicePrincipal"),
   ]);
 
-  if (appsResult.denied) {
-    return { totalApps: 0, appsWithNoOwner: 0, appsWithHighRisk: 0, appsWithExpiredCredentials: 0, appsWithLongLivedSecrets: 0, multiTenantApps: 0, usersCanRegisterApps: true, permissionError: true, apps: [] };
+  collectionIssues.push(...appsResult.issues, ...grantsResult.issues);
+  if (authPolicyResp.issue) collectionIssues.push(authPolicyResp.issue);
+  if (graphSPResp.issue) collectionIssues.push(graphSPResp.issue);
+
+  if (appsResult.permissionError) {
+    return {
+      totalApps: 0, appsWithNoOwner: 0, appsWithHighRisk: 0, appsWithExpiredCredentials: 0,
+      appsWithLongLivedSecrets: 0, multiTenantApps: 0, usersCanRegisterApps: true,
+      permissionError: true, apps: [],
+      partialData: true, collectionIssues,
+    };
   }
 
   const permIdToName = new Map<string, string>();
-  const graphSP = graphSPResp.ok ? (graphSPResp.data?.value?.[0] as any) : null;
+  const graphSP = (graphSPResp.data?.value?.[0] as any) ?? null;
   if (graphSP) {
     for (const role of (graphSP.appRoles ?? []) as any[]) permIdToName.set(role.id as string, role.value as string);
     for (const scope of (graphSP.oauth2PermissionScopes ?? []) as any[]) permIdToName.set(scope.id as string, scope.value as string);
   }
 
-  const authPolicy = authPolicyResp.ok ? (authPolicyResp.data as any) : null;
+  const authPolicy = (authPolicyResp.data as any) ?? null;
   const usersCanRegisterApps = authPolicy?.defaultUserRolePermissions?.allowedToCreateApps !== false;
   const now = Date.now();
   const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
-  const apps = (appsResult.items as any[]).map((app) => {
+  const apps = (appsResult.items as any[]).map((app: any) => {
     const owners: Array<{ id: string; displayName: string; accountEnabled?: boolean }> = (app.owners ?? []).map((o: any) => ({ id: o.id as string, displayName: o.displayName as string, accountEnabled: o.accountEnabled as boolean | undefined }));
     const credentials: Array<{ keyId: string; displayName: string | null; startDateTime: string | null; endDateTime: string | null; type: "secret" | "certificate"; hint: string | null }> = [];
     let hasExpiredCredentials = false, hasLongLivedSecrets = false;
@@ -146,6 +133,10 @@ export async function collectApps() {
     appsWithExpiredCredentials: apps.filter((a) => a.hasExpiredCredentials).length,
     appsWithLongLivedSecrets: apps.filter((a) => a.hasLongLivedSecrets).length,
     multiTenantApps: apps.filter((a) => a.signInAudience !== "AzureADMyOrg").length,
-    usersCanRegisterApps, permissionError: false, apps,
+    usersCanRegisterApps,
+    permissionError: collectionIssues.some(isPermissionIssue),
+    apps,
+    partialData: collectionIssues.length > 0,
+    collectionIssues,
   };
 }

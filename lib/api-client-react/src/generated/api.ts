@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ConnectionTestResult,
   DeviceComplianceDetail,
   DriftReport,
   FindingStateUpdate,
@@ -3166,6 +3167,83 @@ export function useGetOnboardingStatus<TData = Awaited<ReturnType<typeof getOnbo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetOnboardingStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Validate tenant credentials, Graph token, tenant identity and required permission consent
+ */
+export const getGetM365ConnectionTestUrl = () => {
+
+
+
+
+  return `/api/m365/connection-test`
+}
+
+export const getM365ConnectionTest = async ( options?: RequestInit): Promise<ConnectionTestResult> => {
+
+  return customFetch<ConnectionTestResult>(getGetM365ConnectionTestUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365ConnectionTestQueryKey = () => {
+    return [
+    `/api/m365/connection-test`
+    ] as const;
+    }
+
+
+export const getGetM365ConnectionTestQueryOptions = <TData = Awaited<ReturnType<typeof getM365ConnectionTest>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ConnectionTest>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365ConnectionTestQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365ConnectionTest>>> = ({ signal }) => getM365ConnectionTest({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365ConnectionTest>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365ConnectionTestQueryResult = NonNullable<Awaited<ReturnType<typeof getM365ConnectionTest>>>
+export type GetM365ConnectionTestQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Validate tenant credentials, Graph token, tenant identity and required permission consent
+ */
+
+export function useGetM365ConnectionTest<TData = Awaited<ReturnType<typeof getM365ConnectionTest>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ConnectionTest>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365ConnectionTestQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

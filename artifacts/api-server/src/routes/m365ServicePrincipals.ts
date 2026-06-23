@@ -2,8 +2,21 @@ import { Router } from "express";
 import { withMetadata } from "../lib/metadata.js";
 import { getOrFetch } from "../lib/metricStore.js";
 import { collectServicePrincipals } from "../lib/collectors/servicePrincipals.js";
+import { createCollectionIssue, getErrorMessage, getErrorStatus } from "../lib/collectionIssues.js";
 
 const router = Router();
+
+// Zeroed fallback (with a 200) so the dashboard renders an explicit error state
+// rather than a dead tab when the collector throws outright.
+function spFallback(err: unknown) {
+  const issue = createCollectionIssue("servicePrincipalsRoute", getErrorStatus(err), getErrorMessage(err));
+  return {
+    total: 0, applicationCount: 0, managedIdentityCount: 0, microsoftOwnedCount: 0,
+    thirdPartyCount: 0, disabledCount: 0, withHighRiskGrants: 0,
+    permissionError: issue.permissionRequired, servicePrincipals: [], permissionMetadata: null,
+    partialData: true, collectionIssues: [issue],
+  };
+}
 
 router.get("/m365/service-principals", async (req, res) => {
   try {
@@ -11,7 +24,7 @@ router.get("/m365/service-principals", async (req, res) => {
     return res.json(data);
   } catch (err) {
     req.log.error(err, "Error fetching service principals");
-    return res.status(500).json({ error: "Failed to fetch service principals" });
+    return res.status(200).json(spFallback(err));
   }
 });
 

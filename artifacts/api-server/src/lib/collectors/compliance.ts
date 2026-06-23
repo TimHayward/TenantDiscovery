@@ -1,47 +1,25 @@
-import { getGraphCredentialValues } from "../graphClient.js";
 import { getPermissionMetadataForFeature } from "../permissionMetadata.js";
-
-const PERMISSION_ERROR_CODES = new Set([401, 403]);
-
-async function getToken(): Promise<string> {
-  const { ClientSecretCredential } = await import("@azure/identity");
-  const { tenantId, clientId, clientSecret } = await getGraphCredentialValues();
-  const cred = new ClientSecretCredential(tenantId, clientId, clientSecret);
-  const result = await cred.getToken("https://graph.microsoft.com/.default");
-  return result!.token;
-}
-
-async function fetchWithToken(url: string, token: string): Promise<{ data: any; status: number }> {
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!resp.ok) return { data: null, status: resp.status };
-  return { data: await resp.json(), status: resp.status };
-}
-
-async function fetchAllPages(firstUrl: string, token: string): Promise<{ items: any[]; permissionDenied: boolean }> {
-  const items: any[] = [];
-  let url: string | null = firstUrl;
-  while (url) {
-    const { data, status } = await fetchWithToken(url, token);
-    if (PERMISSION_ERROR_CODES.has(status)) return { items: [], permissionDenied: true };
-    if (!data || !data.value) break;
-    items.push(...data.value);
-    url = data["@odata.nextLink"] ?? null;
-  }
-  return { items, permissionDenied: false };
-}
+import {
+  fetchGraphJson,
+  fetchAllGraphPages,
+  isPermissionIssue,
+  type CollectionIssue,
+} from "../collectionIssues.js";
 
 export async function collectCompliance() {
   const labelsPermissionMetadata = getPermissionMetadataForFeature("compliance-sensitivity-labels");
-  const token = await getToken();
+  const collectionIssues: CollectionIssue[] = [];
 
   const [secScoreResult, eDiscoveryResult, dlpResult, labelsResult] = await Promise.all([
-    fetchWithToken("https://graph.microsoft.com/v1.0/security/secureScores?$top=1", token),
-    fetchWithToken("https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases?$top=1", token)
-      .catch(() => ({ data: null, status: 500 })),
-    fetchAllPages("https://graph.microsoft.com/v1.0/security/informationProtection/policies/dlp/policies?$top=999", token)
-      .catch(() => ({ items: [], permissionDenied: false })),
-    fetchAllPages("https://graph.microsoft.com/beta/security/informationProtection/sensitivityLabels", token),
+    fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/secureScores?$top=1", "secureScores"),
+    fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases?$top=1", "eDiscoveryCases"),
+    fetchAllGraphPages<any>("https://graph.microsoft.com/v1.0/security/informationProtection/policies/dlp/policies?$top=999", "dlpPolicies"),
+    fetchAllGraphPages<any>("https://graph.microsoft.com/beta/security/informationProtection/sensitivityLabels", "sensitivityLabels"),
   ]);
+
+  if (secScoreResult.issue) collectionIssues.push(secScoreResult.issue);
+  if (eDiscoveryResult.issue) collectionIssues.push(eDiscoveryResult.issue);
+  collectionIssues.push(...dlpResult.issues, ...labelsResult.issues);
 
   const secScore = secScoreResult.data?.value?.[0] ?? null;
   const complianceScore = secScore?.currentScore ?? 0;
@@ -52,7 +30,7 @@ export async function collectCompliance() {
   const dlpPolicies = dlpList.length;
   const activeDlpPolicies = dlpList.filter((p: any) => p.mode === "Enable" || p.mode === "enable").length;
 
-  const sensitivityLabelsPermissionRequired = labelsResult.permissionDenied;
+  const sensitivityLabelsPermissionRequired = labelsResult.permissionError;
   const sensitivityLabelsList = labelsResult.items.map((l: any) => ({
     id: l.id, name: l.name ?? "Unknown", description: l.description ?? "",
     tooltip: l.tooltip ?? "", color: l.color ?? "", sensitivity: l.sensitivity ?? 0,
@@ -66,17 +44,19 @@ export async function collectCompliance() {
   // When the endpoint is unavailable or unpermitted we surface a manual check rather than a fabricated count.
   let retentionLabelCount: number | null = null;
   let retentionEvidence: "apiBacked" | "manual" = "manual";
-  try {
-    const { data, status } = await fetchWithToken(
-      "https://graph.microsoft.com/beta/security/labels/retentionLabels?$top=999", token,
-    );
-    // Only treat a real 200 + value array as evidence. 401/403 (no permission),
-    // 404 (endpoint unavailable on tenant) and anything else fall back to a manual check.
-    if (status === 200 && Array.isArray(data?.value)) {
-      retentionLabelCount = data.value.length;
-      retentionEvidence = "apiBacked";
-    }
-  } catch { /* leave as manual fallback */ }
+  const retentionResult = await fetchGraphJson<any>(
+    "https://graph.microsoft.com/beta/security/labels/retentionLabels?$top=999",
+    "retentionLabels",
+  );
+  // Only treat a real 200 + value array as evidence. 404 (endpoint unavailable on
+  // tenant) is the expected manual-fallback path and is NOT surfaced as an error.
+  // A permission issue (401/403) is genuine and is surfaced so the UI can prompt for consent.
+  if (Array.isArray(retentionResult.data?.value)) {
+    retentionLabelCount = retentionResult.data.value.length;
+    retentionEvidence = "apiBacked";
+  } else if (retentionResult.issue && isPermissionIssue(retentionResult.issue)) {
+    collectionIssues.push(retentionResult.issue);
+  }
 
   return {
     dlpPolicies, activeDlpPolicies,
@@ -87,5 +67,8 @@ export async function collectCompliance() {
     auditLogEnabled: true, unifiedAuditLogEnabled: true,
     eDiscoveryCases, sensitivityLabelsList, sensitivityLabelsPermissionRequired,
     permissionMetadata: labelsPermissionMetadata,
+    partialData: collectionIssues.length > 0,
+    permissionError: collectionIssues.some(isPermissionIssue),
+    collectionIssues,
   };
 }

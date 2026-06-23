@@ -1,8 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, AlertTriangleIcon, KeyRoundIcon, BadgeAlertIcon } from "lucide-react";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
+import { issueKindLabel, type IssueKind } from "@/lib/collectionStatus";
 
 const EVIDENCE_STATUS_LABELS: Record<EvidenceStatus, string> = {
   apiBacked: "API-backed",
@@ -19,6 +20,12 @@ const CONFIDENCE_LABELS: Record<ConfidenceLabel, string> = {
   unknown: "Unknown confidence",
 };
 
+const ISSUE_ICONS: Record<IssueKind, typeof AlertTriangleIcon> = {
+  permission: KeyRoundIcon,
+  license: BadgeAlertIcon,
+  error: AlertTriangleIcon,
+};
+
 interface KPICardProps {
   title: string;
   value?: string | number | null;
@@ -29,6 +36,10 @@ interface KPICardProps {
   evidenceStatus?: EvidenceStatus;
   confidenceLabel?: ConfidenceLabel;
   density?: "default" | "compact";
+  /** When set, the card shows a collection-issue state instead of a bare value. */
+  issueKind?: IssueKind;
+  /** Hover detail for the issue badge (e.g. the Graph error message). */
+  issueMessage?: string;
 }
 
 export function KPICard({
@@ -41,10 +52,13 @@ export function KPICard({
   evidenceStatus,
   confidenceLabel,
   density = "compact",
+  issueKind,
+  issueMessage,
 }: KPICardProps) {
   const isPositive = trend === "up";
   const isNegative = trend === "down";
   const isCompact = density === "compact";
+  const IssueIcon = issueKind ? ISSUE_ICONS[issueKind] : null;
 
   return (
     <Card>
@@ -57,9 +71,21 @@ export function KPICard({
         ) : (
           <>
             <p className={`${isCompact ? "text-xs" : "text-sm"} text-muted-foreground font-medium leading-tight break-words`}>{title}</p>
-            <p className={`${isCompact ? "text-xl mt-0.5" : "text-2xl mt-1"} font-bold leading-tight break-words [overflow-wrap:anywhere]`} style={{ color: valueColor }}>
-              {value !== undefined && value !== null ? value : "--"}
-            </p>
+            {issueKind && IssueIcon ? (
+              <div
+                className={`${isCompact ? "mt-0.5" : "mt-1"} flex items-center gap-1.5 text-amber-600 dark:text-amber-400`}
+                title={issueMessage}
+              >
+                <IssueIcon className={isCompact ? "w-4 h-4" : "w-5 h-5"} />
+                <span className={`${isCompact ? "text-sm" : "text-base"} font-semibold leading-tight`}>
+                  {issueKindLabel(issueKind)}
+                </span>
+              </div>
+            ) : (
+              <p className={`${isCompact ? "text-xl mt-0.5" : "text-2xl mt-1"} font-bold leading-tight break-words [overflow-wrap:anywhere]`} style={{ color: valueColor }}>
+                {value !== undefined && value !== null ? value : "--"}
+              </p>
+            )}
             {change && trend && trend !== "neutral" && (
               <div className={`flex items-center gap-1 ${isCompact ? "mt-0.5" : "mt-1"}`}>
                 {isPositive ? <ArrowUpIcon className="w-4 h-4 text-green-600 dark:text-green-400" /> : <ArrowDownIcon className="w-4 h-4 text-red-600 dark:text-red-400" />}

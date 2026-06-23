@@ -6,6 +6,7 @@ import {
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { ConnectionTestPanel } from "@/components/ConnectionTestPanel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { CSVLink } from "react-csv";
@@ -59,6 +60,7 @@ export function OverviewTab() {
 
   return (
     <div className="space-y-4">
+      <ConnectionTestPanel />
       <CollapsibleSection title="Summary" description="Key metrics across your Microsoft 365 tenant" storageKey="overview-summary" defaultOpen={true} density="compact">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <KPICard

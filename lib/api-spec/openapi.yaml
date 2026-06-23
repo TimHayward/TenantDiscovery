@@ -567,6 +567,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/OnboardingStatus"
 
+  /m365/connection-test:
+    get:
+      operationId: getM365ConnectionTest
+      tags: [m365]
+      summary: Validate tenant credentials, Graph token, tenant identity and required permission consent
+      responses:
+        "200":
+          description: Structured per-check connection test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTestResult"
+
   /m365/findings:
     get:
       operationId: getM365Findings
@@ -1346,6 +1359,71 @@ components:
         - message
         - retryable
         - permissionRequired
+
+    ConnectionCheck:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+          enum: [ok, failed, warning]
+        category:
+          type: string
+          enum: [config, auth, permission, network]
+        message:
+          type: string
+      required:
+        - id
+        - label
+        - status
+        - category
+        - message
+
+    ConnectionTestTenant:
+      type: object
+      properties:
+        id:
+          type: string
+          nullable: true
+        displayName:
+          type: string
+          nullable: true
+        defaultDomain:
+          type: string
+          nullable: true
+      required:
+        - id
+        - displayName
+        - defaultDomain
+
+    ConnectionTestResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        checkedAt:
+          type: string
+        tenant:
+          oneOf:
+            - $ref: "#/components/schemas/ConnectionTestTenant"
+            - type: "null"
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectionCheck"
+        missingRequiredPermissions:
+          type: array
+          items:
+            type: string
+      required:
+        - ok
+        - checkedAt
+        - tenant
+        - checks
+        - missingRequiredPermissions
 
     LicenseItem:
       type: object
@@ -2969,6 +3047,8 @@ components:
         - usersCanRegisterApps
         - permissionError
         - apps
+        - partialData
+        - collectionIssues
       properties:
         totalApps:
           type: integer
@@ -2990,6 +3070,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AppRegistration"
+        partialData:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
 
     M365AppsDataWithMetadata:
       type: object
@@ -3147,6 +3233,8 @@ components:
         - withHighRiskGrants
         - permissionError
         - servicePrincipals
+        - partialData
+        - collectionIssues
       properties:
         total:
           type: integer
@@ -3168,6 +3256,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ServicePrincipalItem"
+        partialData:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
 
     M365ServicePrincipalsDataWithMetadata:
       type: object

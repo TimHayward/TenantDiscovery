@@ -1551,6 +1551,26 @@ export const metricDataSourceRegistry = {
     confidenceLabel: "high",
     evidenceStatus: "apiBacked",
   },
+  "apps.credentialExpiryTimeline": {
+    metricId: "apps.credentialExpiryTimeline",
+    metricName: "Credential Expiry Timeline",
+    tab: "enterprise-apps",
+    dataSources: [{ provider: "microsoft-graph", label: "Microsoft Graph API", endpoint: "GET /v1.0/applications (passwordCredentials, keyCredentials)" }],
+    permissionDependencies: ["Application.Read.All"],
+    licenseDependencies: ["none"],
+    confidenceLabel: "high",
+    evidenceStatus: "apiBacked",
+  },
+  "apps.consentExposure": {
+    metricId: "apps.consentExposure",
+    metricName: "OAuth Consent Exposure (tenant-wide vs user)",
+    tab: "enterprise-apps",
+    dataSources: [{ provider: "microsoft-graph", label: "Microsoft Graph API", endpoint: "GET /v1.0/oauth2PermissionGrants" }],
+    permissionDependencies: ["Directory.Read.All"],
+    licenseDependencies: ["none"],
+    confidenceLabel: "high",
+    evidenceStatus: "apiBacked",
+  },
 
   "defender.deviceSummaryTotal": {
     metricId: "defender.deviceSummaryTotal",

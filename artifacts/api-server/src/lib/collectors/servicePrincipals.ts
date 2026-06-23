@@ -1,5 +1,6 @@
 import { getGraphCredentialValues } from "../graphClient.js";
 import { getPermissionMetadataForFeature } from "../permissionMetadata.js";
+import { createCollectionIssue, isPermissionIssue, type CollectionIssue } from "../collectionIssues.js";
 
 const MS_PUBLISHER_NAMES = new Set(["Microsoft Corporation", "Microsoft Services", "Microsoft Azure", "Windows Azure", "Microsoft 365"]);
 const MS_RESOURCE_APP_IDS = new Set([
@@ -32,17 +33,17 @@ async function gfetch(url: string, token: string, extraHeaders?: Record<string, 
   return { data: await resp.json(), ok: true, status: resp.status };
 }
 
-async function gfetchAllPages(firstUrl: string, token: string, extraHeaders?: Record<string, string>): Promise<{ items: any[]; denied: boolean }> {
+async function gfetchAllPages(firstUrl: string, token: string, extraHeaders?: Record<string, string>): Promise<{ items: any[]; denied: boolean; status: number | null }> {
   const items: any[] = [];
   let url: string | null = firstUrl;
   while (url) {
     const { data, ok, status } = await gfetch(url, token, extraHeaders);
-    if (!ok) return { items: [], denied: status === 401 || status === 403 };
+    if (!ok) return { items: [], denied: status === 401 || status === 403, status };
     if (!data?.value) break;
     items.push(...(data.value as any[]));
     url = (data["@odata.nextLink"] as string) ?? null;
   }
-  return { items, denied: false };
+  return { items, denied: false, status: null };
 }
 
 async function pLimit<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
@@ -54,6 +55,7 @@ async function pLimit<T>(tasks: (() => Promise<T>)[], concurrency: number): Prom
 
 export async function collectServicePrincipals() {
   const permissionMetadata = getPermissionMetadataForFeature("service-principals");
+  const collectionIssues: CollectionIssue[] = [];
   const token = await getToken();
 
   let spResult = await gfetchAllPages(
@@ -67,11 +69,15 @@ export async function collectServicePrincipals() {
     );
   }
   if (spResult.denied) {
-    return { total: 0, applicationCount: 0, managedIdentityCount: 0, microsoftOwnedCount: 0, thirdPartyCount: 0, disabledCount: 0, withHighRiskGrants: 0, permissionError: true, servicePrincipals: [], permissionMetadata };
+    collectionIssues.push(createCollectionIssue("servicePrincipals", spResult.status, "Unable to read service principals — permission required."));
+    return { total: 0, applicationCount: 0, managedIdentityCount: 0, microsoftOwnedCount: 0, thirdPartyCount: 0, disabledCount: 0, withHighRiskGrants: 0, permissionError: true, servicePrincipals: [], permissionMetadata, partialData: true, collectionIssues };
   }
 
   const rawSPs = spResult.items as any[];
   const grantsResult = await gfetchAllPages("https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$select=clientId,resourceId,scope,consentType,principalId&$top=500", token);
+  if (grantsResult.status !== null) {
+    collectionIssues.push(createCollectionIssue("oauth2PermissionGrants", grantsResult.status, "Unable to read OAuth permission grants."));
+  }
   const rawGrants = grantsResult.items as any[];
 
   const grantsBySpId = new Map<string, any[]>();
@@ -129,6 +135,9 @@ export async function collectServicePrincipals() {
     thirdPartyCount: servicePrincipals.filter((sp) => !sp.isFirstParty && sp.servicePrincipalType === "Application").length,
     disabledCount: servicePrincipals.filter((sp) => !sp.accountEnabled).length,
     withHighRiskGrants: servicePrincipals.filter((sp) => sp.hasHighRiskGrants && !sp.isFirstParty).length,
-    permissionError: false, servicePrincipals, permissionMetadata,
+    permissionError: collectionIssues.some(isPermissionIssue),
+    servicePrincipals, permissionMetadata,
+    partialData: collectionIssues.length > 0,
+    collectionIssues,
   };
 }

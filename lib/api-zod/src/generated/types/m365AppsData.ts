@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AppRegistration } from './appRegistration';
+import type { CollectionIssue } from './collectionIssue';
 
 export interface M365AppsData {
   totalApps: number;
@@ -17,4 +18,6 @@ export interface M365AppsData {
   usersCanRegisterApps: boolean;
   permissionError: boolean;
   apps: AppRegistration[];
+  partialData: boolean;
+  collectionIssues: CollectionIssue[];
 }

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CollectionIssue } from './collectionIssue';
 import type { ServicePrincipalItem } from './servicePrincipalItem';
 
 export interface M365ServicePrincipalsData {
@@ -17,4 +18,6 @@ export interface M365ServicePrincipalsData {
   withHighRiskGrants: number;
   permissionError: boolean;
   servicePrincipals: ServicePrincipalItem[];
+  partialData: boolean;
+  collectionIssues: CollectionIssue[];
 }

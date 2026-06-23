@@ -23,6 +23,7 @@ import m365RefreshRouter from "./m365Refresh";
 import m365FindingsRouter from "./m365Findings";
 import m365ScansRouter from "./m365Scans";
 import m365ExportRouter from "./m365Export";
+import m365ConnectionTestRouter from "./m365ConnectionTest";
 import onboardingRouter from "./onboarding";
 
 const router: IRouter = Router();
@@ -51,6 +52,7 @@ router.use(m365RefreshRouter);
 router.use(m365FindingsRouter);
 router.use(m365ScansRouter);
 router.use(m365ExportRouter);
+router.use(m365ConnectionTestRouter);
 router.use(onboardingRouter);
 
 export default router;

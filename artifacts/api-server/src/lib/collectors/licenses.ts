@@ -1,6 +1,8 @@
 import { getGraphClient } from "../graphClient.js";
 import {
   createCollectionIssue,
+  getErrorMessage,
+  getErrorStatus,
   isPermissionIssue,
   type CollectionIssue,
 } from "../collectionIssues.js";
@@ -29,19 +31,6 @@ const SKU_FRIENDLY_NAMES: Record<string, string> = {
   "EMS": "Enterprise Mobility + Security E3",
   "EMSPREMIUM": "Enterprise Mobility + Security E5",
 };
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return "Unexpected Graph client error";
-}
-
-function getErrorStatus(error: unknown): number | null {
-  if (typeof error === "object" && error !== null && "statusCode" in error) {
-    const statusCode = (error as { statusCode?: unknown }).statusCode;
-    if (typeof statusCode === "number") return statusCode;
-  }
-  return null;
-}
 
 export async function collectLicenses() {
   const collectionIssues: CollectionIssue[] = [];

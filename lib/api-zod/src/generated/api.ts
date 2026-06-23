@@ -1424,6 +1424,15 @@ export const GetM365AppsResponse = zod.object({
   "riskScore": zod.number(),
   "riskLevel": zod.enum(['high', 'medium', 'low']),
   "riskFactors": zod.array(zod.string())
+})),
+  "partialData": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean()
 }))
 })
 
@@ -1478,6 +1487,15 @@ export const GetM365AppsWithMetadataResponse = zod.object({
   "riskScore": zod.number(),
   "riskLevel": zod.enum(['high', 'medium', 'low']),
   "riskFactors": zod.array(zod.string())
+})),
+  "partialData": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean()
 }))
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
@@ -1528,6 +1546,15 @@ export const GetM365ServicePrincipalsResponse = zod.object({
   "riskLevel": zod.enum(['high', 'medium', 'low']),
   "riskScore": zod.number(),
   "riskFactors": zod.array(zod.string())
+})),
+  "partialData": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean()
 }))
 })
 
@@ -1571,6 +1598,15 @@ export const GetM365ServicePrincipalsWithMetadataResponse = zod.object({
   "riskLevel": zod.enum(['high', 'medium', 'low']),
   "riskScore": zod.number(),
   "riskFactors": zod.array(zod.string())
+})),
+  "partialData": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean()
 }))
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
@@ -1790,6 +1826,28 @@ export const GetOnboardingStatusResponse = zod.object({
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
+})
+
+
+/**
+ * @summary Validate tenant credentials, Graph token, tenant identity and required permission consent
+ */
+export const GetM365ConnectionTestResponse = zod.object({
+  "ok": zod.boolean(),
+  "checkedAt": zod.string(),
+  "tenant": zod.union([zod.object({
+  "id": zod.string().nullable(),
+  "displayName": zod.string().nullable(),
+  "defaultDomain": zod.string().nullable()
+}),zod.null()]),
+  "checks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['ok', 'failed', 'warning']),
+  "category": zod.enum(['config', 'auth', 'permission', 'network']),
+  "message": zod.string()
+})),
+  "missingRequiredPermissions": zod.array(zod.string())
 })
 
 

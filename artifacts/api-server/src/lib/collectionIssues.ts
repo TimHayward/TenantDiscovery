@@ -79,6 +79,21 @@ export function createCollectionIssue(
   return createIssue(source, status, message);
 }
 
+/** Extract a human-readable message from a thrown Graph/SDK error. */
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return "Unexpected Graph client error";
+}
+
+/** Extract an HTTP status code from a thrown Graph/SDK error, if present. */
+export function getErrorStatus(error: unknown): number | null {
+  if (typeof error === "object" && error !== null && "statusCode" in error) {
+    const statusCode = (error as { statusCode?: unknown }).statusCode;
+    if (typeof statusCode === "number") return statusCode;
+  }
+  return null;
+}
+
 async function getGraphAccessToken(): Promise<string> {
   const now = Date.now();
   if (cachedToken && cachedToken.expiresOnTimestamp - now > 60_000) {

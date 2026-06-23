@@ -3,6 +3,7 @@ import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { summarizeIssues, getCollectionIssues } from "@/lib/collectionStatus";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LabelList,
@@ -347,6 +348,7 @@ export function SecurityTab() {
   const loading = isLoading || isFetching;
   const data = securityWithMetadata?.data;
   const fieldMetadata = securityWithMetadata?.fieldMetadata ?? {};
+  const securityIssue = summarizeIssues(getCollectionIssues(data));
 
   const metricToFieldMap: Record<string, string> = {
     "security.secureScore": "secureScore",
@@ -586,7 +588,7 @@ export function SecurityTab() {
   return (
     <div key={resetKey} className="space-y-4">
 
-      <CollapsibleSection title="Summary" description="Secure Score, MFA coverage, and Conditional Access overview" storageKey="security-summary" defaultOpen={true} density="compact" actions={<Button variant="outline" size="sm" onClick={resetSecuritySections}>Reset Sections</Button>}>
+      <CollapsibleSection title="Summary" description="Secure Score, MFA coverage, and Conditional Access overview" storageKey="security-summary" defaultOpen={true} density="compact" issue={securityIssue} actions={<Button variant="outline" size="sm" onClick={resetSecuritySections}>Reset Sections</Button>}>
       <div className="space-y-4">
       {/* ── KPIs ───────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">

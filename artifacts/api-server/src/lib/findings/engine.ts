@@ -18,12 +18,10 @@ export async function evaluateFindings(): Promise<Finding[]> {
   const findings: Finding[] = [];
 
   for (const rule of securityRules) {
-    const f = runRule(rule, securityData as never);
-    if (f) findings.push(f);
+    findings.push(...runRule(rule, securityData as never));
   }
   for (const rule of complianceRules) {
-    const f = runRule(rule, complianceData as never);
-    if (f) findings.push(f);
+    findings.push(...runRule(rule, complianceData as never));
   }
 
   return findings;

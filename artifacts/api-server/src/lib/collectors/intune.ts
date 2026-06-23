@@ -1,5 +1,6 @@
 import { getGraphCredentialValues } from "../graphClient.js";
 import { getPermissionMetadataForFeature, getPermissionMetadataForFeatures } from "../permissionMetadata.js";
+import { createCollectionIssue, isPermissionIssue, type CollectionIssue } from "../collectionIssues.js";
 
 const PERMISSION_ERROR_CODES = new Set([403, 401]);
 
@@ -17,17 +18,17 @@ async function fetchWithToken(url: string, bearerToken: string): Promise<{ data:
   return { data: await resp.json(), status: resp.status };
 }
 
-async function fetchAllPages(firstUrl: string, bearerToken: string): Promise<{ items: any[]; permissionDenied: boolean }> {
+async function fetchAllPages(firstUrl: string, bearerToken: string): Promise<{ items: any[]; permissionDenied: boolean; status: number | null }> {
   const items: any[] = [];
   let url: string | null = firstUrl;
   while (url) {
     const { data, status } = await fetchWithToken(url, bearerToken);
-    if (PERMISSION_ERROR_CODES.has(status)) return { items: [], permissionDenied: true };
+    if (PERMISSION_ERROR_CODES.has(status)) return { items: [], permissionDenied: true, status };
     if (!data || !data.value) break;
     items.push(...data.value);
     url = data["@odata.nextLink"] ?? null;
   }
-  return { items, permissionDenied: false };
+  return { items, permissionDenied: false, status: null };
 }
 
 function isWindowsDevice(device: any): boolean {
@@ -87,6 +88,10 @@ async function computeIntuneData(token: string) {
   const appProtectionPolicies = appProtectionPoliciesResult.items;
   const tamperProtection = getTamperProtectionSummary(devices);
   const permissionRequired = devicesResult.permissionDenied;
+  const collectionIssues: CollectionIssue[] = [];
+  if (devicesResult.permissionDenied) {
+    collectionIssues.push(createCollectionIssue("managedDevices", devicesResult.status, "Unable to read Intune managed devices — permission or Intune licence required."));
+  }
 
   const overallCompliance = complianceSummary ? {
     compliantDeviceCount: complianceSummary.compliantDeviceCount ?? 0,
@@ -194,6 +199,9 @@ async function computeIntuneData(token: string) {
     tamperProtectionEnabledDevices: tamperProtection.enabledDevices, tamperProtectionDisabledDevices: tamperProtection.disabledDevices,
     tamperProtectionUnknownDevices: tamperProtection.unknownDevices, tamperProtectionPercent: tamperProtection.percent,
     jailbrokenCount, permissionRequired, deviceListAvailable: hasDeviceList, policySummaryByOS,
+    partialData: collectionIssues.length > 0,
+    permissionError: collectionIssues.some(isPermissionIssue),
+    collectionIssues,
   };
 }
 
@@ -233,6 +241,13 @@ export async function collectIntuneApps() {
 
   const installPermissionRequired = installReportRaw.permissionDenied;
   const discoveryPermissionRequired = detectedAppsResult.permissionDenied;
+  const collectionIssues: CollectionIssue[] = [];
+  if (installPermissionRequired) {
+    collectionIssues.push(createCollectionIssue("appsInstallSummaryReport", 403, "Unable to read Intune app install report — permission required."));
+  }
+  if (discoveryPermissionRequired) {
+    collectionIssues.push(createCollectionIssue("detectedApps", detectedAppsResult.status, "Unable to read Intune discovered apps — permission required."));
+  }
 
   const colIdx: Record<string, number> = {};
   installReportRaw.schema.forEach((s: { Column: string }, i: number) => { colIdx[s.Column] = i; });
@@ -277,5 +292,8 @@ export async function collectIntuneApps() {
     totalAssignedApps: appInstallList.length, totalInstalled, totalFailed, totalPending, totalNotApplicable, totalNotInstalled,
     installByPlatform, appInstallList, totalDiscoveredApps: detectedApps.length,
     managedDiscoveredApps, unmanagedDiscoveredApps, discoveredByPlatform, discoveredAppList,
+    partialData: collectionIssues.length > 0,
+    permissionError: collectionIssues.some(isPermissionIssue),
+    collectionIssues,
   };
 }

@@ -260,6 +260,47 @@ export interface M365AdminExposureData {
   collectionIssues: CollectionIssue[];
 }
 
+export type ConnectionCheckStatus = typeof ConnectionCheckStatus[keyof typeof ConnectionCheckStatus];
+
+
+export const ConnectionCheckStatus = {
+  ok: 'ok',
+  failed: 'failed',
+  warning: 'warning',
+} as const;
+
+export type ConnectionCheckCategory = typeof ConnectionCheckCategory[keyof typeof ConnectionCheckCategory];
+
+
+export const ConnectionCheckCategory = {
+  config: 'config',
+  auth: 'auth',
+  permission: 'permission',
+  network: 'network',
+} as const;
+
+export interface ConnectionCheck {
+  id: string;
+  label: string;
+  status: ConnectionCheckStatus;
+  category: ConnectionCheckCategory;
+  message: string;
+}
+
+export interface ConnectionTestTenant {
+  id: string | null;
+  displayName: string | null;
+  defaultDomain: string | null;
+}
+
+export interface ConnectionTestResult {
+  ok: boolean;
+  checkedAt: string;
+  tenant: ConnectionTestTenant | null;
+  checks: ConnectionCheck[];
+  missingRequiredPermissions: string[];
+}
+
 export interface LicenseItem {
   skuId: string;
   skuPartNumber: string;
@@ -992,6 +1033,8 @@ export interface M365AppsData {
   usersCanRegisterApps: boolean;
   permissionError: boolean;
   apps: AppRegistration[];
+  partialData: boolean;
+  collectionIssues: CollectionIssue[];
 }
 
 export interface M365AppsDataWithMetadata {
@@ -1079,6 +1122,8 @@ export interface M365ServicePrincipalsData {
   withHighRiskGrants: number;
   permissionError: boolean;
   servicePrincipals: ServicePrincipalItem[];
+  partialData: boolean;
+  collectionIssues: CollectionIssue[];
 }
 
 export interface M365ServicePrincipalsDataWithMetadata {

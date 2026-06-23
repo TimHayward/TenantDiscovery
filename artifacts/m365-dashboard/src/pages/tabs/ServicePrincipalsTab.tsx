@@ -24,7 +24,11 @@ import {
 import { PermissionCodeList } from "@/components/PermissionCodeList";
 import { SERVICE_PRINCIPALS_PERMISSIONS } from "@/lib/permissions";
 import { formatDate } from "@/lib/utils";
-import { AppRegistrationsSection, AppRegistrationsChecklist } from "@/components/EnterpriseAppsSection";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer,
+} from "recharts";
+import { useTheme } from "next-themes";
+import { summarizeIssues, getCollectionIssues } from "@/lib/collectionStatus";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -201,6 +205,15 @@ function SpDetailPanel({ sp }: { sp: ServicePrincipalItem }) {
 
 // ── main tab component ────────────────────────────────────────────────────────
 
+interface ConsentGrantRow {
+  app: string;
+  isFirstParty: boolean;
+  consentType: SpConsentGrant["consentType"];
+  resourceName: string;
+  scopes: string[];
+  isHighRisk: boolean;
+}
+
 type ViewFilter = "all" | "thirdParty" | "microsoft" | "managedIdentity";
 type RiskFilter = "all" | "high" | "medium" | "low";
 
@@ -209,6 +222,7 @@ export function ServicePrincipalsTab() {
   const loading = isLoading || isFetching;
   const data = spWithMetadata?.data;
   const fieldMetadata = spWithMetadata?.fieldMetadata ?? {};
+  const spIssue = summarizeIssues(getCollectionIssues(data));
 
   const metricToFieldMap: Record<string, string> = {
     "sp.total": "total",
@@ -232,6 +246,11 @@ export function ServicePrincipalsTab() {
 
   const C = { green: "#009118", red: "#A60808", yellow: "#eab308", blue: "#1E3D59" };
 
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
+  const tickColor = isDark ? "#98999C" : "#71717a";
+
   // ── filtered dataset ────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let list = data?.servicePrincipals ?? [];
@@ -241,6 +260,39 @@ export function ServicePrincipalsTab() {
     if (riskFilter !== "all")            list = list.filter((sp) => sp.riskLevel === riskFilter);
     return list;
   }, [data, viewFilter, riskFilter]);
+
+  // ── consent grants (aggregated across all service principals) ─────────────────
+  const consentRows = useMemo<ConsentGrantRow[]>(() => {
+    const rows: ConsentGrantRow[] = [];
+    for (const sp of data?.servicePrincipals ?? []) {
+      for (const grant of sp.consentGrants ?? []) {
+        rows.push({
+          app: sp.displayName,
+          isFirstParty: sp.isFirstParty,
+          consentType: grant.consentType,
+          resourceName: grant.resourceName,
+          scopes: grant.scopes,
+          isHighRisk: grant.isHighRisk,
+        });
+      }
+    }
+    // High-risk and tenant-wide grants surface first.
+    return rows.sort((a, b) =>
+      Number(b.isHighRisk) - Number(a.isHighRisk) ||
+      Number(b.consentType === "AllPrincipals") - Number(a.consentType === "AllPrincipals"),
+    );
+  }, [data]);
+
+  const consentExposure = useMemo(() => {
+    let orgWide = 0, user = 0;
+    for (const row of consentRows) {
+      if (row.consentType === "AllPrincipals") orgWide += 1; else user += 1;
+    }
+    return [
+      { type: "Tenant-wide (admin)", count: orgWide, color: "#A60808" },
+      { type: "User-specific", count: user, color: "#1E3D59" },
+    ];
+  }, [consentRows]);
 
   // ── column definitions ──────────────────────────────────────────────────────
   const columns = useMemo<ColumnDef<ServicePrincipalItem>[]>(() => [
@@ -442,7 +494,7 @@ export function ServicePrincipalsTab() {
   return (
     <div className="space-y-4">
 
-      <CollapsibleSection title="Summary" description="Service principal counts and risk overview" storageKey="sp-summary" defaultOpen={true} density="compact">
+      <CollapsibleSection title="Summary" description="Service principal counts and risk overview" storageKey="sp-summary" defaultOpen={true} density="compact" issue={spIssue}>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KPICard
           title="Total SPs"
@@ -491,17 +543,6 @@ export function ServicePrincipalsTab() {
           confidenceLabel={getMetricMeta("sp.withHighRiskGrants")?.confidenceLabel}
         />
       </div>
-      </CollapsibleSection>
-
-      {/* ── APP REGISTRATIONS ────────────────────────────────────────────────────── */}
-      <CollapsibleSection
-        title="Enterprise Application Registrations"
-        storageKey="enterprise-app-registrations-section"
-        description="Application registrations, credentials, permissions, and governance posture."
-        defaultOpen={true}
-        density="compact"
-      >
-        <AppRegistrationsSection />
       </CollapsibleSection>
 
       {/* ── ENTERPRISE APPS & SERVICE PRINCIPALS ────────────────────────────────── */}
@@ -636,6 +677,78 @@ export function ServicePrincipalsTab() {
           )}
       </CollapsibleSection>
 
+      {/* ── OAUTH CONSENT GRANTS ─────────────────────────────────────────────────── */}
+      <CollapsibleSection
+        title="OAuth Consent Grants"
+        description="Tenant-wide (admin) versus user-specific consent across enterprise apps"
+        storageKey="sp-consent-grants"
+        defaultOpen={true}
+        density="compact"
+        issue={spIssue}
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-1">
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={consentExposure} layout="vertical" margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fill: tickColor, fontSize: 12 }} />
+                <YAxis type="category" dataKey="type" width={120} tick={{ fill: tickColor, fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: isDark ? "#1c1c1f" : "#fff", border: `1px solid ${gridColor}`, borderRadius: 8, fontSize: 12 }} />
+                <Bar dataKey="count" name="Grants" radius={[0, 4, 4, 0]}>
+                  {consentExposure.map((entry) => (
+                    <Cell key={entry.type} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="lg:col-span-2 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Application</TableHead>
+                  <TableHead>Consent</TableHead>
+                  <TableHead>Resource</TableHead>
+                  <TableHead>Scopes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {consentRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
+                      {loading ? "Loading consent grants…" : "No OAuth consent grants found."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  consentRows.slice(0, 100).map((row, i) => (
+                    <TableRow key={`${row.app}-${row.resourceName}-${i}`}>
+                      <TableCell className="font-medium">
+                        {row.app}
+                        {row.isFirstParty && <Badge variant="outline" className="ml-1.5 text-[10px]">Microsoft</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={row.consentType === "AllPrincipals" ? "destructive" : "secondary"} className="text-[10px]">
+                          {row.consentType === "AllPrincipals" ? "Tenant-wide" : "User-specific"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{row.resourceName}</TableCell>
+                      <TableCell className="text-xs max-w-[280px]">
+                        <span className={row.isHighRisk ? "text-red-600 dark:text-red-400 font-medium break-words" : "break-words"}>
+                          {row.scopes.join(", ") || "—"}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            {consentRows.length > 100 && (
+              <p className="mt-2 text-xs text-muted-foreground">Showing first 100 of {consentRows.length} grants.</p>
+            )}
+          </div>
+        </div>
+      </CollapsibleSection>
+
       <CollapsibleSection title="Risk Overview" description="High-risk grants, stale apps, and most-used applications" storageKey="sp-risk-overview" defaultOpen={true} density="compact">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
@@ -718,17 +831,6 @@ export function ServicePrincipalsTab() {
           </Card>
 
         </div>
-      </CollapsibleSection>
-
-      {/* ── SECURITY CHECKLIST ───────────────────────────────────────────────── */}
-      <CollapsibleSection
-        title="Security Check List"
-        description="Enterprise Applications (EA) — security controls assessment"
-        storageKey="enterprise-apps-checklist-section"
-        defaultOpen={false}
-        density="compact"
-      >
-        <AppRegistrationsChecklist />
       </CollapsibleSection>
 
     </div>

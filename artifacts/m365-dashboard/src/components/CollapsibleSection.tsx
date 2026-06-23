@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { SectionStatusBanner } from "@/components/SectionStatusBanner";
+import { issueKindLabel, type IssueSummary } from "@/lib/collectionStatus";
 
 interface CollapsibleSectionProps {
   title: React.ReactNode;
@@ -13,6 +15,8 @@ interface CollapsibleSectionProps {
   className?: string;
   contentClassName?: string;
   density?: "default" | "compact";
+  /** When set, a status banner is rendered above the content and a marker in the header. */
+  issue?: IssueSummary | null;
 }
 
 function usePersistedToggle(storageKey: string | undefined, defaultOpen: boolean) {
@@ -50,6 +54,7 @@ export function CollapsibleSection({
   className,
   contentClassName,
   density = "default",
+  issue,
 }: CollapsibleSectionProps) {
   const [open, toggle, setOpen] = usePersistedToggle(storageKey, defaultOpen);
   const isCompact = density === "compact";
@@ -79,6 +84,15 @@ export function CollapsibleSection({
         <div className="flex-1 min-w-0">
           <div className="text-base font-semibold leading-none tracking-tight flex items-center gap-2 flex-wrap">
             {title}
+            {issue && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-300"
+                title={issue.message}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                {issueKindLabel(issue.kind)}
+              </span>
+            )}
           </div>
           {description && (
             <p className={`${isCompact ? "text-[11px] mt-0.5" : "text-xs mt-1"} text-muted-foreground`}>{description}</p>
@@ -97,6 +111,7 @@ export function CollapsibleSection({
       </CardHeader>
       {open && (
         <CardContent className={`${isCompact ? "pt-0 px-4 pb-3" : "pt-0"} ${contentClassName ?? ""}`}>
+          <SectionStatusBanner issue={issue} />
           {children}
         </CardContent>
       )}

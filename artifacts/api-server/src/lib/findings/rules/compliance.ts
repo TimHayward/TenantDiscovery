@@ -20,7 +20,7 @@ export const complianceRules: RuleDefinition<ComplianceData>[] = [
     severity: "high",
     metricId: "compliance.checklist.7.1.backup",
     remediation: "Deploy a Microsoft 365 backup (native or third-party) covering Exchange, SharePoint, OneDrive and Teams.",
-    evaluate: () => ({ checkStatus: "manual" }),
+    evaluate: () => [{ checkStatus: "manual" }],
   },
   {
     ruleId: "compliance.checklist.7.1.backupTest",
@@ -30,7 +30,7 @@ export const complianceRules: RuleDefinition<ComplianceData>[] = [
     severity: "medium",
     metricId: "compliance.checklist.7.1.backupTest",
     remediation: "Perform and document a test restore to validate recovery objectives.",
-    evaluate: () => ({ checkStatus: "manual" }),
+    evaluate: () => [{ checkStatus: "manual" }],
   },
   {
     ruleId: "compliance.checklist.7.2.auditLogging",
@@ -43,7 +43,7 @@ export const complianceRules: RuleDefinition<ComplianceData>[] = [
     evaluate: (d) => {
       if (!d) return null;
       const enabled = (d.auditLogEnabled && d.unifiedAuditLogEnabled) ?? false;
-      return { checkStatus: enabled ? "pass" : "fail", detail: enabled ? "Enabled" : "Not enabled" };
+      return [{ checkStatus: enabled ? "pass" : "fail", detail: enabled ? "Enabled" : "Not enabled" }];
     },
   },
   {
@@ -54,7 +54,7 @@ export const complianceRules: RuleDefinition<ComplianceData>[] = [
     severity: "medium",
     metricId: "compliance.checklist.7.2.auditRetention",
     remediation: "Configure audit log retention policies to meet your retention requirements.",
-    evaluate: () => ({ checkStatus: "manual" }),
+    evaluate: () => [{ checkStatus: "manual" }],
   },
   {
     ruleId: "compliance.checklist.7.3.retentionPolicies",
@@ -68,10 +68,10 @@ export const complianceRules: RuleDefinition<ComplianceData>[] = [
       if (!d) return null;
       // Manual when the retention labels API was unavailable; otherwise pass/fail on count.
       if (d.retentionEvidence !== "apiBacked" || d.retentionLabelCount == null) {
-        return { checkStatus: "manual" };
+        return [{ checkStatus: "manual" }];
       }
       const n = d.retentionLabelCount;
-      return { checkStatus: n > 0 ? "pass" : "fail", detail: `${n} retention labels published` };
+      return [{ checkStatus: n > 0 ? "pass" : "fail", detail: `${n} retention labels published` }];
     },
   },
   {
@@ -85,7 +85,7 @@ export const complianceRules: RuleDefinition<ComplianceData>[] = [
     evaluate: (d) => {
       if (!d) return null;
       const n = d.sensitivityLabels ?? 0;
-      return { checkStatus: n > 0 ? "pass" : "fail", detail: `${n} labels configured` };
+      return [{ checkStatus: n > 0 ? "pass" : "fail", detail: `${n} labels configured` }];
     },
   },
   {
@@ -96,7 +96,7 @@ export const complianceRules: RuleDefinition<ComplianceData>[] = [
     severity: "low",
     metricId: "compliance.checklist.7.4.autoLabeling",
     remediation: "Configure auto-labelling policies for sensitive information types.",
-    evaluate: () => ({ checkStatus: "manual" }),
+    evaluate: () => [{ checkStatus: "manual" }],
   },
   {
     ruleId: "compliance.checklist.7.5.dlpPolicies",
@@ -110,10 +110,10 @@ export const complianceRules: RuleDefinition<ComplianceData>[] = [
       if (!d) return null;
       const total = d.dlpPolicies ?? 0;
       const active = d.activeDlpPolicies ?? 0;
-      if (total === 0) return { checkStatus: "fail", detail: "No DLP policies found" };
+      if (total === 0) return [{ checkStatus: "fail", detail: "No DLP policies found" }];
       return active > 0
-        ? { checkStatus: "pass", detail: `${active} active DLP policies` }
-        : { checkStatus: "warning", detail: `${total} policies (none active)` };
+        ? [{ checkStatus: "pass", detail: `${active} active DLP policies` }]
+        : [{ checkStatus: "warning", detail: `${total} policies (none active)` }];
     },
   },
   {
@@ -124,6 +124,6 @@ export const complianceRules: RuleDefinition<ComplianceData>[] = [
     severity: "medium",
     metricId: "compliance.checklist.7.5.dlpCoverage",
     remediation: "Extend DLP coverage to Exchange, SharePoint, Teams and endpoint locations.",
-    evaluate: () => ({ checkStatus: "manual" }),
+    evaluate: () => [{ checkStatus: "manual" }],
   },
 ];

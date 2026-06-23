@@ -82,7 +82,7 @@ export function computeNeedsOnboarding(args: {
   return !allAcknowledged;
 }
 
-function getRequiredApplicationPermissions(): string[] {
+export function getRequiredApplicationPermissions(): string[] {
   return permissionsManifest.permissions
     .filter(
       (permission) =>
@@ -117,7 +117,7 @@ function escapeGraphFilterLiteral(value: string): string {
   return value.replace(/'/g, "''");
 }
 
-async function getConfiguredApplicationPermissions(
+export async function getConfiguredApplicationPermissions(
   clientId: string,
 ): Promise<{ permissions: string[]; appDisplayName: string | null; permissionCheckError: string | null }> {
   const graphSpResponse = await fetchGraphJson<GraphServicePrincipalResponse>(

@@ -1,4 +1,5 @@
-import type { RuleDefinition } from "./helpers.js";
+import type { RuleDefinition, RuleOutcome } from "./helpers.js";
+import type { Severity } from "../types.js";
 
 /** Minimal shape of the m365-security snapshot consumed by these rules. */
 interface SecurityData {
@@ -6,7 +7,19 @@ interface SecurityData {
   mfaEnabledPercent?: number;
   enabledCAPs?: number;
   riskyUsers?: number;
-  secureScoreControls?: Array<{ status?: string }>;
+  riskyUsersDetail?: Array<{
+    id?: string;
+    displayName?: string;
+    userPrincipalName?: string;
+    riskLevel?: string;
+    riskState?: string;
+  }>;
+  secureScoreControls?: Array<{
+    status?: string;
+    controlName?: string;
+    title?: string;
+    controlCategory?: string;
+  }>;
   mfaMethodsBreakdown?: Array<{ strength?: string; count?: number }>;
 }
 
@@ -22,7 +35,7 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     evaluate: (d) => {
       if (!d) return null;
       const pct = d.secureScorePercent ?? 0;
-      return { checkStatus: pct >= 70 ? "pass" : pct >= 50 ? "warning" : "fail", detail: `${pct}%` };
+      return [{ checkStatus: pct >= 70 ? "pass" : pct >= 50 ? "warning" : "fail", detail: `${pct}%` }];
     },
   },
   {
@@ -36,7 +49,7 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     evaluate: (d) => {
       if (!d) return null;
       const pct = d.mfaEnabledPercent ?? 0;
-      return { checkStatus: pct >= 90 ? "pass" : pct >= 75 ? "warning" : "fail", detail: `${pct}% coverage` };
+      return [{ checkStatus: pct >= 90 ? "pass" : pct >= 75 ? "warning" : "fail", detail: `${pct}% coverage` }];
     },
   },
   {
@@ -50,21 +63,33 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     evaluate: (d) => {
       if (!d) return null;
       const n = d.enabledCAPs ?? 0;
-      return { checkStatus: n >= 3 ? "pass" : n > 0 ? "warning" : "fail", detail: `${n} enabled` };
+      return [{ checkStatus: n >= 3 ? "pass" : n > 0 ? "warning" : "fail", detail: `${n} enabled` }];
     },
   },
   {
     ruleId: "security.checklist.6.4.riskyUsers",
     category: "security",
-    title: "Risky users are identified and remediated",
-    description: "Risky user backlog is managed",
+    title: "Risky user",
+    description: "Identity Protection flagged this user as risky",
     severity: "high",
     metricId: "security.checklist.6.4.riskyUsers",
     remediation: "Investigate and remediate risky users in Identity Protection; require password reset where appropriate.",
     evaluate: (d) => {
       if (!d) return null;
-      const n = d.riskyUsers ?? 0;
-      return { checkStatus: n === 0 ? "pass" : n <= 5 ? "warning" : "fail", detail: `${n} risky users` };
+      const users = d.riskyUsersDetail ?? [];
+      return users.map((u) => {
+        const level = (u.riskLevel ?? "none").toLowerCase();
+        const severity: Severity = level === "high" ? "high" : level === "low" ? "low" : "medium";
+        const label = u.userPrincipalName || u.displayName || u.id || "unknown";
+        return {
+          target: u.id ?? label,
+          targetLabel: label,
+          severity,
+          checkStatus: level === "low" ? "warning" : "fail",
+          detail: `risk ${u.riskLevel ?? "unknown"}${u.riskState ? `, ${u.riskState}` : ""}`,
+          evidence: u,
+        } satisfies RuleOutcome;
+      });
     },
   },
   {
@@ -75,7 +100,7 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     severity: "medium",
     metricId: "security.checklist.6.5.riskDetectionResponse",
     remediation: "Document and evidence the SOC triage SLA for Identity Protection risk detections.",
-    evaluate: () => ({ checkStatus: "manual" }),
+    evaluate: () => [{ checkStatus: "manual" }],
   },
   {
     ruleId: "security.checklist.6.6.phishingResistantMfa",
@@ -88,8 +113,8 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     evaluate: (d) => {
       const count = d?.mfaMethodsBreakdown?.find((m) => m.strength === "Phishing-resistant")?.count ?? 0;
       return count > 0
-        ? { checkStatus: "warning", detail: `${count} users registered` }
-        : { checkStatus: "manual" };
+        ? [{ checkStatus: "warning", detail: `${count} users registered` }]
+        : [{ checkStatus: "manual" }];
     },
   },
   {
@@ -100,20 +125,30 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     severity: "high",
     metricId: "security.checklist.6.7.legacyAuthBlocked",
     remediation: "Block legacy authentication via Conditional Access and confirm no break-glass exceptions remain.",
-    evaluate: () => ({ checkStatus: "manual" }),
+    evaluate: () => [{ checkStatus: "manual" }],
   },
   {
     ruleId: "security.checklist.6.8.controlBacklog",
     category: "security",
-    title: "Secure Score control backlog is tracked",
-    description: "Not-configured Secure Score controls are actively reduced",
+    title: "Secure Score control not configured",
+    description: "A Secure Score control has not been configured",
     severity: "medium",
     metricId: "security.checklist.6.8.controlBacklog",
     remediation: "Prioritise and remediate the not-configured Secure Score controls.",
     evaluate: (d) => {
       if (!d) return null;
-      const n = (d.secureScoreControls ?? []).filter((c) => c.status === "notConfigured").length;
-      return { checkStatus: n === 0 ? "pass" : n <= 10 ? "warning" : "fail", detail: `${n} not configured` };
+      return (d.secureScoreControls ?? [])
+        .filter((c) => c.status === "notConfigured")
+        .map((c) => {
+          const label = c.title || c.controlName || "unknown control";
+          return {
+            target: c.controlName ?? label,
+            targetLabel: label,
+            checkStatus: "fail",
+            detail: c.controlCategory ? `category ${c.controlCategory}` : undefined,
+            evidence: c,
+          } satisfies RuleOutcome;
+        });
     },
   },
   {
@@ -124,6 +159,6 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     severity: "medium",
     metricId: "security.checklist.6.9.incidentResponse",
     remediation: "Review and test incident-response runbooks; record the last validation date.",
-    evaluate: () => ({ checkStatus: "manual" }),
+    evaluate: () => [{ checkStatus: "manual" }],
   },
 ];

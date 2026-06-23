@@ -6,7 +6,7 @@ import {
   RefreshCw, ChevronDown, Printer, Sun, Moon, PanelLeftClose, PanelLeftOpen,
   LayoutDashboard, Users, CreditCard, Shield, Mail,
   MessageSquare, ClipboardCheck, Smartphone, Swords, AppWindow, TrendingUp, BarChart2,
-  Database, X, ListChecks, Download,
+  Database, X, ListChecks, Download, KeyRound,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useGetM365Overview, useGetM365DataSources } from "@workspace/api-client-react";
@@ -22,6 +22,7 @@ import { ComplianceTab } from "./tabs/ComplianceTab";
 import { FindingsTab } from "./tabs/FindingsTab";
 import { IntuneTab } from "./tabs/IntuneTab";
 import { ServicePrincipalsTab } from "./tabs/ServicePrincipalsTab";
+import { AppsTab } from "./tabs/AppsTab";
 import { DefenderTab } from "./tabs/DefenderTab";
 import { AdoptionTab } from "./tabs/AdoptionTab";
 import { PowerBITab } from "./tabs/PowerBITab";
@@ -46,6 +47,7 @@ const NAV_ITEMS = [
   { value: "intune",             label: "Intune",               icon: Smartphone      },
   { value: "defender",           label: "Defender",             icon: Swords          },
   { value: "service-principals", label: "Enterprise Apps",      icon: AppWindow       },
+  { value: "apps",               label: "Apps & Permissions",   icon: KeyRound        },
   { value: "adoption",           label: "Adoption",             icon: TrendingUp      },
   { value: "power-bi",           label: "Power BI",             icon: BarChart2       },
 ] as const;
@@ -121,11 +123,16 @@ const NAV_SECTIONS: Partial<Record<NavValue, Array<NavSectionLink>>> = {
   ],
   "service-principals": [
     { label: "Summary",                        id: "sp-summary"                 },
-    { label: "Enterprise App Registrations",   id: "enterprise-app-registrations-section" },
     { label: "Service Principals & Consent",   id: "service-principals-main"   },
+    { label: "OAuth Consent Grants",           id: "sp-consent-grants"          },
     { label: "Risk Overview",                  id: "sp-risk-overview"           },
-    { label: "Security Check List",            id: "enterprise-apps-checklist-section" },
     { label: "Value Gaps",                     id: "adoption-value-gaps", tab: "adoption" },
+  ],
+  apps: [
+    { label: "Summary",                  id: "apps-summary"            },
+    { label: "App Registration Inventory", id: "apps-inventory"        },
+    { label: "Credential Expiry Timeline", id: "apps-credential-expiry" },
+    { label: "App Governance Check List", id: "apps-checklist"         },
   ],
   adoption: [
     { label: "Adoption Summary",             id: "adoption-summary" },
@@ -720,6 +727,7 @@ export default function Dashboard() {
             {visitedTabs.has("intune")             && <div className={activeTab === "intune"             ? "" : "hidden"}><TabErrorBoundary><IntuneTab /></TabErrorBoundary></div>}
             {visitedTabs.has("defender")           && <div className={activeTab === "defender"           ? "" : "hidden"}><TabErrorBoundary><DefenderTab /></TabErrorBoundary></div>}
             {visitedTabs.has("service-principals") && <div className={activeTab === "service-principals" ? "" : "hidden"}><TabErrorBoundary><ServicePrincipalsTab /></TabErrorBoundary></div>}
+            {visitedTabs.has("apps")               && <div className={activeTab === "apps"               ? "" : "hidden"}><TabErrorBoundary><AppsTab /></TabErrorBoundary></div>}
             {visitedTabs.has("adoption")           && <div className={activeTab === "adoption"           ? "" : "hidden"}><TabErrorBoundary><AdoptionTab /></TabErrorBoundary></div>}
             {visitedTabs.has("power-bi")           && <div className={activeTab === "power-bi"           ? "" : "hidden"}><TabErrorBoundary><PowerBITab /></TabErrorBoundary></div>}
 
