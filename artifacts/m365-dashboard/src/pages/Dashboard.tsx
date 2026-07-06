@@ -6,7 +6,7 @@ import {
   RefreshCw, ChevronDown, Printer, Sun, Moon, PanelLeftClose, PanelLeftOpen,
   LayoutDashboard, Users, CreditCard, Shield, Mail,
   MessageSquare, ClipboardCheck, Smartphone, Swords, AppWindow, TrendingUp, BarChart2,
-  Database, X, ListChecks, Download, KeyRound,
+  Database, X, ListChecks, Download, KeyRound, ShieldCheck,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useGetM365Overview, useGetM365DataSources } from "@workspace/api-client-react";
@@ -20,6 +20,7 @@ import { ExchangeTab } from "./tabs/ExchangeTab";
 import { TeamsSharePointTab } from "./tabs/TeamsSharePointTab";
 import { ComplianceTab } from "./tabs/ComplianceTab";
 import { FindingsTab } from "./tabs/FindingsTab";
+import { FrameworkMappingTab } from "./tabs/FrameworkMappingTab";
 import { IntuneTab } from "./tabs/IntuneTab";
 import { ServicePrincipalsTab } from "./tabs/ServicePrincipalsTab";
 import { AppsTab } from "./tabs/AppsTab";
@@ -35,9 +36,31 @@ const INTERVAL_OPTIONS = [
   { label: "Every 1 hour", ms: 60 * 60 * 1000 },
 ];
 
+// Control-plane queries that must not be refetched by a data refresh: re-running
+// onboarding-status can flip the app to the onboarding screen, and collection
+// status is invalidated deliberately where needed.
+const CONTROL_PLANE_KEYS = new Set(["onboarding-status", "m365-collection-status"]);
+
+/**
+ * Invalidate only the M365 data queries (generated hooks keyed by `/api/m365/*`
+ * and the custom raw-fetch queries keyed by `m365-*`), leaving control-plane
+ * queries intact. A bare `invalidateQueries()` refetches everything and, combined
+ * with tabs keying loading off `isFetching`, blanks every tab on each refresh.
+ */
+function invalidateM365Data(queryClient: ReturnType<typeof useQueryClient>): void {
+  queryClient.invalidateQueries({
+    predicate: (query) => {
+      const first = query.queryKey[0];
+      if (typeof first !== "string" || CONTROL_PLANE_KEYS.has(first)) return false;
+      return first.startsWith("/api/m365/") || first.startsWith("m365-");
+    },
+  });
+}
+
 const NAV_ITEMS = [
   { value: "overview",           label: "Overview",             icon: LayoutDashboard },
   { value: "findings",           label: "Findings",             icon: ListChecks      },
+  { value: "frameworks",         label: "Framework Mapping",    icon: ShieldCheck     },
   { value: "users",              label: "Users & Identity",     icon: Users           },
   { value: "licenses",           label: "Licenses",             icon: CreditCard      },
   { value: "security",           label: "Security",             icon: Shield          },
@@ -68,6 +91,10 @@ const NAV_SECTIONS: Partial<Record<NavValue, Array<NavSectionLink>>> = {
   findings: [
     { label: "Findings Summary",  id: "findings-summary"  },
     { label: "Findings Register", id: "findings-register" },
+  ],
+  frameworks: [
+    { label: "CIS Microsoft 365",      id: "framework-CIS-M365" },
+    { label: "NCSC Cyber Essentials",  id: "framework-NCSC-CE"  },
   ],
   users: [
     { label: "Summary",                    id: "users-summary"                   },
@@ -244,7 +271,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (selectedIntervalMs === 0) return;
     const interval = setInterval(() => {
-      queryClient.invalidateQueries();
+      invalidateM365Data(queryClient);
     }, selectedIntervalMs);
     return () => clearInterval(interval);
   }, [selectedIntervalMs, queryClient]);
@@ -292,7 +319,7 @@ export default function Dashboard() {
   }, [activeTab, scrollTrigger]);
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries();
+    invalidateM365Data(queryClient);
   };
 
   const handleRefreshData = async () => {
@@ -314,7 +341,7 @@ export default function Dashboard() {
     if (collectionStatus?.isCollecting) {
       refreshObservedCollecting.current = true;
     } else if (refreshObservedCollecting.current) {
-      queryClient.invalidateQueries();
+      invalidateM365Data(queryClient);
       setIsRefreshing(false);
     }
   }, [collectionStatus, isRefreshing, queryClient]);
@@ -718,6 +745,7 @@ export default function Dashboard() {
             {/* Tab content — lazy-mounted on first visit, then kept in DOM to preserve React Query cache */}
             {visitedTabs.has("overview")           && <div className={activeTab === "overview"           ? "" : "hidden"}><TabErrorBoundary><OverviewTab /></TabErrorBoundary></div>}
             {visitedTabs.has("findings")           && <div className={activeTab === "findings"           ? "" : "hidden"}><TabErrorBoundary><FindingsTab /></TabErrorBoundary></div>}
+            {visitedTabs.has("frameworks")         && <div className={activeTab === "frameworks"         ? "" : "hidden"}><TabErrorBoundary><FrameworkMappingTab /></TabErrorBoundary></div>}
             {visitedTabs.has("users")              && <div className={activeTab === "users"              ? "" : "hidden"}><TabErrorBoundary><UsersTab /></TabErrorBoundary></div>}
             {visitedTabs.has("licenses")           && <div className={activeTab === "licenses"           ? "" : "hidden"}><TabErrorBoundary><LicensesTab /></TabErrorBoundary></div>}
             {visitedTabs.has("security")           && <div className={activeTab === "security"           ? "" : "hidden"}><TabErrorBoundary><SecurityTab /></TabErrorBoundary></div>}

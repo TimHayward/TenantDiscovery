@@ -5,22 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { CSVLink } from "react-csv";
-import { Download } from "lucide-react";
+import { ExportBtn } from "@/components/ExportBtn";
+import { DataTable } from "@/components/DataTable";
 import { useTheme } from "next-themes";
 import { formatCompact, formatDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
-} from "@tanstack/react-table";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { SharePointSiteItem, TeamsTeamActivityItem } from "@workspace/api-client-react";
@@ -28,13 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 import { useQuery } from "@tanstack/react-query";
 
-const CHART_COLORS = {
-  blue: "#1E3D59",
-  purple: "#795EFF",
-  green: "#009118",
-  red: "#A60808",
-  pink: "#ec4899",
-};
+import { chartPalette as CHART_COLORS } from "@/lib/chartPalette";
 
 const topTeamsColumns: ColumnDef<TeamsTeamActivityItem>[] = [
   {
@@ -186,7 +170,7 @@ export function TeamsSharePointTab() {
   const sharePointPolicies = sharePointPoliciesWithMetadata?.data;
   const sharingData = sharingSummaryData?.data;
 
-  const teamsBySizeBreakdown = (teamsData?.teamsBySize ?? []).map((item) => {
+  const teamsBySizeBreakdown = useMemo(() => (teamsData?.teamsBySize ?? []).map((item) => {
     const breakdown = item as typeof item & {
       totalTeamSize?: number;
       owners?: number;
@@ -202,7 +186,7 @@ export function TeamsSharePointTab() {
       guests: breakdown.guests ?? 0,
       count: item.count,
     };
-  });
+  }), [teamsData]);
 
   const registryItems =
     (dataSources as {
@@ -460,9 +444,7 @@ export function TeamsSharePointTab() {
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
 
-  const [topTeamsSorting, setTopTeamsSorting] = useState<SortingState>([]);
   const [topTeamsGlobalFilter, setTopTeamsGlobalFilter] = useState("");
-  const [spSorting, setSpSorting] = useState<SortingState>([]);
   const [spGlobalFilter, setSpGlobalFilter] = useState("");
   const [spActiveFilter, setSpActiveFilter] = useState<"all" | "active" | "inactive">("all");
   const [spTeamFilter, setSpTeamFilter] = useState<"all" | "assigned" | "unassigned">("all");
@@ -475,32 +457,6 @@ export function TeamsSharePointTab() {
     if (spTeamFilter === "unassigned") sites = sites.filter(s => !s.assignedTeamName);
     return sites;
   }, [spData?.sites, spActiveFilter, spTeamFilter]);
-
-  const topTeamsTable = useReactTable({
-    data: teamsData?.topTeams || [],
-    columns: topTeamsColumns,
-    state: { sorting: topTeamsSorting, globalFilter: topTeamsGlobalFilter },
-    onSortingChange: setTopTeamsSorting,
-    onGlobalFilterChange: setTopTeamsGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  });
-
-  const spTable = useReactTable({
-    data: filteredSites,
-    columns: spColumns,
-    state: { sorting: spSorting, globalFilter: spGlobalFilter },
-    onSortingChange: setSpSorting,
-    onGlobalFilterChange: setSpGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 5 } },
-  });
 
   return (
     <div className="space-y-4">
@@ -549,11 +505,7 @@ export function TeamsSharePointTab() {
           <Card>
             <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Teams by Size</CardTitle>
-              {!teamsLoading && teamsData?.teamsBySize && teamsData.teamsBySize.length > 0 && (
-                <CSVLink data={teamsData.teamsBySize} filename="teams-by-size.csv" className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }} aria-label="Export chart data as CSV">
-                  <Download className="w-3.5 h-3.5" />
-                </CSVLink>
-              )}
+              {!teamsLoading && <ExportBtn filename="teams-by-size.csv" data={teamsData?.teamsBySize ?? []} ariaLabel="Export chart data as CSV" />}
             </CardHeader>
             <CardContent>
               {teamsLoading ? <Skeleton className="w-full h-[250px]" /> : (
@@ -626,67 +578,16 @@ export function TeamsSharePointTab() {
                   onChange={(e) => setTopTeamsGlobalFilter(e.target.value)}
                   className="max-w-sm"
                 />
-                {(teamsData?.topTeams?.length ?? 0) > 0 && (
-                  <CSVLink
-                    data={teamsData!.topTeams}
-                    filename="most-active-teams.csv"
-                    className="print:hidden flex items-center gap-1.5 px-3 h-9 rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    Export CSV
-                  </CSVLink>
-                )}
+                <ExportBtn filename="most-active-teams.csv" data={teamsData?.topTeams ?? []} variant="button" />
               </div>
 
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    {topTeamsTable.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none">
-                            <div className="flex items-center gap-2">
-                              {flexRender(header.column.columnDef.header, header.getContext())}
-                              {{ asc: " 🔼", desc: " 🔽" }[header.column.getIsSorted() as string] ?? null}
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {topTeamsTable.getRowModel().rows.length > 0 ? (
-                      topTeamsTable.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={topTeamsColumns.length} className="h-24 text-center text-muted-foreground">
-                          No Teams activity data available for the last 30 days.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {topTeamsTable.getState().pagination.pageIndex * topTeamsTable.getState().pagination.pageSize + (topTeamsTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)} to{" "}
-                  {Math.min((topTeamsTable.getState().pagination.pageIndex + 1) * topTeamsTable.getState().pagination.pageSize, topTeamsTable.getFilteredRowModel().rows.length)}{" "}
-                  of {topTeamsTable.getFilteredRowModel().rows.length} results
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => topTeamsTable.previousPage()} disabled={!topTeamsTable.getCanPreviousPage()}>Previous</Button>
-                  <Button variant="outline" size="sm" onClick={() => topTeamsTable.nextPage()} disabled={!topTeamsTable.getCanNextPage()}>Next</Button>
-                </div>
-              </div>
+              <DataTable
+                columns={topTeamsColumns}
+                data={teamsData?.topTeams || []}
+                globalFilter={topTeamsGlobalFilter}
+                pageSize={10}
+                emptyMessage="No Teams activity data available for the last 30 days."
+              />
             </div>
           )}
         </CollapsibleSection>
@@ -771,16 +672,7 @@ export function TeamsSharePointTab() {
                       onChange={(e) => setSpGlobalFilter(e.target.value)}
                       className="max-w-sm"
                     />
-                    {filteredSites.length > 0 && (
-                      <CSVLink
-                        data={filteredSites}
-                        filename="sharepoint-sites.csv"
-                        className="print:hidden flex items-center gap-1.5 px-3 h-9 rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        Export CSV
-                      </CSVLink>
-                    )}
+                    <ExportBtn filename="sharepoint-sites.csv" data={filteredSites} variant="button" />
                   </div>
                   <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-1">
@@ -808,55 +700,13 @@ export function TeamsSharePointTab() {
                   </div>
                 </div>
 
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      {spTable.getHeaderGroups().map((headerGroup) => (
-                        <TableRow key={headerGroup.id}>
-                          {headerGroup.headers.map((header) => (
-                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none">
-                              <div className="flex items-center gap-2">
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                {{ asc: " 🔼", desc: " 🔽" }[header.column.getIsSorted() as string] ?? null}
-                              </div>
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableHeader>
-                    <TableBody>
-                      {spTable.getRowModel().rows.length > 0 ? (
-                        spTable.getRowModel().rows.map((row) => (
-                          <TableRow key={row.id}>
-                            {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id}>
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={spColumns.length} className="h-24 text-center text-muted-foreground">
-                            No results found.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {spTable.getState().pagination.pageIndex * spTable.getState().pagination.pageSize + (spTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)} to{" "}
-                    {Math.min((spTable.getState().pagination.pageIndex + 1) * spTable.getState().pagination.pageSize, spTable.getFilteredRowModel().rows.length)}{" "}
-                    of {spTable.getFilteredRowModel().rows.length} results
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => spTable.previousPage()} disabled={!spTable.getCanPreviousPage()}>Previous</Button>
-                    <Button variant="outline" size="sm" onClick={() => spTable.nextPage()} disabled={!spTable.getCanNextPage()}>Next</Button>
-                  </div>
-                </div>
+                <DataTable
+                  columns={spColumns}
+                  data={filteredSites}
+                  globalFilter={spGlobalFilter}
+                  pageSize={5}
+                  emptyMessage="No results found."
+                />
               </div>
             )}
         </CollapsibleSection>

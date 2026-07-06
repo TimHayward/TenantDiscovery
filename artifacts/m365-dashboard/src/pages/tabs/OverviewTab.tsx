@@ -7,25 +7,28 @@ import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ConnectionTestPanel } from "@/components/ConnectionTestPanel";
+import { summarizeIssues, getCollectionIssues } from "@/lib/collectionStatus";
+import {
+  calculateLicenseStats,
+  isVisibleBillableLicense,
+  LICENSES_HIDDEN_SKUS_CHANGED_EVENT,
+  readHiddenLicenseSkus,
+} from "@/lib/licenseFilters";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { CSVLink } from "react-csv";
 import { Download } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
+import { useEffect, useMemo, useState } from "react";
 
-const CHART_COLORS = {
-  blue: "#1E3D59",
-  purple: "#795EFF",
-  green: "#009118",
-  red: "#A60808",
-  pink: "#ec4899",
-};
+import { chartPalette as CHART_COLORS } from "@/lib/chartPalette";
 
 export function OverviewTab() {
   const { data: overviewWithMetadata, isLoading: isOverviewLoading, isFetching: isOverviewFetching } = useGetM365OverviewWithMetadata();
   const { data: licensesWithMetadata, isLoading: isLicensesLoading, isFetching: isLicensesFetching } = useGetM365LicensesWithMetadata();
   const { data: healthWithMetadata, isLoading: isHealthLoading, isFetching: isHealthFetching } = useGetM365ServiceHealthWithMetadata();
+  const [hiddenSkus, setHiddenSkus] = useState<Set<string>>(() => readHiddenLicenseSkus());
   
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -38,13 +41,43 @@ export function OverviewTab() {
   const overview = overviewWithMetadata?.data;
   const licenses = licensesWithMetadata?.data;
   const health = healthWithMetadata?.data;
+  const licenseIssue = summarizeIssues(getCollectionIssues(licenses));
 
-  const licenseData = licenses?.licenses.slice(0, 5) || [];
+  useEffect(() => {
+    const refreshHiddenSkus = () => setHiddenSkus(readHiddenLicenseSkus());
+    window.addEventListener("storage", refreshHiddenSkus);
+    window.addEventListener("focus", refreshHiddenSkus);
+    window.addEventListener(LICENSES_HIDDEN_SKUS_CHANGED_EVENT, refreshHiddenSkus);
+    return () => {
+      window.removeEventListener("storage", refreshHiddenSkus);
+      window.removeEventListener("focus", refreshHiddenSkus);
+      window.removeEventListener(LICENSES_HIDDEN_SKUS_CHANGED_EVENT, refreshHiddenSkus);
+    };
+  }, []);
+
+  const visibleBillableLicenses = useMemo(
+    () => (licenses?.licenses ?? []).filter((lic) => isVisibleBillableLicense(lic, hiddenSkus)),
+    [licenses?.licenses, hiddenSkus],
+  );
+  const licenseData = visibleBillableLicenses.slice(0, 5);
+  const licenseStatsFromRows = useMemo(
+    () => calculateLicenseStats(visibleBillableLicenses),
+    [visibleBillableLicenses],
+  );
+  const overviewLicenseUtilizationPercent = overview && overview.totalLicenses > 0
+    ? Math.round((overview.assignedLicenses / overview.totalLicenses) * 100)
+    : undefined;
+  const licenseUtilizationPercent = visibleBillableLicenses.length > 0 && licenseStatsFromRows.totalLicenses > 0
+    ? licenseStatsFromRows.utilizationPercent
+    : licenses && !licenses.partialData
+      ? undefined
+      : overviewLicenseUtilizationPercent;
+  const licenseUtilizationIssue = licenseUtilizationPercent == null ? licenseIssue : null;
 
   const metricToFieldMap: Record<string, { source: "overview" | "licenses" | "health"; field: string }> = {
     "overview.totalUsers": { source: "overview", field: "totalUsers" },
     "overview.activeUsers": { source: "overview", field: "activeUsers" },
-    "overview.licenseUtilization": { source: "overview", field: "assignedLicenses" },
+    "overview.licenseUtilization": { source: "licenses", field: "utilizationPercent" },
     "overview.secureScore": { source: "overview", field: "secureScore" },
     "overview.mfaCoverage": { source: "overview", field: "mfaEnabledPercent" },
     "overview.servicesHealthy": { source: "overview", field: "activeServices" },
@@ -81,11 +114,13 @@ export function OverviewTab() {
         />
         <KPICard
           title="License Utilization"
-          value={overview ? `${overview.totalLicenses > 0 ? Math.round((overview.assignedLicenses / overview.totalLicenses) * 100) : 0}%` : undefined}
+          value={licenseUtilizationPercent == null ? undefined : `${licenseUtilizationPercent}%`}
           loading={loading}
           density="compact"
           evidenceStatus={getMetricMeta("overview.licenseUtilization")?.evidenceStatus}
           confidenceLabel={getMetricMeta("overview.licenseUtilization")?.confidenceLabel}
+          issueKind={licenseUtilizationIssue?.kind}
+          issueMessage={licenseUtilizationIssue?.message}
         />
         <KPICard
           title="Secure Score"

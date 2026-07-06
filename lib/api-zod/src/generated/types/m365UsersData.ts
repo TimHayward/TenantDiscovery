@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GhostUserItem } from './ghostUserItem';
+import type { M365UsersDataMfaDataSource } from './m365UsersDataMfaDataSource';
+import type { M365UsersDataMfaEnforcementSignal } from './m365UsersDataMfaEnforcementSignal';
+import type { M365UsersDataSignInDataSource } from './m365UsersDataSignInDataSource';
 import type { M365UsersDataUsersByDepartmentItem } from './m365UsersDataUsersByDepartmentItem';
 import type { UserItem } from './userItem';
 
@@ -15,12 +18,16 @@ export interface M365UsersData {
   disabledUsers: number;
   guestUsers: number;
   memberUsers: number;
-  mfaEnabled: number;
-  mfaDisabled: number;
+  mfaEnabled: number | null;
+  mfaDisabled: number | null;
   neverSignedIn: number;
   usersByDepartment: M365UsersDataUsersByDepartmentItem[];
   users: UserItem[];
   ghostUsers: GhostUserItem[];
   ghostLicensedCount: number;
   estimatedMonthlyWaste: number;
+  signInDataSource: M365UsersDataSignInDataSource;
+  signInFallbackCount: number;
+  mfaDataSource: M365UsersDataMfaDataSource;
+  mfaEnforcementSignal: M365UsersDataMfaEnforcementSignal;
 }

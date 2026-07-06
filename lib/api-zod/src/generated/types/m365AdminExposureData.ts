@@ -7,26 +7,28 @@
  */
 import type { AdminExposureUserItem } from './adminExposureUserItem';
 import type { CollectionIssue } from './collectionIssue';
+import type { M365AdminExposureDataRoleDataSource } from './m365AdminExposureDataRoleDataSource';
 
 export interface M365AdminExposureData {
   permanentGlobalAdminsCount: number;
   permanentGlobalAdminsWithProductivityCount: number;
   permanentAdminsCount: number;
   permanentAdminsWithProductivityCount: number;
-  eligibleGlobalAdminsCount: number;
-  eligibleGlobalAdminsWithProductivityCount: number;
-  eligibleAdminsCount: number;
-  eligibleAdminsWithProductivityCount: number;
+  eligibleGlobalAdminsCount: number | null;
+  eligibleGlobalAdminsWithProductivityCount: number | null;
+  eligibleAdminsCount: number | null;
+  eligibleAdminsWithProductivityCount: number | null;
   permanentGlobalAdmins: AdminExposureUserItem[];
   permanentGlobalAdminsWithProductivity: AdminExposureUserItem[];
   permanentAdmins: AdminExposureUserItem[];
   permanentAdminsWithProductivity: AdminExposureUserItem[];
-  eligibleGlobalAdmins: AdminExposureUserItem[];
-  eligibleGlobalAdminsWithProductivity: AdminExposureUserItem[];
-  eligibleAdmins: AdminExposureUserItem[];
-  eligibleAdminsWithProductivity: AdminExposureUserItem[];
-  eligibleAssignmentCount: number;
-  dormantEligibleCount: number;
+  eligibleGlobalAdmins: AdminExposureUserItem[] | null;
+  eligibleGlobalAdminsWithProductivity: AdminExposureUserItem[] | null;
+  eligibleAdmins: AdminExposureUserItem[] | null;
+  eligibleAdminsWithProductivity: AdminExposureUserItem[] | null;
+  eligibleAssignmentCount: number | null;
+  dormantEligibleCount: number | null;
+  roleDataSource: M365AdminExposureDataRoleDataSource;
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];

@@ -32,6 +32,11 @@ const SKU_FRIENDLY_NAMES: Record<string, string> = {
   "EMSPREMIUM": "Enterprise Mobility + Security E5",
 };
 
+function numeric(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export async function collectLicenses() {
   const collectionIssues: CollectionIssue[] = [];
   const graphClient = await getGraphClient();
@@ -53,11 +58,12 @@ export async function collectLicenses() {
   let availableLicenses = 0;
 
   const licenses = skus.map((sku: any) => {
-    const total = sku.prepaidUnits?.enabled ?? 0;
-    const assigned = sku.consumedUnits ?? 0;
+    const assigned = numeric(sku.consumedUnits);
+    const enabled = numeric(sku.prepaidUnits?.enabled);
+    const suspended = numeric(sku.prepaidUnits?.suspended);
+    const warning = numeric(sku.prepaidUnits?.warning);
+    const total = enabled > 0 ? enabled : assigned;
     const available = Math.max(0, total - assigned);
-    const suspended = sku.prepaidUnits?.suspended ?? 0;
-    const warning = sku.prepaidUnits?.warning ?? 0;
 
     totalLicenses += total;
     assignedLicenses += assigned;

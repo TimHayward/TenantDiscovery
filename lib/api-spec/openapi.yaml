@@ -609,6 +609,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/FindingsRegisterResponse"
 
+  /m365/findings/frameworks:
+    get:
+      operationId: getM365FrameworkCoverage
+      tags: [m365]
+      summary: Framework control coverage (CIS Microsoft 365, NCSC Cyber Essentials) derived from findings
+      responses:
+        "200":
+          description: Per-framework control coverage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FrameworkCoverageResponse"
+
   /m365/findings/{fingerprint}:
     patch:
       operationId: patchM365Finding
@@ -1132,9 +1145,13 @@ components:
           type: string
         mfaEnabled:
           type: boolean
+          nullable: true
         lastSignIn:
           type: string
           nullable: true
+        lastSignInSource:
+          type: string
+          enum: [graph, usageReportFallback, none]
         assignedLicenses:
           type: integer
         department:
@@ -1151,6 +1168,7 @@ components:
         - userType
         - mfaEnabled
         - lastSignIn
+        - lastSignInSource
         - assignedLicenses
         - department
         - jobTitle
@@ -1170,8 +1188,10 @@ components:
           type: integer
         mfaEnabled:
           type: integer
+          nullable: true
         mfaDisabled:
           type: integer
+          nullable: true
         neverSignedIn:
           type: integer
         usersByDepartment:
@@ -1196,6 +1216,17 @@ components:
           type: integer
         estimatedMonthlyWaste:
           type: number
+        signInDataSource:
+          type: string
+          enum: [graphAuditLog, usageReportFallback, unavailable]
+        signInFallbackCount:
+          type: integer
+        mfaDataSource:
+          type: string
+          enum: [graph, unavailable]
+        mfaEnforcementSignal:
+          type: string
+          enum: [securityDefaults, conditionalAccess, none, unknown]
       required:
         - totalUsers
         - activeUsers
@@ -1210,6 +1241,10 @@ components:
         - ghostUsers
         - ghostLicensedCount
         - estimatedMonthlyWaste
+        - signInDataSource
+        - signInFallbackCount
+        - mfaDataSource
+        - mfaEnforcementSignal
 
     M365UsersDataWithMetadata:
       type: object
@@ -1260,12 +1295,16 @@ components:
           type: integer
         eligibleGlobalAdminsCount:
           type: integer
+          nullable: true
         eligibleGlobalAdminsWithProductivityCount:
           type: integer
+          nullable: true
         eligibleAdminsCount:
           type: integer
+          nullable: true
         eligibleAdminsWithProductivityCount:
           type: integer
+          nullable: true
 
         permanentGlobalAdmins:
           type: array
@@ -1285,25 +1324,34 @@ components:
             $ref: "#/components/schemas/AdminExposureUserItem"
         eligibleGlobalAdmins:
           type: array
+          nullable: true
           items:
             $ref: "#/components/schemas/AdminExposureUserItem"
         eligibleGlobalAdminsWithProductivity:
           type: array
+          nullable: true
           items:
             $ref: "#/components/schemas/AdminExposureUserItem"
         eligibleAdmins:
           type: array
+          nullable: true
           items:
             $ref: "#/components/schemas/AdminExposureUserItem"
         eligibleAdminsWithProductivity:
           type: array
+          nullable: true
           items:
             $ref: "#/components/schemas/AdminExposureUserItem"
 
         eligibleAssignmentCount:
           type: integer
+          nullable: true
         dormantEligibleCount:
           type: integer
+          nullable: true
+        roleDataSource:
+          type: string
+          enum: [unifiedRbac, directoryRolesFallback]
         partialData:
           type: boolean
         permissionError:
@@ -1331,6 +1379,7 @@ components:
         - eligibleAdminsWithProductivity
         - eligibleAssignmentCount
         - dormantEligibleCount
+        - roleDataSource
         - partialData
         - permissionError
         - collectionIssues
@@ -2006,6 +2055,24 @@ components:
           type: boolean
         mxConfigured:
           type: boolean
+        spfRecord:
+          type: string
+          nullable: true
+          description: The published SPF TXT record, when found.
+        dmarcPolicy:
+          type: string
+          nullable: true
+          description: The DMARC policy (p= value) from the published _dmarc record.
+        dkimSource:
+          type: string
+          enum: [exchange, dns, none]
+          description: Source of the DKIM determination — Exchange Online (authoritative), DNS selector CNAME fallback, or none.
+        expectedSpf:
+          type: boolean
+          description: Whether Microsoft's recommended service-configuration records include an SPF record.
+        expectedMx:
+          type: boolean
+          description: Whether Microsoft's recommended service-configuration records include an MX record.
       required: [domain, hasSpf, hasDkim, hasDmarc, mxConfigured]
 
     M365ExchangeDataWithMetadata:
@@ -2397,6 +2464,85 @@ components:
                 type: integer
           required: [bySeverity, byStatus]
       required: [findings, total, summary]
+
+    FrameworkControlCoverage:
+      type: object
+      properties:
+        framework:
+          type: string
+        controlId:
+          type: string
+        title:
+          type: string
+        requirement:
+          type: string
+        severity:
+          $ref: "#/components/schemas/FindingSeverity"
+        status:
+          type: string
+          enum: [pass, fail, warning, manual, notAssessed]
+        findingCount:
+          type: integer
+        failCount:
+          type: integer
+        warningCount:
+          type: integer
+        manualCount:
+          type: integer
+        passCount:
+          type: integer
+      required:
+        - framework
+        - controlId
+        - title
+        - requirement
+        - severity
+        - status
+        - findingCount
+        - failCount
+        - warningCount
+        - manualCount
+        - passCount
+
+    FrameworkCoverage:
+      type: object
+      properties:
+        framework:
+          type: string
+        name:
+          type: string
+        controls:
+          type: array
+          items:
+            $ref: "#/components/schemas/FrameworkControlCoverage"
+        summary:
+          type: object
+          properties:
+            totalControls:
+              type: integer
+            pass:
+              type: integer
+            fail:
+              type: integer
+            warning:
+              type: integer
+            manual:
+              type: integer
+            notAssessed:
+              type: integer
+            coveragePercent:
+              type: integer
+          required: [totalControls, pass, fail, warning, manual, notAssessed, coveragePercent]
+      required: [framework, name, controls, summary]
+
+    FrameworkCoverageResponse:
+      type: object
+      properties:
+        frameworks:
+          type: array
+          items:
+            $ref: "#/components/schemas/FrameworkCoverage"
+      required: [frameworks]
 
     FindingStateUpdate:
       type: object

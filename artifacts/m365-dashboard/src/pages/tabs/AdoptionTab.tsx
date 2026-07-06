@@ -14,34 +14,21 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { CSVLink } from "react-csv";
-import { Download } from "lucide-react";
+import { ExportBtn } from "@/components/ExportBtn";
+import { DataTable } from "@/components/DataTable";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  type ColumnDef,
-  type SortingState,
-  flexRender,
-} from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import type { WorkloadAdoptionItem, WorkloadDepthMetrics } from "@workspace/api-client-react";
 
+import { chartPalette } from "@/lib/chartPalette";
+
 const CHART_COLORS = {
-  d30: "#1E3D59",
-  d90: "#795EFF",
-  d180: "#009118",
-  valueGap: "#A60808",
+  d30: chartPalette.blue,
+  d90: chartPalette.purple,
+  d180: chartPalette.green,
+  valueGap: chartPalette.red,
   warning: "#d97706",
 };
 
@@ -186,19 +173,6 @@ export function AdoptionTab() {
 
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
-
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "adoptionPercent", desc: false },
-  ]);
-
-  const table = useReactTable({
-    data: data?.workloads ?? [],
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
 
   const trendData = useMemo(() => {
     if (!data?.workloads) return [];
@@ -352,20 +326,7 @@ export function AdoptionTab() {
           <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Workload Adoption by Period</CardTitle>
             {!loading && csvData.length > 0 && (
-              <CSVLink
-                data={csvData}
-                filename="workload-adoption.csv"
-                className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80"
-                style={{
-                  backgroundColor: isDark
-                    ? "rgba(255,255,255,0.1)"
-                    : "#F0F1F2",
-                  color: isDark ? "#c8c9cc" : "#4b5563",
-                }}
-                aria-label="Export adoption data as CSV"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </CSVLink>
+              <ExportBtn filename="workload-adoption.csv" data={csvData} ariaLabel="Export adoption data as CSV" />
             )}
           </CardHeader>
           <CardContent>
@@ -526,67 +487,13 @@ export function AdoptionTab() {
             ))}
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        onClick={header.column.getToggleSortingHandler()}
-                        className="cursor-pointer select-none"
-                      >
-                        <div className="flex items-center gap-1">
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                          {
-                            { asc: " ↑", desc: " ↓" }[
-                              header.column.getIsSorted() as string
-                            ] ?? null
-                          }
-                        </div>
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.length > 0 ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className={
-                        row.original.isValueGap
-                          ? "bg-red-50/40 dark:bg-red-950/20"
-                          : undefined
-                      }
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center text-muted-foreground"
-                    >
-                      No workload data available.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={data?.workloads ?? []}
+            initialSorting={[{ id: "adoptionPercent", desc: false }]}
+            emptyMessage="No workload data available."
+            rowClassName={(w) => (w.isValueGap ? "bg-red-50/40 dark:bg-red-950/20" : "")}
+          />
         )}
       </CollapsibleSection>
     </div>

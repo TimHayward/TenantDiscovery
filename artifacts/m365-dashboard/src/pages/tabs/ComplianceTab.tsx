@@ -11,33 +11,16 @@ import { PermissionCodeList } from "@/components/PermissionCodeList";
 import { COMPLIANCE_SENSITIVITY_LABELS_PERMISSIONS } from "@/lib/permissions";
 import { AlertTriangle, CheckCircle, Info, Lock, Tag } from "lucide-react";
 import { useState } from "react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
-} from "@tanstack/react-table";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { CSVLink } from "react-csv";
-import { Download } from "lucide-react";
+import { ExportBtn } from "@/components/ExportBtn";
+import { DataTable } from "@/components/DataTable";
 import type { SensitivityLabelItem } from "@workspace/api-client-react";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
-const CHART_COLORS = {
-  blue: "#1E3D59",
-  purple: "#795EFF",
-  green: "#009118",
-  red: "#A60808",
-  pink: "#ec4899",
-  yellow: "#eab308",
-  gray: "#9ca3af",
-};
+import { chartPalette } from "@/lib/chartPalette";
+
+const CHART_COLORS = { ...chartPalette, gray: "#9ca3af" };
 
 const labelColumns: ColumnDef<SensitivityLabelItem>[] = [
   {
@@ -252,21 +235,7 @@ export function ComplianceTab() {
     { name: "Remaining", value: scoreMax - scoreValue },
   ];
 
-  const [labelSorting, setLabelSorting] = useState<SortingState>([{ id: "sensitivity", desc: true }]);
   const [labelFilter, setLabelFilter] = useState("");
-
-  const labelTable = useReactTable({
-    data: compliance?.sensitivityLabelsList ?? [],
-    columns: labelColumns,
-    state: { sorting: labelSorting, globalFilter: labelFilter },
-    onSortingChange: setLabelSorting,
-    onGlobalFilterChange: setLabelFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  });
 
   return (
     <div className="space-y-4">
@@ -390,27 +359,23 @@ export function ComplianceTab() {
         title="Sensitivity Labels"
         storageKey="compliance-sensitivity-labels"
         description={!compLoading ? `${compliance?.sensitivityLabelsList.length ?? 0} labels configured` : undefined}
-        actions={compliance && compliance.sensitivityLabelsList.length > 0 ? (
-            <CSVLink
-              data={compliance.sensitivityLabelsList.map(l => ({
-                Name: l.name,
-                Tooltip: l.tooltip,
-                SensitivityOrder: l.sensitivity,
-                Color: l.color,
-                HasProtection: l.hasProtection,
-                ContentFormats: (l.contentFormats ?? []).join(", "),
-                Active: l.isActive,
-                Appliable: l.isAppliable,
-                Type: l.parent ? "Sub-label" : "Top-level",
-              }))}
-              filename="sensitivity-labels.csv"
-              className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80"
-              style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
-              aria-label="Export labels as CSV"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </CSVLink>
-          ) : undefined}
+        actions={
+          <ExportBtn
+            filename="sensitivity-labels.csv"
+            ariaLabel="Export labels as CSV"
+            data={(compliance?.sensitivityLabelsList ?? []).map((l) => ({
+              Name: l.name,
+              Tooltip: l.tooltip,
+              SensitivityOrder: l.sensitivity,
+              Color: l.color,
+              HasProtection: l.hasProtection,
+              ContentFormats: (l.contentFormats ?? []).join(", "),
+              Active: l.isActive,
+              Appliable: l.isAppliable,
+              Type: l.parent ? "Sub-label" : "Top-level",
+            }))}
+          />
+        }
       >
         {compLoading ? (
           <div className="space-y-2">
@@ -445,63 +410,15 @@ export function ComplianceTab() {
                   onChange={(e) => setLabelFilter(e.target.value)}
                   className="max-w-sm"
                 />
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      {labelTable.getHeaderGroups().map((hg) => (
-                        <TableRow key={hg.id}>
-                          {hg.headers.map((header) => (
-                            <TableHead
-                              key={header.id}
-                              onClick={header.column.getToggleSortingHandler()}
-                              className="cursor-pointer select-none"
-                            >
-                              <div className="flex items-center gap-1">
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                              </div>
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableHeader>
-                    <TableBody>
-                      {labelTable.getRowModel().rows.length > 0 ? (
-                        labelTable.getRowModel().rows.map((row) => (
-                          <TableRow key={row.id}>
-                            {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id}>
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={labelColumns.length} className="h-20 text-center text-muted-foreground">
-                            No labels match the search.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Showing{" "}
-                    {labelTable.getState().pagination.pageIndex * labelTable.getState().pagination.pageSize + (labelTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)}{" "}
-                    to{" "}
-                    {Math.min(
-                      (labelTable.getState().pagination.pageIndex + 1) * labelTable.getState().pagination.pageSize,
-                      labelTable.getFilteredRowModel().rows.length
-                    )}{" "}
-                    of {labelTable.getFilteredRowModel().rows.length}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => labelTable.previousPage()} disabled={!labelTable.getCanPreviousPage()}>Previous</Button>
-                    <Button variant="outline" size="sm" onClick={() => labelTable.nextPage()} disabled={!labelTable.getCanNextPage()}>Next</Button>
-                  </div>
-                </div>
+                <DataTable
+                  columns={labelColumns}
+                  data={compliance?.sensitivityLabelsList ?? []}
+                  globalFilter={labelFilter}
+                  initialSorting={[{ id: "sensitivity", desc: true }]}
+                  pageSize={10}
+                  rowNoun="labels"
+                  emptyMessage="No labels match the search."
+                />
               </div>
         )}
       </CollapsibleSection>

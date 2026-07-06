@@ -91,8 +91,8 @@ export const GetM365UsersResponse = zod.object({
   "disabledUsers": zod.number(),
   "guestUsers": zod.number(),
   "memberUsers": zod.number(),
-  "mfaEnabled": zod.number(),
-  "mfaDisabled": zod.number(),
+  "mfaEnabled": zod.number().nullable(),
+  "mfaDisabled": zod.number().nullable(),
   "neverSignedIn": zod.number(),
   "usersByDepartment": zod.array(zod.object({
   "department": zod.string(),
@@ -104,8 +104,9 @@ export const GetM365UsersResponse = zod.object({
   "userPrincipalName": zod.string(),
   "accountEnabled": zod.boolean(),
   "userType": zod.string(),
-  "mfaEnabled": zod.boolean(),
+  "mfaEnabled": zod.boolean().nullable(),
   "lastSignIn": zod.string().nullable(),
+  "lastSignInSource": zod.enum(['graph', 'usageReportFallback', 'none']),
   "assignedLicenses": zod.number(),
   "department": zod.string().nullable(),
   "jobTitle": zod.string().nullable()
@@ -120,7 +121,11 @@ export const GetM365UsersResponse = zod.object({
   "estimatedMonthlyCost": zod.number()
 })),
   "ghostLicensedCount": zod.number(),
-  "estimatedMonthlyWaste": zod.number()
+  "estimatedMonthlyWaste": zod.number(),
+  "signInDataSource": zod.enum(['graphAuditLog', 'usageReportFallback', 'unavailable']),
+  "signInFallbackCount": zod.number(),
+  "mfaDataSource": zod.enum(['graph', 'unavailable']),
+  "mfaEnforcementSignal": zod.enum(['securityDefaults', 'conditionalAccess', 'none', 'unknown'])
 })
 
 
@@ -134,8 +139,8 @@ export const GetM365UsersWithMetadataResponse = zod.object({
   "disabledUsers": zod.number(),
   "guestUsers": zod.number(),
   "memberUsers": zod.number(),
-  "mfaEnabled": zod.number(),
-  "mfaDisabled": zod.number(),
+  "mfaEnabled": zod.number().nullable(),
+  "mfaDisabled": zod.number().nullable(),
   "neverSignedIn": zod.number(),
   "usersByDepartment": zod.array(zod.object({
   "department": zod.string(),
@@ -147,8 +152,9 @@ export const GetM365UsersWithMetadataResponse = zod.object({
   "userPrincipalName": zod.string(),
   "accountEnabled": zod.boolean(),
   "userType": zod.string(),
-  "mfaEnabled": zod.boolean(),
+  "mfaEnabled": zod.boolean().nullable(),
   "lastSignIn": zod.string().nullable(),
+  "lastSignInSource": zod.enum(['graph', 'usageReportFallback', 'none']),
   "assignedLicenses": zod.number(),
   "department": zod.string().nullable(),
   "jobTitle": zod.string().nullable()
@@ -163,7 +169,11 @@ export const GetM365UsersWithMetadataResponse = zod.object({
   "estimatedMonthlyCost": zod.number()
 })),
   "ghostLicensedCount": zod.number(),
-  "estimatedMonthlyWaste": zod.number()
+  "estimatedMonthlyWaste": zod.number(),
+  "signInDataSource": zod.enum(['graphAuditLog', 'usageReportFallback', 'unavailable']),
+  "signInFallbackCount": zod.number(),
+  "mfaDataSource": zod.enum(['graph', 'unavailable']),
+  "mfaEnforcementSignal": zod.enum(['securityDefaults', 'conditionalAccess', 'none', 'unknown'])
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
   "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
@@ -183,10 +193,10 @@ export const GetM365AdminExposureResponse = zod.object({
   "permanentGlobalAdminsWithProductivityCount": zod.number(),
   "permanentAdminsCount": zod.number(),
   "permanentAdminsWithProductivityCount": zod.number(),
-  "eligibleGlobalAdminsCount": zod.number(),
-  "eligibleGlobalAdminsWithProductivityCount": zod.number(),
-  "eligibleAdminsCount": zod.number(),
-  "eligibleAdminsWithProductivityCount": zod.number(),
+  "eligibleGlobalAdminsCount": zod.number().nullable(),
+  "eligibleGlobalAdminsWithProductivityCount": zod.number().nullable(),
+  "eligibleAdminsCount": zod.number().nullable(),
+  "eligibleAdminsWithProductivityCount": zod.number().nullable(),
   "permanentGlobalAdmins": zod.array(zod.object({
   "id": zod.string(),
   "displayName": zod.string(),
@@ -226,7 +236,7 @@ export const GetM365AdminExposureResponse = zod.object({
   "accountEnabled": zod.boolean(),
   "roles": zod.array(zod.string()),
   "hasProductivityLicense": zod.boolean()
-})),
+})).nullable(),
   "eligibleGlobalAdminsWithProductivity": zod.array(zod.object({
   "id": zod.string(),
   "displayName": zod.string(),
@@ -234,7 +244,7 @@ export const GetM365AdminExposureResponse = zod.object({
   "accountEnabled": zod.boolean(),
   "roles": zod.array(zod.string()),
   "hasProductivityLicense": zod.boolean()
-})),
+})).nullable(),
   "eligibleAdmins": zod.array(zod.object({
   "id": zod.string(),
   "displayName": zod.string(),
@@ -242,7 +252,7 @@ export const GetM365AdminExposureResponse = zod.object({
   "accountEnabled": zod.boolean(),
   "roles": zod.array(zod.string()),
   "hasProductivityLicense": zod.boolean()
-})),
+})).nullable(),
   "eligibleAdminsWithProductivity": zod.array(zod.object({
   "id": zod.string(),
   "displayName": zod.string(),
@@ -250,9 +260,10 @@ export const GetM365AdminExposureResponse = zod.object({
   "accountEnabled": zod.boolean(),
   "roles": zod.array(zod.string()),
   "hasProductivityLicense": zod.boolean()
-})),
-  "eligibleAssignmentCount": zod.number(),
-  "dormantEligibleCount": zod.number(),
+})).nullable(),
+  "eligibleAssignmentCount": zod.number().nullable(),
+  "dormantEligibleCount": zod.number().nullable(),
+  "roleDataSource": zod.enum(['unifiedRbac', 'directoryRolesFallback']),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
   "collectionIssues": zod.array(zod.object({
@@ -699,7 +710,12 @@ export const GetM365ExchangeResponse = zod.object({
   "hasSpf": zod.boolean(),
   "hasDkim": zod.boolean(),
   "hasDmarc": zod.boolean(),
-  "mxConfigured": zod.boolean()
+  "mxConfigured": zod.boolean(),
+  "spfRecord": zod.string().nullish().describe('The published SPF TXT record, when found.'),
+  "dmarcPolicy": zod.string().nullish().describe('The DMARC policy (p= value) from the published _dmarc record.'),
+  "dkimSource": zod.enum(['exchange', 'dns', 'none']).optional().describe('Source of the DKIM determination — Exchange Online (authoritative), DNS selector CNAME fallback, or none.'),
+  "expectedSpf": zod.boolean().optional().describe('Whether Microsoft\'s recommended service-configuration records include an SPF record.'),
+  "expectedMx": zod.boolean().optional().describe('Whether Microsoft\'s recommended service-configuration records include an MX record.')
 })),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
@@ -743,7 +759,12 @@ export const GetM365ExchangeWithMetadataResponse = zod.object({
   "hasSpf": zod.boolean(),
   "hasDkim": zod.boolean(),
   "hasDmarc": zod.boolean(),
-  "mxConfigured": zod.boolean()
+  "mxConfigured": zod.boolean(),
+  "spfRecord": zod.string().nullish().describe('The published SPF TXT record, when found.'),
+  "dmarcPolicy": zod.string().nullish().describe('The DMARC policy (p= value) from the published _dmarc record.'),
+  "dkimSource": zod.enum(['exchange', 'dns', 'none']).optional().describe('Source of the DKIM determination — Exchange Online (authoritative), DNS selector CNAME fallback, or none.'),
+  "expectedSpf": zod.boolean().optional().describe('Whether Microsoft\'s recommended service-configuration records include an SPF record.'),
+  "expectedMx": zod.boolean().optional().describe('Whether Microsoft\'s recommended service-configuration records include an MX record.')
 })),
   "partialData": zod.boolean(),
   "permissionError": zod.boolean(),
@@ -1886,6 +1907,39 @@ export const GetM365FindingsResponse = zod.object({
   "bySeverity": zod.record(zod.string(), zod.number()),
   "byStatus": zod.record(zod.string(), zod.number())
 })
+})
+
+
+/**
+ * @summary Framework control coverage (CIS Microsoft 365, NCSC Cyber Essentials) derived from findings
+ */
+export const GetM365FrameworkCoverageResponse = zod.object({
+  "frameworks": zod.array(zod.object({
+  "framework": zod.string(),
+  "name": zod.string(),
+  "controls": zod.array(zod.object({
+  "framework": zod.string(),
+  "controlId": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "severity": zod.enum(['critical', 'high', 'medium', 'low', 'info']),
+  "status": zod.enum(['pass', 'fail', 'warning', 'manual', 'notAssessed']),
+  "findingCount": zod.number(),
+  "failCount": zod.number(),
+  "warningCount": zod.number(),
+  "manualCount": zod.number(),
+  "passCount": zod.number()
+})),
+  "summary": zod.object({
+  "totalControls": zod.number(),
+  "pass": zod.number(),
+  "fail": zod.number(),
+  "warning": zod.number(),
+  "manual": zod.number(),
+  "notAssessed": zod.number(),
+  "coveragePercent": zod.number()
+})
+}))
 })
 
 

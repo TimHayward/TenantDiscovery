@@ -9,6 +9,16 @@ export type CheckStatus = "pass" | "fail" | "warning" | "manual";
 /** User-managed remediation lifecycle for a finding. */
 export type FindingStatus = "open" | "acknowledged" | "remediated" | "suppressed";
 
+/** Recognised security baselines a rule can map onto. Data-driven so more can be added. */
+export type FrameworkId = "CIS-M365" | "NCSC-CE";
+
+/** A binding from a finding/rule to a specific control in a recognised framework. */
+export interface FrameworkRef {
+  framework: FrameworkId;
+  /** Control identifier within the framework (e.g. CIS "1.1.1", Cyber Essentials "SAC"). */
+  controlId: string;
+}
+
 export const FINDING_STATUSES: FindingStatus[] = [
   "open",
   "acknowledged",
@@ -34,6 +44,8 @@ export interface Finding {
   metricId?: string;
   remediation?: string;
   evidence?: unknown;
+  /** Recognised-framework controls this finding contributes evidence to. */
+  frameworks?: FrameworkRef[];
 }
 
 /** A finding joined with its persisted lifecycle state and timestamps. */

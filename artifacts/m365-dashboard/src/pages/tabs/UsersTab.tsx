@@ -1,6 +1,8 @@
 import { useGetM365AdminExposure, useGetM365UsersWithMetadata, useGetM365Security } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
+import { ExportBtn } from "@/components/ExportBtn";
+import { DataTable } from "@/components/DataTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,23 +10,14 @@ import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { CSVLink } from "react-csv";
 import {
-  Download, AlertTriangle, Clock, UserX, ShieldOff,
+  AlertTriangle, Clock, UserX, ShieldOff,
   ClipboardList, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState, useMemo } from "react";
-import {
-  useReactTable, getCoreRowModel, getSortedRowModel,
-  getFilteredRowModel, getPaginationRowModel, flexRender,
-  type ColumnDef, type SortingState,
-} from "@tanstack/react-table";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import type { UserItem } from "@workspace/api-client-react";
@@ -32,16 +25,16 @@ import type { AdminExposureUserItem } from "@workspace/api-client-react";
 
 // ── palette ───────────────────────────────────────────────────────────────────
 
-const C = {
-  blue:   "#1E3D59",
-  purple: "#795EFF",
-  green:  "#009118",
-  red:    "#A60808",
-  pink:   "#ec4899",
-  yellow: "#eab308",
-  orange: "#f97316",
+import { chartPalette as C, chartSeries as PALETTE } from "@/lib/chartPalette";
+
+// Qualitative tenant-wide MFA-enforcement labels, used as a fallback when the
+// per-user MFA registration report is unavailable.
+const MFA_SIGNAL_LABEL: Record<string, string> = {
+  securityDefaults: "Enforced · Security Defaults",
+  conditionalAccess: "Enforced · CA policy",
+  none: "Not enforced",
+  unknown: "Unknown",
 };
-const PALETTE = [C.blue, C.purple, C.green, C.red, C.pink];
 
 // ── staleness helpers ─────────────────────────────────────────────────────────
 
@@ -128,7 +121,12 @@ const staleColumns: ColumnDef<StaleUser>[] = [
     accessorKey: "lastSignIn",
     header: "Last Sign-In",
     cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">{formatDate(row.original.lastSignIn) || "Never"}</span>
+      <span className="text-sm text-muted-foreground">
+        {formatDate(row.original.lastSignIn) || "Never"}
+        {row.original.lastSignInSource === "usageReportFallback" && (
+          <span className="ml-1 text-amber-600 dark:text-amber-400" title="Derived from Microsoft 365 usage reports (lower confidence — reflects service usage, not sign-in events)">~</span>
+        )}
+      </span>
     ),
   },
   {
@@ -178,7 +176,9 @@ const allColumns: ColumnDef<UserItem>[] = [
     accessorKey: "mfaEnabled",
     header: "MFA",
     cell: ({ row }) =>
-      row.original.mfaEnabled
+      row.original.mfaEnabled === null
+        ? <Badge variant="outline" className="text-muted-foreground font-normal text-xs" title="MFA registration report unavailable">Unknown</Badge>
+        : row.original.mfaEnabled
         ? <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 font-normal text-xs border-0">Enabled</Badge>
         : <Badge variant="outline" className="text-muted-foreground font-normal text-xs">Disabled</Badge>,
   },
@@ -195,7 +195,14 @@ const allColumns: ColumnDef<UserItem>[] = [
   {
     accessorKey: "lastSignIn",
     header: "Last Sign-In",
-    cell: ({ row }) => <span className="text-sm">{formatDate(row.original.lastSignIn) || "Never"}</span>,
+    cell: ({ row }) => (
+      <span className="text-sm">
+        {formatDate(row.original.lastSignIn) || "Never"}
+        {row.original.lastSignInSource === "usageReportFallback" && (
+          <span className="ml-1 text-amber-600 dark:text-amber-400" title="Derived from Microsoft 365 usage reports (lower confidence — reflects service usage, not sign-in events)">~</span>
+        )}
+      </span>
+    ),
   },
   {
     accessorKey: "accountEnabled",
@@ -258,21 +265,7 @@ function AdminExposureTableSection({
   rows: AdminExposureUserItem[];
   loading: boolean;
 }) {
-  const [sorting, setSorting] = useState<SortingState>([]);
   const [filter, setFilter] = useState("");
-
-  const table = useReactTable({
-    data: rows,
-    columns: adminExposureColumns,
-    state: { sorting, globalFilter: filter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  });
 
   return (
     <CollapsibleSection
@@ -294,59 +287,14 @@ function AdminExposureTableSection({
             onChange={(e) => setFilter(e.target.value)}
             className="max-w-sm"
           />
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((hg) => (
-                  <TableRow key={hg.id}>
-                    {hg.headers.map((header) => (
-                      <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap h-8 py-1">
-                        <div className="flex items-center gap-2">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                        </div>
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.length > 0 ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="py-1.5 align-top">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={adminExposureColumns.length} className="h-16 text-center text-muted-foreground">
-                      No results found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Showing{" "}
-              {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + (table.getFilteredRowModel().rows.length > 0 ? 1 : 0)}{" "}
-              –{" "}
-              {Math.min(
-                (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                table.getFilteredRowModel().rows.length
-              )}{" "}
-              of {table.getFilteredRowModel().rows.length}
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
-              <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
-            </div>
-          </div>
+          <DataTable
+            columns={adminExposureColumns}
+            data={rows}
+            globalFilter={filter}
+            pageSize={10}
+            rowNoun="users"
+            emptyMessage="No results found."
+          />
         </div>
       )}
     </CollapsibleSection>
@@ -368,10 +316,22 @@ export function UsersTab() {
   const loading = isLoading || isFetching;
 
   const data = usersWithMetadata?.data;
-  const fieldMetadata = usersWithMetadata?.fieldMetadata ?? {};
+  // Memoized so its reference only changes when the query data does, letting
+  // downstream memos depend on it without recomputing every render.
+  const fieldMetadata = useMemo(() => usersWithMetadata?.fieldMetadata ?? {}, [usersWithMetadata]);
   const adminExposureLoading = isAdminExposureLoading || isAdminExposureFetching;
 
   const getFieldMeta = (field: string) => fieldMetadata[field];
+
+  // When admin data comes from the legacy Directory Roles fallback, permanent
+  // figures are lower confidence and PIM-eligible figures are unassessable.
+  const adminFallback = adminExposure?.roleDataSource === "directoryRolesFallback";
+  const permanentEvidence = adminFallback
+    ? { evidenceStatus: "partial" as const, confidenceLabel: "low" as const }
+    : {};
+  const eligibleEvidence = adminFallback
+    ? { evidenceStatus: "notAssessed" as const, confidenceLabel: "unknown" as const }
+    : {};
 
   const CHECKLIST_FIELD_MAP: Record<string, string> = {
     "users.checklist.1.1.mfaAllUsers": "mfaEnabled",
@@ -420,7 +380,6 @@ export function UsersTab() {
   // ── stale table state ──────────────────────────────────────────────────────
   const [staleBucketFilter, setStaleBucketFilter] = useState<StaleBucket | "all">("all");
   const [staleFilter, setStaleFilter] = useState("");
-  const [staleSorting, setStaleSorting] = useState<SortingState>([{ id: "daysInactive", desc: true }]);
   const [selectedStaleUser, setSelectedStaleUser] = useState<StaleUser | null>(null);
 
   const staleRemediationBuckets = useMemo(() => {
@@ -435,35 +394,8 @@ export function UsersTab() {
     staleBucketFilter === "all" ? staleUsers : staleUsers.filter((u) => u.bucket === staleBucketFilter)
   ), [staleUsers, staleBucketFilter]);
 
-  const staleTable = useReactTable({
-    data: filteredStaleUsers,
-    columns: staleColumns,
-    state: { sorting: staleSorting, globalFilter: staleFilter },
-    onSortingChange: setStaleSorting,
-    onGlobalFilterChange: setStaleFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 15 } },
-  });
-
   // ── all-users table state ──────────────────────────────────────────────────
-  const [allSorting, setAllSorting] = useState<SortingState>([]);
   const [allFilter, setAllFilter] = useState("");
-
-  const allTable = useReactTable({
-    data: data?.users ?? [],
-    columns: allColumns,
-    state: { sorting: allSorting, globalFilter: allFilter },
-    onSortingChange: setAllSorting,
-    onGlobalFilterChange: setAllFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  });
 
   // ── donuts ─────────────────────────────────────────────────────────────────
   const typeDonut = data
@@ -475,16 +407,7 @@ export function UsersTab() {
     : [];
 
   const exportBtn = (filename: string, csvData: object[]) =>
-    !loading && csvData.length > 0 ? (
-      <CSVLink
-        data={csvData} filename={filename}
-        className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80"
-        style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
-        aria-label="Export CSV"
-      >
-        <Download className="w-3.5 h-3.5" />
-      </CSVLink>
-    ) : null;
+    loading ? null : <ExportBtn filename={filename} data={csvData} />;
 
   // ── Section 1: Entra ID security checklist ─────────────────────────────────
   const section1Groups = useMemo<ChecklistGroup[]>(() => {
@@ -710,7 +633,7 @@ export function UsersTab() {
         },
       ]},
     ];
-  }, [sec, data]);
+  }, [sec, data, fieldMetadata]);
 
   return (
     <div className="space-y-4">
@@ -751,14 +674,26 @@ export function UsersTab() {
           evidenceStatus={getFieldMeta("guestUsers")?.evidenceStatus}
           confidenceLabel={getFieldMeta("guestUsers")?.confidenceLabel}
         />
-        <KPICard
-          title="MFA Enabled"
-          value={data ? `${Math.round((data.mfaEnabled / (data.totalUsers || 1)) * 100)}%` : undefined}
-          loading={loading}
-          density="compact"
-          evidenceStatus={getFieldMeta("mfaEnabled")?.evidenceStatus}
-          confidenceLabel={getFieldMeta("mfaEnabled")?.confidenceLabel}
-        />
+        {data?.mfaDataSource === "unavailable" ? (
+          <KPICard
+            title="MFA Enforcement (fallback)"
+            value={MFA_SIGNAL_LABEL[data.mfaEnforcementSignal] ?? "Unknown"}
+            loading={loading}
+            density="compact"
+            valueColor={C.blue}
+            evidenceStatus={getFieldMeta("mfaEnabled")?.evidenceStatus}
+            confidenceLabel={getFieldMeta("mfaEnabled")?.confidenceLabel}
+          />
+        ) : (
+          <KPICard
+            title="MFA Enabled"
+            value={data && data.mfaEnabled != null ? `${Math.round((data.mfaEnabled / (data.totalUsers || 1)) * 100)}%` : undefined}
+            loading={loading}
+            density="compact"
+            evidenceStatus={getFieldMeta("mfaEnabled")?.evidenceStatus}
+            confidenceLabel={getFieldMeta("mfaEnabled")?.confidenceLabel}
+          />
+        )}
       </div>
 
       {/* ── Type donut + Dept bar ────────────────────────────────────────────── */}
@@ -820,6 +755,14 @@ export function UsersTab() {
       {/* ── STALE ACCOUNTS ───────────────────────────────────────────────────── */}
       <CollapsibleSection title="Stale Accounts" description="Accounts with no sign-in activity — potential security and licensing risk" storageKey="users-stale-section" defaultOpen={true} density="compact">
         <div className="space-y-3">
+
+        {data && data.signInDataSource !== "graphAuditLog" && (
+          <div className="rounded-md border border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-900 dark:text-amber-300">
+            {data.signInDataSource === "usageReportFallback"
+              ? `Sign-in activity (AuditLog.Read.All) is unavailable. Last-activity dates are derived from Microsoft 365 usage reports${data.signInFallbackCount > 0 ? ` (${data.signInFallbackCount} account${data.signInFallbackCount === 1 ? "" : "s"} backfilled)` : ""} and marked with “~” — these reflect service usage rather than sign-in events, so treat staleness with lower confidence.`
+              : "Sign-in activity is unavailable — neither Graph sign-in logs nor Microsoft 365 usage reports could be read. Stale-account counts below cannot be assessed and may be inaccurate."}
+          </div>
+        )}
 
         {/* Stale KPI cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1016,69 +959,16 @@ export function UsersTab() {
                   </div>
                 </div>
 
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      {staleTable.getHeaderGroups().map((hg) => (
-                        <TableRow key={hg.id}>
-                          {hg.headers.map((header) => (
-                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap h-8 py-1">
-                              <div className="flex items-center gap-1">
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                              </div>
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableHeader>
-                    <TableBody>
-                      {staleTable.getRowModel().rows.length > 0 ? (
-                        staleTable.getRowModel().rows.map((row) => {
-                          const isSelected = selectedStaleUser?.id === row.original.id;
-                          const rowColor = BUCKET_META[row.original.bucket].color;
-                          return (
-                            <TableRow
-                              key={row.id}
-                              onClick={() => setSelectedStaleUser(isSelected ? null : row.original)}
-                              className="cursor-pointer transition-colors"
-                              style={isSelected ? { backgroundColor: `${rowColor}15` } : {}}
-                            >
-                              {row.getVisibleCells().map((cell) => (
-                                <TableCell key={cell.id} className="py-2 align-top">
-                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                </TableCell>
-                              ))}
-                            </TableRow>
-                          );
-                        })
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={staleColumns.length} className="h-14 text-center text-muted-foreground">
-                            No accounts match the filter.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Showing{" "}
-                    {staleTable.getState().pagination.pageIndex * staleTable.getState().pagination.pageSize + (staleTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)}{" "}
-                    –{" "}
-                    {Math.min(
-                      (staleTable.getState().pagination.pageIndex + 1) * staleTable.getState().pagination.pageSize,
-                      staleTable.getFilteredRowModel().rows.length
-                    )}{" "}
-                    of {staleTable.getFilteredRowModel().rows.length}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => staleTable.previousPage()} disabled={!staleTable.getCanPreviousPage()}>Previous</Button>
-                    <Button variant="outline" size="sm" onClick={() => staleTable.nextPage()} disabled={!staleTable.getCanNextPage()}>Next</Button>
-                  </div>
-                </div>
+                <DataTable
+                  columns={staleColumns}
+                  data={filteredStaleUsers}
+                  globalFilter={staleFilter}
+                  initialSorting={[{ id: "daysInactive", desc: true }]}
+                  pageSize={15}
+                  onRowClick={(u) => setSelectedStaleUser(selectedStaleUser?.id === u.id ? null : u)}
+                  rowStyle={(u) => (selectedStaleUser?.id === u.id ? { backgroundColor: `${BUCKET_META[u.bucket].color}15` } : undefined)}
+                  emptyMessage="No accounts match the filter."
+                />
 
                 {!selectedStaleUser && staleUsers.length > 0 && (
                   <p className="text-xs text-muted-foreground text-center pt-1">
@@ -1114,59 +1004,14 @@ export function UsersTab() {
                   onChange={(e) => setAllFilter(e.target.value)}
                   className="max-w-sm"
                 />
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      {allTable.getHeaderGroups().map((hg) => (
-                        <TableRow key={hg.id}>
-                          {hg.headers.map((header) => (
-                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap h-8 py-1">
-                              <div className="flex items-center gap-2">
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                              </div>
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableHeader>
-                    <TableBody>
-                      {allTable.getRowModel().rows.length > 0 ? (
-                        allTable.getRowModel().rows.map((row) => (
-                          <TableRow key={row.id}>
-                            {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id} className="py-1.5">
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={allColumns.length} className="h-16 text-center text-muted-foreground">
-                            No results found.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Showing{" "}
-                    {allTable.getState().pagination.pageIndex * allTable.getState().pagination.pageSize + (allTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)}{" "}
-                    –{" "}
-                    {Math.min(
-                      (allTable.getState().pagination.pageIndex + 1) * allTable.getState().pagination.pageSize,
-                      allTable.getFilteredRowModel().rows.length
-                    )}{" "}
-                    of {allTable.getFilteredRowModel().rows.length}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => allTable.previousPage()} disabled={!allTable.getCanPreviousPage()}>Previous</Button>
-                    <Button variant="outline" size="sm" onClick={() => allTable.nextPage()} disabled={!allTable.getCanNextPage()}>Next</Button>
-                  </div>
-                </div>
+                <DataTable
+                  columns={allColumns}
+                  data={data?.users ?? []}
+                  globalFilter={allFilter}
+                  pageSize={10}
+                  rowNoun="users"
+                  emptyMessage="No results found."
+                />
               </div>
             )}
       </CollapsibleSection>
@@ -1177,29 +1022,33 @@ export function UsersTab() {
       <CollapsibleSection title="Administrator Exposure" description="Overview of users with administrative rights over the tenant" storageKey="users-admin-exposure-section" defaultOpen={false} density="compact">
         <div className="space-y-3">
 
-        {adminExposure?.permissionError && (
+        {adminExposure?.roleDataSource === "directoryRolesFallback" ? (
+          <div className="rounded-md border border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-900 dark:text-amber-300">
+            RoleManagement.Read.Directory is unavailable. The permanent-admin figures below are derived from the legacy Directory Roles API (lower confidence) and cover <strong>activated roles only</strong> — PIM-eligible assignments cannot be read and are shown as unavailable (—).
+          </div>
+        ) : adminExposure?.permissionError ? (
           <div className="rounded-md border border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-900 dark:text-amber-300">
             Administrator role data is partially unavailable due to Graph permission constraints (RoleManagement.Read.Directory).
           </div>
-        )}
+        ) : null}
 
         <div className="space-y-1.5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Permanent assignments (not using PIM)</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <KPICard title="Users permanently assigned Global Admin (not using PIM)" value={adminExposure?.permanentGlobalAdminsCount} loading={adminExposureLoading} density="compact" />
-            <KPICard title="Permanent Global Admins with productivity features enabled" value={adminExposure?.permanentGlobalAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" />
-            <KPICard title="Users permanently assigned admin roles (not using PIM)" value={adminExposure?.permanentAdminsCount} loading={adminExposureLoading} density="compact" />
-            <KPICard title="Permanent admins with productivity features enabled" value={adminExposure?.permanentAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" />
+            <KPICard title="Users permanently assigned Global Admin (not using PIM)" value={adminExposure?.permanentGlobalAdminsCount} loading={adminExposureLoading} density="compact" {...permanentEvidence} />
+            <KPICard title="Permanent Global Admins with productivity features enabled" value={adminExposure?.permanentGlobalAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" {...permanentEvidence} />
+            <KPICard title="Users permanently assigned admin roles (not using PIM)" value={adminExposure?.permanentAdminsCount} loading={adminExposureLoading} density="compact" {...permanentEvidence} />
+            <KPICard title="Permanent admins with productivity features enabled" value={adminExposure?.permanentAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" {...permanentEvidence} />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Eligible assignments (using PIM)</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <KPICard title="Users eligible for Global Admin (using PIM)" value={adminExposure?.eligibleGlobalAdminsCount} loading={adminExposureLoading} density="compact" />
-            <KPICard title="Eligible Global Admins with productivity features enabled" value={adminExposure?.eligibleGlobalAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" />
-            <KPICard title="Users eligible for admin roles (using PIM)" value={adminExposure?.eligibleAdminsCount} loading={adminExposureLoading} density="compact" />
-            <KPICard title="Eligible admins with productivity features enabled" value={adminExposure?.eligibleAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" />
+            <KPICard title="Users eligible for Global Admin (using PIM)" value={adminExposure?.eligibleGlobalAdminsCount} loading={adminExposureLoading} density="compact" {...eligibleEvidence} />
+            <KPICard title="Eligible Global Admins with productivity features enabled" value={adminExposure?.eligibleGlobalAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" {...eligibleEvidence} />
+            <KPICard title="Users eligible for admin roles (using PIM)" value={adminExposure?.eligibleAdminsCount} loading={adminExposureLoading} density="compact" {...eligibleEvidence} />
+            <KPICard title="Eligible admins with productivity features enabled" value={adminExposure?.eligibleAdminsWithProductivityCount} loading={adminExposureLoading} density="compact" {...eligibleEvidence} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
             <KPICard
@@ -1207,6 +1056,7 @@ export function UsersTab() {
               value={adminExposure?.eligibleAssignmentCount}
               loading={adminExposureLoading}
               density="compact"
+              {...eligibleEvidence}
             />
             <KPICard
               title="Dormant PIM eligibilities (never activated)"
@@ -1214,6 +1064,7 @@ export function UsersTab() {
               loading={adminExposureLoading}
               density="compact"
               valueColor={(adminExposure?.dormantEligibleCount ?? 0) > 0 ? "#d97706" : undefined}
+              {...eligibleEvidence}
             />
           </div>
         </div>

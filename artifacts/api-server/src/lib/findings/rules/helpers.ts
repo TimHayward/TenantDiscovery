@@ -1,6 +1,6 @@
 import { getMetricDataSourceEntry } from "@workspace/permissions-manifest";
 import type { FieldEvidenceStatus, FieldConfidenceLabel } from "../../metadata.js";
-import type { CheckStatus, Finding, Severity } from "../types.js";
+import type { CheckStatus, Finding, FrameworkRef, Severity } from "../types.js";
 
 /**
  * A single assessment outcome. A rule with no `target` produces one whole-tenant
@@ -30,8 +30,30 @@ export interface RuleDefinition<T> {
   severity: Severity;
   metricId: string;
   remediation?: string;
+  /** Recognised-framework controls every finding from this rule maps onto. */
+  frameworks?: FrameworkRef[];
   /** Returns the assessment outcomes, or null when the metric is unavailable. */
   evaluate: (data: T | null) => RuleOutcome[] | null;
+}
+
+/**
+ * Per-entity rule helper. Returns the offender outcomes as-is, or — when there are
+ * none — a single whole-tenant `pass` so the control reads as satisfied (rather than
+ * silent / not-assessed) in the register and framework coverage.
+ */
+export function entityOutcomesOrPass(
+  offenders: RuleOutcome[],
+  passDetail: string,
+): RuleOutcome[] {
+  return offenders.length > 0 ? offenders : [{ checkStatus: "pass", detail: passDetail }];
+}
+
+/** Whole days elapsed since an ISO timestamp, or null when absent/unparsable. */
+export function daysSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime();
+  if (Number.isNaN(ms)) return null;
+  return Math.floor((Date.now() - ms) / 86_400_000);
 }
 
 /**
@@ -60,5 +82,6 @@ export function runRule<T>(rule: RuleDefinition<T>, data: T | null): Finding[] {
     metricId: rule.metricId,
     remediation: rule.remediation,
     evidence: outcome.evidence,
+    frameworks: rule.frameworks,
   }));
 }

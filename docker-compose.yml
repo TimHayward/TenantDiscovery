@@ -1,0 +1,44 @@
+services:
+  api-server:
+    build:
+      context: .
+      dockerfile: artifacts/api-server/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Microsoft Entra app registration. May be left empty and configured
+      # later through the onboarding UI (persisted to the api-data volume).
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SCAN_HISTORY_LIMIT: ${SCAN_HISTORY_LIMIT:-}
+      GRAPH_FETCH_TIMEOUT_MS: ${GRAPH_FETCH_TIMEOUT_MS:-}
+      GRAPH_MAX_RETRIES: ${GRAPH_MAX_RETRIES:-}
+    volumes:
+      - api-data:/data
+    networks:
+      - internal
+    # The API is reached through the dashboard's nginx proxy; uncomment to
+    # expose it directly on the host (set CORS_ALLOWED_ORIGINS if calling
+    # it cross-origin from a browser).
+    # ports:
+    #   - "5100:5100"
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: artifacts/m365-dashboard/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api-server:
+        condition: service_healthy
+    ports:
+      - "${DASHBOARD_PORT:-8089}:80"
+    networks:
+      - internal
+
+volumes:
+  api-data:
+
+networks:
+  internal:

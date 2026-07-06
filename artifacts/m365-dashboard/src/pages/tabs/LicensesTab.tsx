@@ -4,21 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { CSVLink } from "react-csv";
-import { Download, Filter, EyeOff } from "lucide-react";
+import { Filter, EyeOff } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState, useMemo, useEffect } from "react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
-} from "@tanstack/react-table";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -27,33 +16,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { calculateLicenseStats, isFreeLicenseSku, readHiddenLicenseSkus, writeHiddenLicenseSkus } from "@/lib/licenseFilters";
 import type { LicenseItem, GhostUserItem } from "@workspace/api-client-react";
-
-const CHART_COLORS = {
-  blue: "#1E3D59",
-  purple: "#795EFF",
-  green: "#009118",
-  red: "#A60808",
-  pink: "#ec4899",
-};
-
-const FREE_SKUS = new Set([
-  "WINDOWS_STORE",
-  "FLOW_FREE",
-  "POWERAPPS_DEV",
-  "POWERAPPS_VIRAL",
-  "POWER_BI_STANDARD",
-  "TEAMS_FREE",
-  "TEAMS_EXPLORATORY",
-  "DEVELOPERPACK",
-  "DEVELOPERPACK_E5",
-  "RIGHTSMANAGEMENT_ADHOC",
-  "MCOMEETADV",
-  "STREAM",
-  "FORMS_PRO",
-  "MICROSOFT_BUSINESS_CENTER",
-  "DYN365_ACCOUNTANT_PORTAL_IW_SKU",
-]);
+import { chartPalette as CHART_COLORS } from "@/lib/chartPalette";
+import { ExportBtn } from "@/components/ExportBtn";
+import { DataTable } from "@/components/DataTable";
 
 const columns: ColumnDef<LicenseItem>[] = [
   {
@@ -166,25 +133,13 @@ export function LicensesTab() {
   const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
   const tickColor = isDark ? "#98999C" : "#71717a";
 
-  const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [hideFree, setHideFree] = useState(true);
   const [hideZeroAssigned, setHideZeroAssigned] = useState(false);
-  const [hiddenSkus, setHiddenSkus] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem("licenses-hidden-skus");
-      return stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
-    } catch {
-      return new Set<string>();
-    }
-  });
+  const [hiddenSkus, setHiddenSkus] = useState<Set<string>>(() => readHiddenLicenseSkus());
 
   useEffect(() => {
-    try {
-      localStorage.setItem("licenses-hidden-skus", JSON.stringify([...hiddenSkus]));
-    } catch {
-      /* ignore persistence errors (e.g. storage disabled) */
-    }
+    writeHiddenLicenseSkus(hiddenSkus);
   }, [hiddenSkus]);
 
   const toggleHiddenSku = (sku: string) => {
@@ -196,7 +151,6 @@ export function LicensesTab() {
     });
   };
 
-  const [ghostSorting, setGhostSorting] = useState<SortingState>([{ id: "daysInactive", desc: true }]);
   const [ghostFilter, setGhostFilter] = useState("");
 
   const ghostUsers = useMemo(() => usersData?.ghostUsers ?? [], [usersData]);
@@ -206,7 +160,7 @@ export function LicensesTab() {
   const filteredLicenses = useMemo(() => {
     if (!data?.licenses) return [];
     return data.licenses.filter((lic) => {
-      const isFree = FREE_SKUS.has(lic.skuPartNumber);
+      const isFree = isFreeLicenseSku(lic.skuPartNumber);
       // Checked: hide free/dev SKUs. Unchecked: show *only* free/dev SKUs.
       if (hideFree ? isFree : !isFree) return false;
       if (hideZeroAssigned && lic.assigned === 0) return false;
@@ -215,52 +169,18 @@ export function LicensesTab() {
     });
   }, [data?.licenses, hideFree, hideZeroAssigned, hiddenSkus]);
 
-  // SKUs offered in the "Hide specific SKUs" picker: same free/dev + unassigned
-  // toggles as the table, but always include already-hidden SKUs so they can be un-hidden.
+  // SKUs offered in the "Hide specific SKUs" picker: every SKU in the tenant,
+  // independent of the free/dev and unassigned bulk toggles — this is the
+  // granular escape hatch, so any SKU (including free/dev ones the bulk toggles
+  // hide) must be hide-able here. Sorted by name for scannability.
   const pickerLicenses = useMemo(() => {
     if (!data?.licenses) return [];
-    return data.licenses.filter((lic) => {
-      if (hiddenSkus.has(lic.skuPartNumber)) return true;
-      const isFree = FREE_SKUS.has(lic.skuPartNumber);
-      if (hideFree ? isFree : !isFree) return false;
-      if (hideZeroAssigned && lic.assigned === 0) return false;
-      return true;
-    });
-  }, [data?.licenses, hideFree, hideZeroAssigned, hiddenSkus]);
+    return [...data.licenses].sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [data?.licenses]);
 
   const filteredStats = useMemo(() => {
-    const totalLicenses = filteredLicenses.reduce((s, l) => s + l.total, 0);
-    const assignedLicenses = filteredLicenses.reduce((s, l) => s + l.assigned, 0);
-    const availableLicenses = filteredLicenses.reduce((s, l) => s + l.available, 0);
-    const utilizationPercent = totalLicenses > 0 ? Math.round((assignedLicenses / totalLicenses) * 100) : 0;
-    return { totalLicenses, assignedLicenses, availableLicenses, utilizationPercent };
+    return calculateLicenseStats(filteredLicenses);
   }, [filteredLicenses]);
-
-  const table = useReactTable({
-    data: filteredLicenses,
-    columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  });
-
-  const ghostTable = useReactTable({
-    data: ghostUsers,
-    columns: ghostColumns,
-    state: { sorting: ghostSorting, globalFilter: ghostFilter },
-    onSortingChange: setGhostSorting,
-    onGlobalFilterChange: setGhostFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  });
 
   return (
     <div className="space-y-4">
@@ -378,11 +298,7 @@ export function LicensesTab() {
       <Card>
         <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">License Allocation</CardTitle>
-          {!loading && filteredLicenses.length > 0 && (
-            <CSVLink data={filteredLicenses} filename="license-allocation.csv" className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }} aria-label="Export chart data as CSV">
-              <Download className="w-3.5 h-3.5" />
-            </CSVLink>
-          )}
+          {!loading && <ExportBtn filename="license-allocation.csv" data={filteredLicenses} ariaLabel="Export chart data as CSV" />}
         </CardHeader>
         <CardContent>
           {loading ? <Skeleton className="w-full h-[350px]" /> : (
@@ -450,58 +366,20 @@ export function LicensesTab() {
                     onChange={(e) => setGhostFilter(e.target.value)}
                     className="max-w-sm"
                   />
-                  <CSVLink
-                    data={ghostUsers}
-                    filename="stale-licensed-users.csv"
-                    className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80 ml-auto"
-                    style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
-                    aria-label="Export as CSV"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </CSVLink>
-                </div>
-
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      {ghostTable.getHeaderGroups().map((headerGroup) => (
-                        <TableRow key={headerGroup.id}>
-                          {headerGroup.headers.map((header) => (
-                            <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none">
-                              <div className="flex items-center gap-1">
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                              </div>
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableHeader>
-                    <TableBody>
-                      {ghostTable.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {ghostTable.getState().pagination.pageIndex * ghostTable.getState().pagination.pageSize + (ghostTable.getFilteredRowModel().rows.length > 0 ? 1 : 0)} to{" "}
-                    {Math.min((ghostTable.getState().pagination.pageIndex + 1) * ghostTable.getState().pagination.pageSize, ghostTable.getFilteredRowModel().rows.length)}{" "}
-                    of {ghostTable.getFilteredRowModel().rows.length} users
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => ghostTable.previousPage()} disabled={!ghostTable.getCanPreviousPage()}>Previous</Button>
-                    <Button variant="outline" size="sm" onClick={() => ghostTable.nextPage()} disabled={!ghostTable.getCanNextPage()}>Next</Button>
+                  <div className="ml-auto">
+                    <ExportBtn filename="stale-licensed-users.csv" data={ghostUsers} />
                   </div>
                 </div>
+
+                <DataTable
+                  columns={ghostColumns}
+                  data={ghostUsers}
+                  globalFilter={ghostFilter}
+                  initialSorting={[{ id: "daysInactive", desc: true }]}
+                  pageSize={10}
+                  rowNoun="users"
+                  emptyMessage="No stale licensed users found."
+                />
               </div>
             )}
 
@@ -527,55 +405,14 @@ export function LicensesTab() {
                 className="max-w-sm"
               />
 
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none">
-                            <div className="flex items-center gap-1">
-                              {flexRender(header.column.columnDef.header, header.getContext())}
-                              {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows.length > 0 ? (
-                      table.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                          No licenses match the current filters.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + (table.getFilteredRowModel().rows.length > 0 ? 1 : 0)} to{" "}
-                  {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length)}{" "}
-                  of {table.getFilteredRowModel().rows.length} results
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
-                  <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
-                </div>
-              </div>
+              <DataTable
+                columns={columns}
+                data={filteredLicenses}
+                globalFilter={globalFilter}
+                pageSize={10}
+                rowNoun="results"
+                emptyMessage="No licenses match the current filters."
+              />
             </div>
           )}
       </CollapsibleSection>

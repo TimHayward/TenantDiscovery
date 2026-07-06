@@ -17,16 +17,12 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+import { SEVERITY_BADGE_CLASS } from "@/lib/statusTokens";
+
 const SEVERITY_ORDER: FindingSeverity[] = ["critical", "high", "medium", "low", "info"];
 const STATUS_OPTIONS: FindingStatus[] = ["open", "acknowledged", "remediated", "suppressed"];
 
-const SEVERITY_STYLES: Record<FindingSeverity, string> = {
-  critical: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  high: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-  medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  low: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  info: "bg-muted text-muted-foreground",
-};
+const SEVERITY_STYLES = SEVERITY_BADGE_CLASS;
 
 const CHECK_STATUS_LABEL: Record<string, string> = {
   pass: "Pass",

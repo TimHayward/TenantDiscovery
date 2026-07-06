@@ -1,0 +1,44 @@
+# VCS / editor
+.git
+.gitignore
+.idea
+.vscode
+.claude
+.agents
+.canvas
+
+# Dependencies and build output (rebuilt inside the image)
+node_modules
+**/node_modules
+**/dist
+*.tsbuildinfo
+
+# Replit
+.local
+.cache
+.replit
+.replitignore
+replit.md
+
+# Secrets — never bake into an image
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+onboarding-settings.json
+
+# Docs not needed at build time
+BACKLOG.md
+ROADMAP.md
+
+# mockup-sandbox is not containerized; keep only its manifest so
+# `pnpm install --frozen-lockfile` still sees the full workspace graph
+artifacts/mockup-sandbox/*
+!artifacts/mockup-sandbox/package.json
+
+# Docker files themselves (not needed inside the build context)
+docker-compose.yml
+**/Dockerfile
+.dockerignore

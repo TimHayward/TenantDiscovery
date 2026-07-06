@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { DomainEmailAuthRecordDkimSource } from './domainEmailAuthRecordDkimSource';
 
 export interface DomainEmailAuthRecord {
   domain: string;
@@ -12,4 +13,14 @@ export interface DomainEmailAuthRecord {
   hasDkim: boolean;
   hasDmarc: boolean;
   mxConfigured: boolean;
+  /** The published SPF TXT record, when found. */
+  spfRecord?: string | null;
+  /** The DMARC policy (p= value) from the published _dmarc record. */
+  dmarcPolicy?: string | null;
+  /** Source of the DKIM determination — Exchange Online (authoritative), DNS selector CNAME fallback, or none. */
+  dkimSource?: DomainEmailAuthRecordDkimSource;
+  /** Whether Microsoft's recommended service-configuration records include an SPF record. */
+  expectedSpf?: boolean;
+  /** Whether Microsoft's recommended service-configuration records include an MX record. */
+  expectedMx?: boolean;
 }

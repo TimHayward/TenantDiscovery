@@ -7,6 +7,8 @@ import {
   type CollectionIssue,
 } from "../collectionIssues.js";
 
+const GRAPH_MAX_PAGE_SIZE = 500;
+
 const MFA_METHOD_META: Record<string, { displayName: string; strength: string; strengthLevel: number }> = {
   fido2:                              { displayName: "FIDO2 Security Key",              strength: "Phishing-resistant", strengthLevel: 4 },
   windowsHelloForBusiness:            { displayName: "Windows Hello for Business",      strength: "Phishing-resistant", strengthLevel: 4 },
@@ -112,23 +114,23 @@ export async function collectSecurity() {
     await Promise.all([
       fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/secureScores?$top=1", "secureScoresLatest"),
       fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/secureScores?$top=90", "secureScoresHistory"),
-      fetchAllGraphPages<any>("https://graph.microsoft.com/v1.0/security/secureScoreControlProfiles?$top=999", "secureScoreControlProfiles"),
-      fetchAllGraphPages("https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies?$top=999", "conditionalAccessPolicies"),
+      fetchAllGraphPages<any>(`https://graph.microsoft.com/v1.0/security/secureScoreControlProfiles?$top=${GRAPH_MAX_PAGE_SIZE}`, "secureScoreControlProfiles"),
+      fetchAllGraphPages(`https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies?$top=${GRAPH_MAX_PAGE_SIZE}`, "conditionalAccessPolicies"),
       fetchAllGraphPages(
         "https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails" +
-          "?$select=id,userPrincipalName,userDisplayName,isMfaRegistered,isPasswordlessCapable,isSsprRegistered,methodsRegistered&$top=999",
+          `?$select=id,userPrincipalName,userDisplayName,isMfaRegistered,isPasswordlessCapable,isSsprRegistered,methodsRegistered&$top=${GRAPH_MAX_PAGE_SIZE}`,
         "userRegistrationDetails",
       ),
-      fetchAllGraphPages("https://graph.microsoft.com/v1.0/users?$select=id,accountEnabled,userType&$top=999", "users"),
+      fetchAllGraphPages(`https://graph.microsoft.com/v1.0/users?$select=id,accountEnabled,userType&$top=${GRAPH_MAX_PAGE_SIZE}`, "users"),
       fetchAllGraphPages(
         "https://graph.microsoft.com/v1.0/identityProtection/riskDetections" +
-          "?$select=id,activityDateTime,riskLevel,riskDetail,detectionTimingType&$top=999&$orderby=activityDateTime desc",
+          `?$select=id,activityDateTime,riskLevel,riskDetail,detectionTimingType&$top=${GRAPH_MAX_PAGE_SIZE}&$orderby=activityDateTime desc`,
         "riskDetections",
       ),
       fetchAllGraphPages(
         "https://graph.microsoft.com/v1.0/identityProtection/riskyUsers" +
-          "?$select=id,displayName,userPrincipalName,riskLevel,riskState,riskLastUpdatedDateTime" +
-          "&$filter=riskState eq 'atRisk' or riskState eq 'confirmedCompromised'&$top=999",
+          "?$select=id,userDisplayName,userPrincipalName,riskLevel,riskState,riskLastUpdatedDateTime" +
+          `&$filter=riskState eq 'atRisk' or riskState eq 'confirmedCompromised'&$top=${GRAPH_MAX_PAGE_SIZE}`,
         "riskyUsers",
       ),
       fetchGraphJson<any>(
@@ -222,7 +224,7 @@ export async function collectSecurity() {
 
   const riskyUsersDetail = riskyUsersRaw.map((u: any) => ({
     id: u.id,
-    displayName: u.displayName ?? u.userPrincipalName ?? u.id,
+    displayName: u.userDisplayName ?? u.userPrincipalName ?? u.id,
     userPrincipalName: u.userPrincipalName ?? "",
     riskLevel: u.riskLevel ?? "none",
     riskState: u.riskState ?? "none",
@@ -362,21 +364,21 @@ export async function collectSecurityEstate() {
     incidentsResult, alertsResult] = await Promise.all([
     fetchAllGraphPages<any>(
       "https://graph.microsoft.com/v1.0/devices" +
-        "?$select=id,displayName,operatingSystem,operatingSystemVersion,trustType,isManaged,isCompliant,managementType,approximateLastSignInDateTime&$top=999",
+        `?$select=id,displayName,operatingSystem,operatingSystemVersion,trustType,isManaged,isCompliant,managementType,approximateLastSignInDateTime&$top=${GRAPH_MAX_PAGE_SIZE}`,
       "securityEstateDevices",
     ),
     fetchAllGraphPages<any>(
       "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices" +
-        "?$select=id,deviceName,azureADDeviceId,operatingSystem,osVersion,lastSyncDateTime,managementAgent,complianceState&$top=999",
+        `?$select=id,deviceName,azureADDeviceId,operatingSystem,osVersion,lastSyncDateTime,managementAgent,complianceState&$top=${GRAPH_MAX_PAGE_SIZE}`,
       "securityEstateManagedDevices",
     ),
     fetchAllGraphPages<any>(
       "https://graph.microsoft.com/v1.0/servicePrincipals" +
-        "?$select=id,displayName,appId,publisherName,servicePrincipalType,appOwnerOrganizationId,createdDateTime,tags&$top=999",
+        `?$select=id,displayName,appId,publisherName,servicePrincipalType,appOwnerOrganizationId,createdDateTime,tags&$top=${GRAPH_MAX_PAGE_SIZE}`,
       "securityEstateServicePrincipals",
     ),
     fetchAllGraphPages<any>(
-      "https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$select=clientId,consentType,principalId,scope&$top=999",
+      `https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$select=clientId,consentType,principalId,scope&$top=${GRAPH_MAX_PAGE_SIZE}`,
       "securityEstateOauth2PermissionGrants",
     ),
     fetchDefenderMachinesWithDiagnostics(),

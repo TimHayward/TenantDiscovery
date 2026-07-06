@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CheckCircle2, XCircle, AlertTriangle, HelpCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getMetricDataSourceEntry, type ConfidenceLabel, type EvidenceStatus, type ManualCheckDefinition, type ManualReasonCode } from "@workspace/permissions-manifest";
+import { CHECK_STATUS_BADGE_CLASS } from "@/lib/statusTokens";
 
 /**
  * CheckStatus represents the outcome of a control assessment (pass/fail/warning/manual).
@@ -53,10 +54,10 @@ interface Props {
 
 function StatusBadge({ status, detail }: { status: CheckStatus; detail?: string }) {
   const configs: Record<CheckStatus, { icon: typeof CheckCircle2; label: string; badgeCls: string; iconCls: string }> = {
-    pass:    { icon: CheckCircle2, label: detail ?? "Configured",              badgeCls: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",      iconCls: "text-green-500" },
-    fail:    { icon: XCircle,      label: detail ?? "Not Configured",          badgeCls: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",              iconCls: "text-red-500" },
-    warning: { icon: AlertTriangle,label: detail ?? "Review Required",         badgeCls: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",  iconCls: "text-yellow-500" },
-    manual:  { icon: HelpCircle,   label: detail ?? "Manual Check Required",   badgeCls: "bg-muted text-muted-foreground",                                             iconCls: "text-muted-foreground" },
+    pass:    { icon: CheckCircle2, label: detail ?? "Configured",              badgeCls: CHECK_STATUS_BADGE_CLASS.pass,    iconCls: "text-green-500" },
+    fail:    { icon: XCircle,      label: detail ?? "Not Configured",          badgeCls: CHECK_STATUS_BADGE_CLASS.fail,    iconCls: "text-red-500" },
+    warning: { icon: AlertTriangle,label: detail ?? "Review Required",         badgeCls: CHECK_STATUS_BADGE_CLASS.warning, iconCls: "text-yellow-500" },
+    manual:  { icon: HelpCircle,   label: detail ?? "Manual Check Required",   badgeCls: CHECK_STATUS_BADGE_CLASS.manual,  iconCls: "text-blue-500" },
   };
   const { icon: Icon, label, badgeCls, iconCls } = configs[status];
   return (

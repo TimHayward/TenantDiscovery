@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { UserItemLastSignInSource } from './userItemLastSignInSource';
 
 export interface UserItem {
   id: string;
@@ -12,8 +13,9 @@ export interface UserItem {
   userPrincipalName: string;
   accountEnabled: boolean;
   userType: string;
-  mfaEnabled: boolean;
+  mfaEnabled: boolean | null;
   lastSignIn: string | null;
+  lastSignInSource: UserItemLastSignInSource;
   assignedLicenses: number;
   department: string | null;
   jobTitle: string | null;

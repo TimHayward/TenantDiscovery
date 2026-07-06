@@ -1,5 +1,7 @@
 import { getMetricDataSourceEntry } from "@workspace/permissions-manifest";
 import { getFindings } from "../findings/store.js";
+import { evaluateFindings } from "../findings/engine.js";
+import { computeFrameworkCoverage, type FrameworkCoverage } from "../findings/frameworks/coverage.js";
 import { getScan } from "../scanStore.js";
 import { computeDrift, type DriftReport } from "../scanStore.js";
 import type { FindingWithState } from "../findings/types.js";
@@ -97,6 +99,25 @@ export async function getFindingRows(scanId?: string): Promise<FindingExportRow[
   return findings.map(toRow);
 }
 
+/** Per-framework coverage summary, computed from current findings. */
+export interface FrameworkCoverageSummaryRow {
+  framework: string;
+  name: string;
+  totalControls: number;
+  pass: number;
+  fail: number;
+  warning: number;
+  manual: number;
+  notAssessed: number;
+  coveragePercent: number;
+}
+
+/** Current framework control coverage, for exports. Always reflects live rule mapping. */
+export async function getFrameworkCoverage(): Promise<FrameworkCoverage[]> {
+  const findings = await evaluateFindings();
+  return computeFrameworkCoverage(findings);
+}
+
 export interface ExecutiveModel {
   generatedAt: string;
   scanId: string | null;
@@ -105,6 +126,7 @@ export interface ExecutiveModel {
   byStatus: Record<string, number>;
   topFindings: FindingExportRow[];
   drift: DriftReport;
+  frameworks: FrameworkCoverageSummaryRow[];
 }
 
 /** Build the executive summary model (KPIs, severity breakdown, top findings, drift). */
@@ -122,6 +144,7 @@ export async function getExecutiveModel(scanId?: string): Promise<ExecutiveModel
     .slice(0, 15);
 
   const drift = await computeDrift(undefined, scanId);
+  const coverage = await getFrameworkCoverage();
 
   return {
     generatedAt: new Date().toISOString(),
@@ -131,5 +154,6 @@ export async function getExecutiveModel(scanId?: string): Promise<ExecutiveModel
     byStatus,
     topFindings,
     drift,
+    frameworks: coverage.map((c) => ({ framework: c.framework, name: c.name, ...c.summary })),
   };
 }

@@ -166,14 +166,24 @@ export interface GhostUserItem {
   estimatedMonthlyCost: number;
 }
 
+export type UserItemLastSignInSource = typeof UserItemLastSignInSource[keyof typeof UserItemLastSignInSource];
+
+
+export const UserItemLastSignInSource = {
+  graph: 'graph',
+  usageReportFallback: 'usageReportFallback',
+  none: 'none',
+} as const;
+
 export interface UserItem {
   id: string;
   displayName: string;
   userPrincipalName: string;
   accountEnabled: boolean;
   userType: string;
-  mfaEnabled: boolean;
+  mfaEnabled: boolean | null;
   lastSignIn: string | null;
+  lastSignInSource: UserItemLastSignInSource;
   assignedLicenses: number;
   department: string | null;
   jobTitle: string | null;
@@ -184,20 +194,51 @@ export type M365UsersDataUsersByDepartmentItem = {
   count: number;
 };
 
+export type M365UsersDataSignInDataSource = typeof M365UsersDataSignInDataSource[keyof typeof M365UsersDataSignInDataSource];
+
+
+export const M365UsersDataSignInDataSource = {
+  graphAuditLog: 'graphAuditLog',
+  usageReportFallback: 'usageReportFallback',
+  unavailable: 'unavailable',
+} as const;
+
+export type M365UsersDataMfaDataSource = typeof M365UsersDataMfaDataSource[keyof typeof M365UsersDataMfaDataSource];
+
+
+export const M365UsersDataMfaDataSource = {
+  graph: 'graph',
+  unavailable: 'unavailable',
+} as const;
+
+export type M365UsersDataMfaEnforcementSignal = typeof M365UsersDataMfaEnforcementSignal[keyof typeof M365UsersDataMfaEnforcementSignal];
+
+
+export const M365UsersDataMfaEnforcementSignal = {
+  securityDefaults: 'securityDefaults',
+  conditionalAccess: 'conditionalAccess',
+  none: 'none',
+  unknown: 'unknown',
+} as const;
+
 export interface M365UsersData {
   totalUsers: number;
   activeUsers: number;
   disabledUsers: number;
   guestUsers: number;
   memberUsers: number;
-  mfaEnabled: number;
-  mfaDisabled: number;
+  mfaEnabled: number | null;
+  mfaDisabled: number | null;
   neverSignedIn: number;
   usersByDepartment: M365UsersDataUsersByDepartmentItem[];
   users: UserItem[];
   ghostUsers: GhostUserItem[];
   ghostLicensedCount: number;
   estimatedMonthlyWaste: number;
+  signInDataSource: M365UsersDataSignInDataSource;
+  signInFallbackCount: number;
+  mfaDataSource: M365UsersDataMfaDataSource;
+  mfaEnforcementSignal: M365UsersDataMfaEnforcementSignal;
 }
 
 export interface M365UsersDataWithMetadata {
@@ -214,6 +255,14 @@ export interface AdminExposureUserItem {
   roles: string[];
   hasProductivityLicense: boolean;
 }
+
+export type M365AdminExposureDataRoleDataSource = typeof M365AdminExposureDataRoleDataSource[keyof typeof M365AdminExposureDataRoleDataSource];
+
+
+export const M365AdminExposureDataRoleDataSource = {
+  unifiedRbac: 'unifiedRbac',
+  directoryRolesFallback: 'directoryRolesFallback',
+} as const;
 
 export type CollectionIssueCategory = typeof CollectionIssueCategory[keyof typeof CollectionIssueCategory];
 
@@ -241,20 +290,21 @@ export interface M365AdminExposureData {
   permanentGlobalAdminsWithProductivityCount: number;
   permanentAdminsCount: number;
   permanentAdminsWithProductivityCount: number;
-  eligibleGlobalAdminsCount: number;
-  eligibleGlobalAdminsWithProductivityCount: number;
-  eligibleAdminsCount: number;
-  eligibleAdminsWithProductivityCount: number;
+  eligibleGlobalAdminsCount: number | null;
+  eligibleGlobalAdminsWithProductivityCount: number | null;
+  eligibleAdminsCount: number | null;
+  eligibleAdminsWithProductivityCount: number | null;
   permanentGlobalAdmins: AdminExposureUserItem[];
   permanentGlobalAdminsWithProductivity: AdminExposureUserItem[];
   permanentAdmins: AdminExposureUserItem[];
   permanentAdminsWithProductivity: AdminExposureUserItem[];
-  eligibleGlobalAdmins: AdminExposureUserItem[];
-  eligibleGlobalAdminsWithProductivity: AdminExposureUserItem[];
-  eligibleAdmins: AdminExposureUserItem[];
-  eligibleAdminsWithProductivity: AdminExposureUserItem[];
-  eligibleAssignmentCount: number;
-  dormantEligibleCount: number;
+  eligibleGlobalAdmins: AdminExposureUserItem[] | null;
+  eligibleGlobalAdminsWithProductivity: AdminExposureUserItem[] | null;
+  eligibleAdmins: AdminExposureUserItem[] | null;
+  eligibleAdminsWithProductivity: AdminExposureUserItem[] | null;
+  eligibleAssignmentCount: number | null;
+  dormantEligibleCount: number | null;
+  roleDataSource: M365AdminExposureDataRoleDataSource;
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];
@@ -533,12 +583,34 @@ export type M365ExchangeDataEmailActivityLast30Days = {
   read: number;
 };
 
+/**
+ * Source of the DKIM determination — Exchange Online (authoritative), DNS selector CNAME fallback, or none.
+ */
+export type DomainEmailAuthRecordDkimSource = typeof DomainEmailAuthRecordDkimSource[keyof typeof DomainEmailAuthRecordDkimSource];
+
+
+export const DomainEmailAuthRecordDkimSource = {
+  exchange: 'exchange',
+  dns: 'dns',
+  none: 'none',
+} as const;
+
 export interface DomainEmailAuthRecord {
   domain: string;
   hasSpf: boolean;
   hasDkim: boolean;
   hasDmarc: boolean;
   mxConfigured: boolean;
+  /** The published SPF TXT record, when found. */
+  spfRecord?: string | null;
+  /** The DMARC policy (p= value) from the published _dmarc record. */
+  dmarcPolicy?: string | null;
+  /** Source of the DKIM determination — Exchange Online (authoritative), DNS selector CNAME fallback, or none. */
+  dkimSource?: DomainEmailAuthRecordDkimSource;
+  /** Whether Microsoft's recommended service-configuration records include an SPF record. */
+  expectedSpf?: boolean;
+  /** Whether Microsoft's recommended service-configuration records include an MX record. */
+  expectedMx?: boolean;
 }
 
 export interface M365ExchangeData {
@@ -750,6 +822,52 @@ export interface FindingsRegisterResponse {
   findings: FindingWithState[];
   total: number;
   summary: FindingsRegisterResponseSummary;
+}
+
+export type FrameworkControlCoverageStatus = typeof FrameworkControlCoverageStatus[keyof typeof FrameworkControlCoverageStatus];
+
+
+export const FrameworkControlCoverageStatus = {
+  pass: 'pass',
+  fail: 'fail',
+  warning: 'warning',
+  manual: 'manual',
+  notAssessed: 'notAssessed',
+} as const;
+
+export interface FrameworkControlCoverage {
+  framework: string;
+  controlId: string;
+  title: string;
+  requirement: string;
+  severity: FindingSeverity;
+  status: FrameworkControlCoverageStatus;
+  findingCount: number;
+  failCount: number;
+  warningCount: number;
+  manualCount: number;
+  passCount: number;
+}
+
+export type FrameworkCoverageSummary = {
+  totalControls: number;
+  pass: number;
+  fail: number;
+  warning: number;
+  manual: number;
+  notAssessed: number;
+  coveragePercent: number;
+};
+
+export interface FrameworkCoverage {
+  framework: string;
+  name: string;
+  controls: FrameworkControlCoverage[];
+  summary: FrameworkCoverageSummary;
+}
+
+export interface FrameworkCoverageResponse {
+  frameworks: FrameworkCoverage[];
 }
 
 export interface FindingStateUpdate {

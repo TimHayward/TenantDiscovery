@@ -22,15 +22,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CSVLink } from "react-csv";
 import {
-  Download, Monitor, ShieldCheck, ShieldAlert, Globe, Lock, AlertTriangle, Building2, ChevronDown,
+  Monitor, ShieldCheck, ShieldAlert, Globe, Lock, AlertTriangle, Building2, ChevronDown,
 } from "lucide-react";
-import {
-  useReactTable, getCoreRowModel, getSortedRowModel,
-  getFilteredRowModel, getPaginationRowModel, flexRender,
-  type ColumnDef, type SortingState,
-} from "@tanstack/react-table";
+import { type ColumnDef } from "@tanstack/react-table";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -40,15 +35,11 @@ import { formatDate } from "@/lib/utils";
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
-const C = {
-  blue:   "#1E3D59",
-  green:  "#009118",
-  red:    "#A60808",
-  yellow: "#eab308",
-  orange: "#f97316",
-  gray:   "#9ca3af",
-  purple: "#795EFF",
-};
+import { chartPalette } from "@/lib/chartPalette";
+import { ExportBtn } from "@/components/ExportBtn";
+import { DataTable } from "@/components/DataTable";
+
+const C = { ...chartPalette, gray: "#9ca3af" };
 
 const TRUST_LABELS: Record<string, string> = {
   AzureAd:  "Azure AD Joined",
@@ -81,21 +72,6 @@ function complianceFilterKey(v: boolean | null | undefined): "compliant" | "nonc
 
 // ── small helpers ─────────────────────────────────────────────────────────────
 
-function ExportBtn({ filename, csvData }: { filename: string; csvData: object[] }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  if (!csvData.length) return null;
-  return (
-    <CSVLink
-      data={csvData} filename={filename}
-      className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80"
-      style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
-      aria-label="Export CSV"
-    >
-      <Download className="w-3.5 h-3.5" />
-    </CSVLink>
-  );
-}
 
 function MgmtBadge({ managementType, isManaged }: { managementType: string | null; isManaged: boolean }) {
   if (!isManaged && !managementType) {
@@ -452,7 +428,6 @@ export function DefenderTab() {
 
   // ── device table state ──
   const [deviceFilter, setDeviceFilter] = useState("");
-  const [deviceSorting, setDeviceSorting] = useState<SortingState>([]);
   const [showUnmanagedOnly, setShowUnmanagedOnly] = useState(false);
   const [selectedComplianceFilters, setSelectedComplianceFilters] = useState<Array<"compliant" | "noncompliant" | "unknown">>([]);
   const [selectedJoinTypeFilters, setSelectedJoinTypeFilters] = useState<string[]>([]);
@@ -541,22 +516,8 @@ export function DefenderTab() {
     return devs;
   }, [data?.deviceList, showUnmanagedOnly, selectedComplianceFilters, selectedJoinTypeFilters, selectedManagementFilters]);
 
-  const deviceTable = useReactTable({
-    data: filteredDevices,
-    columns: deviceColumns,
-    state: { sorting: deviceSorting, globalFilter: deviceFilter },
-    onSortingChange: setDeviceSorting,
-    onGlobalFilterChange: setDeviceFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 20 } },
-  });
-
   // ── Defender for Endpoint inventory table state ──
   const [mdeDeviceFilter, setMdeDeviceFilter] = useState("");
-  const [mdeDeviceSorting, setMdeDeviceSorting] = useState<SortingState>([]);
 
   const mdeInventoryDevices = useMemo(() => {
     if (estateData && Object.prototype.hasOwnProperty.call(estateData, "mdeDeviceInventory")) {
@@ -580,23 +541,9 @@ export function DefenderTab() {
     return { label: "Live", className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-0" };
   }, [loading, mdeStatus, mdeInventoryDevices.length]);
 
-  const mdeDeviceTable = useReactTable({
-    data: mdeInventoryDevices,
-    columns: deviceColumns,
-    state: { sorting: mdeDeviceSorting, globalFilter: mdeDeviceFilter },
-    onSortingChange: setMdeDeviceSorting,
-    onGlobalFilterChange: setMdeDeviceFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 20 } },
-  });
-
   // ── SaaS app table state ──
   const [saasFilter, setSaasFilter] = useState("");
   const [saasShowThirdParty, setSaasShowThirdParty] = useState(false);
-  const [saasSorting, setSaasSorting] = useState<SortingState>([{ id: "isFirstParty", desc: false }]);
 
   const filteredSaas = useMemo(() => {
     let apps = data?.saasApps ?? [];
@@ -604,35 +551,8 @@ export function DefenderTab() {
     return apps;
   }, [data?.saasApps, saasShowThirdParty]);
 
-  const saasTable = useReactTable({
-    data: filteredSaas,
-    columns: saasColumns,
-    state: { sorting: saasSorting, globalFilter: saasFilter },
-    onSortingChange: setSaasSorting,
-    onGlobalFilterChange: setSaasFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 20 } },
-  });
-
   // ── OAuth table state ──
   const [oauthFilter, setOauthFilter] = useState("");
-  const [oauthSorting, setOauthSorting] = useState<SortingState>([{ id: "consentType", desc: false }]);
-
-  const oauthTable = useReactTable({
-    data: data?.oauthApps ?? [],
-    columns: oauthColumns,
-    state: { sorting: oauthSorting, globalFilter: oauthFilter },
-    onSortingChange: setOauthSorting,
-    onGlobalFilterChange: setOauthFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 20 } },
-  });
 
   // ── derived chart data ──
   const trustChartData = useMemo(() => {
@@ -746,7 +666,7 @@ export function DefenderTab() {
               <CardTitle className="text-base">Device Join Type</CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">Azure AD registration method</p>
             </div>
-            <ExportBtn filename="device-join-types.csv" csvData={trustChartData} />
+            <ExportBtn filename="device-join-types.csv" data={trustChartData} />
           </CardHeader>
           <CardContent>
             {loading ? <Skeleton className="w-full h-[220px]" /> : (
@@ -795,7 +715,7 @@ export function DefenderTab() {
               <CardTitle className="text-base">Devices by OS Platform</CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">Operating system distribution across the estate</p>
             </div>
-            <ExportBtn filename="devices-by-os.csv" csvData={osChartData} />
+            <ExportBtn filename="devices-by-os.csv" data={osChartData} />
           </CardHeader>
           <CardContent>
             {loading ? <Skeleton className="w-full h-[220px]" /> : (
@@ -838,7 +758,7 @@ export function DefenderTab() {
         description={!loading ? `${data?.deviceSummary.total ?? 0} devices registered in Azure AD` : undefined}
         actions={<ExportBtn
             filename="device-inventory.csv"
-            csvData={(data?.deviceList ?? []).map((d) => ({
+            data={(data?.deviceList ?? []).map((d) => ({
               Name: d.displayName, OS: d.operatingSystem, "Join Type": trustLabel(d.trustType),
               Management: mgmtLabel(d.managementType, d.isManaged),
               Compliant: d.isCompliant === null ? "N/A" : d.isCompliant ? "Yes" : "No",
@@ -953,55 +873,15 @@ export function DefenderTab() {
                   </button>
                 </div>
               </div>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    {deviceTable.getHeaderGroups().map((hg) => (
-                      <TableRow key={hg.id}>
-                        {hg.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
-                            <div className="flex items-center gap-1">
-                              {flexRender(header.column.columnDef.header, header.getContext())}
-                              {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {deviceTable.getRowModel().rows.length > 0 ? (
-                      deviceTable.getRowModel().rows.map((row) => (
-                        <TableRow
-                          key={row.id}
-                          className={!row.original.isManaged && !row.original.managementType ? "bg-red-50/40 dark:bg-red-950/10" : ""}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id} className="py-2">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={deviceColumns.length} className="h-16 text-center text-muted-foreground">
-                          No devices match the filter.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {deviceTable.getFilteredRowModel().rows.length} device{deviceTable.getFilteredRowModel().rows.length !== 1 ? "s" : ""}
-                </p>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => deviceTable.previousPage()} disabled={!deviceTable.getCanPreviousPage()}>Previous</Button>
-                  <Button variant="outline" size="sm" onClick={() => deviceTable.nextPage()} disabled={!deviceTable.getCanNextPage()}>Next</Button>
-                </div>
-              </div>
+              <DataTable
+                columns={deviceColumns}
+                data={filteredDevices}
+                globalFilter={deviceFilter}
+                pageSize={20}
+                rowNoun="devices"
+                emptyMessage="No devices match the filter."
+                rowClassName={(d) => (!d.isManaged && !d.managementType ? "bg-red-50/40 dark:bg-red-950/10" : "")}
+              />
             </div>
           )}
       </CollapsibleSection>
@@ -1020,7 +900,7 @@ export function DefenderTab() {
         description={!loading ? `${mdeInventoryDevices.length} devices identified by Defender for Endpoint` : undefined}
         actions={<ExportBtn
             filename="defender-endpoint-device-inventory.csv"
-            csvData={mdeInventoryDevices.map((d) => ({
+            data={mdeInventoryDevices.map((d) => ({
               Name: d.displayName,
               OS: d.operatingSystem,
               "Join Type": trustLabel(d.trustType),
@@ -1056,52 +936,14 @@ export function DefenderTab() {
                 onChange={(e) => setMdeDeviceFilter(e.target.value)}
                 className="max-w-xs"
               />
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    {mdeDeviceTable.getHeaderGroups().map((hg) => (
-                      <TableRow key={hg.id}>
-                        {hg.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
-                            <div className="flex items-center gap-1">
-                              {flexRender(header.column.columnDef.header, header.getContext())}
-                              {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {mdeDeviceTable.getRowModel().rows.length > 0 ? (
-                      mdeDeviceTable.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id} className="py-2">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={deviceColumns.length} className="h-16 text-center text-muted-foreground">
-                          {mdeStatus?.ok === false ? "No live Defender inventory returned (authorization or scope issue)." : "No Defender-managed devices found."}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {mdeDeviceTable.getFilteredRowModel().rows.length} device{mdeDeviceTable.getFilteredRowModel().rows.length !== 1 ? "s" : ""}
-                </p>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => mdeDeviceTable.previousPage()} disabled={!mdeDeviceTable.getCanPreviousPage()}>Previous</Button>
-                  <Button variant="outline" size="sm" onClick={() => mdeDeviceTable.nextPage()} disabled={!mdeDeviceTable.getCanNextPage()}>Next</Button>
-                </div>
-              </div>
+              <DataTable
+                columns={deviceColumns}
+                data={mdeInventoryDevices}
+                globalFilter={mdeDeviceFilter}
+                pageSize={20}
+                rowNoun="devices"
+                emptyMessage={mdeStatus?.ok === false ? "No live Defender inventory returned (authorization or scope issue)." : "No Defender-managed devices found."}
+              />
             </div>
           )}
       </CollapsibleSection>
@@ -1177,7 +1019,7 @@ export function DefenderTab() {
         description={`Service principals registered in the tenant — ${thirdPartyApps} third-party, ${(data?.saasApps.length ?? 0) - thirdPartyApps} Microsoft`}
         actions={<ExportBtn
             filename="saas-apps.csv"
-            csvData={(data?.saasApps ?? []).map((a) => ({
+            data={(data?.saasApps ?? []).map((a) => ({
               Name: a.displayName,
               Publisher: a.publisherName ?? "",
               Type: a.isFirstParty ? "Microsoft" : "Third-party",
@@ -1232,50 +1074,16 @@ export function DefenderTab() {
                 </div>
               </div>
 
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    {saasTable.getHeaderGroups().map((hg) => (
-                      <TableRow key={hg.id}>
-                        {hg.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
-                            <div className="flex items-center gap-1">
-                              {flexRender(header.column.columnDef.header, header.getContext())}
-                              {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {saasTable.getRowModel().rows.length > 0 ? (
-                      saasTable.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id} className={!row.original.isFirstParty ? "bg-orange-50/20 dark:bg-orange-950/10" : ""}>
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id} className="py-2 align-top">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={saasColumns.length} className="h-16 text-center text-muted-foreground">
-                          No applications match the filter.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{saasTable.getFilteredRowModel().rows.length} applications</p>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => saasTable.previousPage()} disabled={!saasTable.getCanPreviousPage()}>Previous</Button>
-                  <Button variant="outline" size="sm" onClick={() => saasTable.nextPage()} disabled={!saasTable.getCanNextPage()}>Next</Button>
-                </div>
-              </div>
+              <DataTable
+                columns={saasColumns}
+                data={filteredSaas}
+                globalFilter={saasFilter}
+                initialSorting={[{ id: "isFirstParty", desc: false }]}
+                pageSize={20}
+                rowNoun="applications"
+                emptyMessage="No applications match the filter."
+                rowClassName={(a) => (!a.isFirstParty ? "bg-orange-50/20 dark:bg-orange-950/10" : "")}
+              />
             </div>
           )}
       </CollapsibleSection>
@@ -1287,7 +1095,7 @@ export function DefenderTab() {
         description="Apps with delegated permissions granted by users or admins"
         actions={<ExportBtn
             filename="oauth-apps.csv"
-            csvData={(data?.oauthApps ?? []).map((a) => ({
+            data={(data?.oauthApps ?? []).map((a) => ({
               App: a.displayName,
               "Consent Type": a.consentType,
               "Org-wide": a.isOrgWide ? "Yes" : "No",
@@ -1337,53 +1145,16 @@ export function DefenderTab() {
                 className="max-w-xs"
               />
 
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    {oauthTable.getHeaderGroups().map((hg) => (
-                      <TableRow key={hg.id}>
-                        {hg.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
-                            <div className="flex items-center gap-1">
-                              {flexRender(header.column.columnDef.header, header.getContext())}
-                              {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {oauthTable.getRowModel().rows.length > 0 ? (
-                      oauthTable.getRowModel().rows.map((row) => (
-                        <TableRow
-                          key={row.id}
-                          className={row.original.isOrgWide ? "bg-red-50/30 dark:bg-red-950/10" : ""}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id} className="py-2 align-top">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={oauthColumns.length} className="h-16 text-center text-muted-foreground">
-                          No OAuth grants found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{oauthTable.getFilteredRowModel().rows.length} applications</p>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => oauthTable.previousPage()} disabled={!oauthTable.getCanPreviousPage()}>Previous</Button>
-                  <Button variant="outline" size="sm" onClick={() => oauthTable.nextPage()} disabled={!oauthTable.getCanNextPage()}>Next</Button>
-                </div>
-              </div>
+              <DataTable
+                columns={oauthColumns}
+                data={data?.oauthApps ?? []}
+                globalFilter={oauthFilter}
+                initialSorting={[{ id: "consentType", desc: false }]}
+                pageSize={20}
+                rowNoun="applications"
+                emptyMessage="No OAuth grants found."
+                rowClassName={(a) => (a.isOrgWide ? "bg-red-50/30 dark:bg-red-950/10" : "")}
+              />
             </div>
           )}
       </CollapsibleSection>

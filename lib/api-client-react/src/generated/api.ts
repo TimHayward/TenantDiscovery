@@ -26,6 +26,7 @@ import type {
   FindingStateUpdate,
   FindingWithState,
   FindingsRegisterResponse,
+  FrameworkCoverageResponse,
   GetM365DataSourcesParams,
   GetM365DriftParams,
   GetM365FindingsParams,
@@ -3328,6 +3329,83 @@ export function useGetM365Findings<TData = Awaited<ReturnType<typeof getM365Find
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetM365FindingsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Framework control coverage (CIS Microsoft 365, NCSC Cyber Essentials) derived from findings
+ */
+export const getGetM365FrameworkCoverageUrl = () => {
+
+
+
+
+  return `/api/m365/findings/frameworks`
+}
+
+export const getM365FrameworkCoverage = async ( options?: RequestInit): Promise<FrameworkCoverageResponse> => {
+
+  return customFetch<FrameworkCoverageResponse>(getGetM365FrameworkCoverageUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365FrameworkCoverageQueryKey = () => {
+    return [
+    `/api/m365/findings/frameworks`
+    ] as const;
+    }
+
+
+export const getGetM365FrameworkCoverageQueryOptions = <TData = Awaited<ReturnType<typeof getM365FrameworkCoverage>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365FrameworkCoverage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365FrameworkCoverageQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365FrameworkCoverage>>> = ({ signal }) => getM365FrameworkCoverage({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365FrameworkCoverage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365FrameworkCoverageQueryResult = NonNullable<Awaited<ReturnType<typeof getM365FrameworkCoverage>>>
+export type GetM365FrameworkCoverageQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Framework control coverage (CIS Microsoft 365, NCSC Cyber Essentials) derived from findings
+ */
+
+export function useGetM365FrameworkCoverage<TData = Awaited<ReturnType<typeof getM365FrameworkCoverage>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365FrameworkCoverage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365FrameworkCoverageQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

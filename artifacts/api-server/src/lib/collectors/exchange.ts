@@ -5,18 +5,9 @@ import {
   isPermissionIssue,
   type CollectionIssue,
 } from "../collectionIssues.js";
-
-function parseCsv(csv: string): Record<string, string>[] {
-  const lines = csv.trim().split("\n").filter(Boolean);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map((h) => h.trim().replace(/\r/g, ""));
-  return lines.slice(1).map((line) => {
-    const vals = line.split(",").map((v) => v.trim().replace(/\r/g, ""));
-    const obj: Record<string, string> = {};
-    headers.forEach((h, i) => { obj[h] = vals[i] ?? ""; });
-    return obj;
-  });
-}
+import { lookupDomainEmailAuth } from "../dns/emailAuthDns.js";
+import { fetchDkimSigningConfigs } from "../exchangeOnline.js";
+import { parseCsv } from "../csv.js";
 
 export async function collectExchange() {
   const [mailboxCsvResult, activityCsvResult, domainsResult] = await Promise.all([
@@ -77,18 +68,59 @@ export async function collectExchange() {
     (d: any) => d.isVerified && (d.supportedServices as string[] ?? []).includes("Email"),
   );
 
+  const domainsToCheck = emailDomains.slice(0, 20);
+
+  // Authoritative M365 DKIM signing status (best-effort; falls back to DNS per domain).
+  const dkimResult = await fetchDkimSigningConfigs();
+  collectionIssues.push(...dkimResult.issues);
+
   const domainAuthRecords = await Promise.all(
-    emailDomains.slice(0, 20).map(async (domain: any) => {
+    domainsToCheck.map(async (domain: any) => {
       const domainId: string = domain.id;
-      const result = await fetchGraphJson<any>(
+
+      // Primary signal: live DNS resolution of the published records.
+      const dns = await lookupDomainEmailAuth(domainId);
+      collectionIssues.push(...dns.issues);
+
+      // Secondary signal: Microsoft's recommended/expected service-configuration records.
+      const expected = await fetchGraphJson<any>(
         `https://graph.microsoft.com/v1.0/domains/${encodeURIComponent(domainId)}/serviceConfigurationRecords`,
         `domainConfigRecords:${domainId}`,
       );
-      const records: any[] = result.data?.value ?? [];
-      const hasSpf = records.some((r: any) => r.recordType === "Txt" && typeof r.text === "string" && r.text.toLowerCase().includes("v=spf1"));
-      const hasDkim = records.some((r: any) => r.recordType === "CName" && typeof r.label === "string" && (r.label.toLowerCase().includes("selector1") || r.label.toLowerCase().includes("selector2") || r.label.toLowerCase().includes("_domainkey")));
-      const mxConfigured = records.some((r: any) => r.recordType === "Mx");
-      return { domain: domainId, hasSpf, hasDkim, hasDmarc: false, mxConfigured };
+      if (expected.issue) collectionIssues.push(expected.issue);
+      const expectedRecords: any[] = expected.data?.value ?? [];
+      const expectedSpf = expectedRecords.some(
+        (r: any) => r.recordType === "Txt" && typeof r.text === "string" && r.text.toLowerCase().includes("v=spf1"),
+      );
+      const expectedMx = expectedRecords.some((r: any) => r.recordType === "Mx");
+
+      // DKIM: prefer authoritative Exchange Online status, fall back to DNS selector CNAMEs.
+      const exoDkim = dkimResult.byDomain?.get(domainId.toLowerCase());
+      let hasDkim: boolean;
+      let dkimSource: "exchange" | "dns" | "none";
+      if (exoDkim !== undefined) {
+        hasDkim = exoDkim;
+        dkimSource = "exchange";
+      } else if (dns.hasDkimCname) {
+        hasDkim = true;
+        dkimSource = "dns";
+      } else {
+        hasDkim = false;
+        dkimSource = "none";
+      }
+
+      return {
+        domain: domainId,
+        hasSpf: dns.hasSpf,
+        hasDkim,
+        hasDmarc: dns.hasDmarc,
+        mxConfigured: dns.mxConfigured,
+        spfRecord: dns.spfRecord,
+        dmarcPolicy: dns.dmarcPolicy,
+        dkimSource,
+        expectedSpf,
+        expectedMx,
+      };
     }),
   );
 

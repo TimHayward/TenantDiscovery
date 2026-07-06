@@ -60,6 +60,102 @@ interface UserItem {
   assignedPlans?: Array<{ service?: string; capabilityStatus?: string; servicePlanId?: string }>;
 }
 
+interface DirectoryRoleItem {
+  id?: string;
+  displayName?: string;
+  roleTemplateId?: string;
+}
+
+/**
+ * Identify admin-relevant activated directory roles the same way the primary
+ * unified-RBAC path identifies admin role definitions: curated template match or
+ * an "admin"/"administrator" display-name heuristic.
+ */
+export function isAdminDirectoryRole(role: DirectoryRoleItem): boolean {
+  const templateId = role.roleTemplateId;
+  const displayName = (role.displayName ?? "").toLowerCase();
+  const inCurated = !!templateId && templateId in CURATED_ADMIN_ROLE_TEMPLATE_IDS;
+  const looksAdmin = displayName.includes("admin") || displayName.includes("administrator");
+  return inCurated || looksAdmin;
+}
+
+/**
+ * Fallback path used when RoleManagement.Read.Directory is missing (the unified
+ * RBAC role-assignment endpoints 403). The legacy /directoryRoles API needs only
+ * Directory.Read.All (already required tier). It reflects *permanently activated*
+ * role memberships only — there is no legacy equivalent for PIM-eligible /
+ * scheduled assignments, so the caller reports eligible data as unavailable
+ * rather than zero.
+ */
+async function collectAdminExposureViaDirectoryRoles(
+  userById: Map<string, Omit<AdminExposureUserItem, "roles">>,
+): Promise<{
+  aggregated: ReturnType<typeof aggregateAdminExposure>;
+  issues: CollectionIssue[];
+}> {
+  const issues: CollectionIssue[] = [];
+
+  const rolesResult = await fetchAllGraphPages<DirectoryRoleItem>(
+    "https://graph.microsoft.com/v1.0/directoryRoles?$select=id,displayName,roleTemplateId",
+    "directoryRoles",
+  );
+  issues.push(...rolesResult.issues);
+
+  // Identify admin-relevant activated roles the same way the primary path does.
+  const adminRoles = rolesResult.items.filter(isAdminDirectoryRole);
+
+  const roleDefinitionById = new Map<string, { templateId: string; displayName: string }>();
+  const roleAssignmentItems: RoleAssignmentItem[] = [];
+
+  const memberResults = await Promise.all(
+    adminRoles.map(async (role) => {
+      if (!role.id) return null;
+      const templateId = role.roleTemplateId ?? role.id;
+      const displayName = CURATED_ADMIN_ROLE_TEMPLATE_IDS[templateId] ?? role.displayName ?? "";
+      roleDefinitionById.set(role.id, { templateId, displayName });
+      const membersResult = await fetchAllGraphPages<UserItem>(
+        `https://graph.microsoft.com/v1.0/directoryRoles/${role.id}/members/microsoft.graph.user` +
+          "?$select=id,displayName,userPrincipalName,accountEnabled,assignedPlans&$top=999",
+        `directoryRoleMembers:${role.id}`,
+      );
+      return { roleId: role.id, members: membersResult };
+    }),
+  );
+
+  for (const result of memberResults) {
+    if (!result) continue;
+    issues.push(...result.members.issues);
+    for (const member of result.members.items) {
+      if (!member.id) continue;
+      if (!userById.has(member.id)) {
+        const hasProductivityLicense = (member.assignedPlans ?? []).some(
+          (plan) =>
+            plan.capabilityStatus === "Enabled" &&
+            PRODUCTIVITY_SERVICE_PLAN_IDS.has(plan.servicePlanId ?? ""),
+        );
+        userById.set(member.id, {
+          id: member.id,
+          displayName: member.displayName ?? "",
+          userPrincipalName: member.userPrincipalName ?? "",
+          accountEnabled: member.accountEnabled ?? false,
+          hasProductivityLicense,
+        });
+      }
+      roleAssignmentItems.push({ principalId: member.id, roleDefinitionId: result.roleId });
+    }
+  }
+
+  const aggregated = aggregateAdminExposure(
+    roleAssignmentItems,
+    [],
+    roleDefinitionById,
+    userById,
+    new Map(),
+  );
+
+  return { aggregated, issues };
+}
+
 export async function collectAdminExposure() {
   const [
     roleAssignmentsResult,
@@ -113,110 +209,151 @@ export async function collectAdminExposure() {
     });
   }
 
-  const referencedPrincipalIds = new Set<string>();
-  for (const item of roleAssignmentsResult.items) {
-    if (item.principalId) referencedPrincipalIds.add(item.principalId);
-  }
-  for (const item of roleEligibilityResult.items) {
-    if (item.principalId) referencedPrincipalIds.add(item.principalId);
-  }
+  // When the unified RBAC role-assignment endpoints 403 (RoleManagement.Read.Directory
+  // missing) fall back to the legacy /directoryRoles API, which needs only the
+  // already-required Directory.Read.All. The fallback covers permanent admins only.
+  const roleAssignmentsPermissionFailed = roleAssignmentsResult.issues.some(isPermissionIssue);
 
-  const unknownPrincipalIds = Array.from(referencedPrincipalIds).filter((id) => !userById.has(id));
-  const groupMemberUserIdsByGroupId = new Map<string, Set<string>>();
+  let aggregated: ReturnType<typeof aggregateAdminExposure>;
+  let eligibleAssignmentCount: number | null;
+  let dormantEligibleCount: number | null;
+  let roleDataSource: "unifiedRbac" | "directoryRolesFallback";
 
-  if (unknownPrincipalIds.length > 0) {
-    const groupFetchResults = await Promise.all(
-      unknownPrincipalIds.map(async (principalId) => {
-        const groupUsersResult = await fetchAllGraphPages<UserItem>(
-          `https://graph.microsoft.com/v1.0/groups/${principalId}/transitiveMembers/microsoft.graph.user` +
-            "?$select=id,displayName,userPrincipalName,accountEnabled,assignedPlans&$top=999",
-          `groupMembers:${principalId}`,
-        );
-        const filteredIssues = groupUsersResult.issues.filter((issue) => issue.category !== "notFound");
-        if (filteredIssues.length > 0) collectionIssues.push(...filteredIssues);
-        return { principalId, users: groupUsersResult.items };
-      }),
+  if (roleAssignmentsPermissionFailed) {
+    roleDataSource = "directoryRolesFallback";
+    const fallback = await collectAdminExposureViaDirectoryRoles(userById);
+    collectionIssues.push(...fallback.issues);
+    aggregated = fallback.aggregated;
+    // The legacy API has no equivalent for PIM-eligible / scheduled assignments —
+    // report them as unavailable rather than fabricating zero.
+    eligibleAssignmentCount = null;
+    dormantEligibleCount = null;
+  } else {
+    roleDataSource = "unifiedRbac";
+
+    const referencedPrincipalIds = new Set<string>();
+    for (const item of roleAssignmentsResult.items) {
+      if (item.principalId) referencedPrincipalIds.add(item.principalId);
+    }
+    for (const item of roleEligibilityResult.items) {
+      if (item.principalId) referencedPrincipalIds.add(item.principalId);
+    }
+
+    const unknownPrincipalIds = Array.from(referencedPrincipalIds).filter((id) => !userById.has(id));
+    const groupMemberUserIdsByGroupId = new Map<string, Set<string>>();
+
+    if (unknownPrincipalIds.length > 0) {
+      const groupFetchResults = await Promise.all(
+        unknownPrincipalIds.map(async (principalId) => {
+          const groupUsersResult = await fetchAllGraphPages<UserItem>(
+            `https://graph.microsoft.com/v1.0/groups/${principalId}/transitiveMembers/microsoft.graph.user` +
+              "?$select=id,displayName,userPrincipalName,accountEnabled,assignedPlans&$top=999",
+            `groupMembers:${principalId}`,
+          );
+          const filteredIssues = groupUsersResult.issues.filter((issue) => issue.category !== "notFound");
+          if (filteredIssues.length > 0) collectionIssues.push(...filteredIssues);
+          return { principalId, users: groupUsersResult.items };
+        }),
+      );
+
+      for (const result of groupFetchResults) {
+        if (result.users.length === 0) continue;
+        const memberIds = new Set<string>();
+        for (const user of result.users) {
+          if (!user.id) continue;
+          memberIds.add(user.id);
+          if (!userById.has(user.id)) {
+            const hasProductivityLicense = (user.assignedPlans ?? []).some(
+              (plan) =>
+                plan.capabilityStatus === "Enabled" &&
+                PRODUCTIVITY_SERVICE_PLAN_IDS.has(plan.servicePlanId ?? ""),
+            );
+            userById.set(user.id, {
+              id: user.id,
+              displayName: user.displayName ?? "",
+              userPrincipalName: user.userPrincipalName ?? "",
+              accountEnabled: user.accountEnabled ?? false,
+              hasProductivityLicense,
+            });
+          }
+        }
+        if (memberIds.size > 0) groupMemberUserIdsByGroupId.set(result.principalId, memberIds);
+      }
+    }
+
+    const displayNameToTemplateId = new Map<string, string>();
+    Object.entries(CURATED_ADMIN_ROLE_TEMPLATE_IDS).forEach(([templateId, displayName]) => {
+      displayNameToTemplateId.set(displayName.toLowerCase(), templateId);
+    });
+
+    const referencedRoleDefinitionIds = new Set<string>();
+    for (const item of roleAssignmentsResult.items) {
+      if (item.roleDefinitionId) referencedRoleDefinitionIds.add(item.roleDefinitionId);
+    }
+    for (const item of roleEligibilityResult.items) {
+      if (item.roleDefinitionId) referencedRoleDefinitionIds.add(item.roleDefinitionId);
+    }
+
+    const roleDefinitionById = new Map<string, { templateId: string; displayName: string }>();
+    for (const roleDef of roleDefinitionsResult.items) {
+      if (!roleDef.id || !referencedRoleDefinitionIds.has(roleDef.id)) continue;
+      let templateId = roleDef.templateId ?? roleDef.roleTemplateId;
+      let displayName = roleDef.displayName ?? "";
+      if (!templateId && displayName) {
+        templateId = displayNameToTemplateId.get(displayName.toLowerCase());
+      }
+      const isInCuratedList = templateId && templateId in CURATED_ADMIN_ROLE_TEMPLATE_IDS;
+      const appearsAdminRelated =
+        displayName.toLowerCase().includes("admin") || displayName.toLowerCase().includes("administrator");
+      if (isInCuratedList || appearsAdminRelated) {
+        roleDefinitionById.set(roleDef.id, {
+          templateId: templateId || roleDef.id,
+          displayName: CURATED_ADMIN_ROLE_TEMPLATE_IDS[templateId as string] ?? displayName,
+        });
+      }
+    }
+
+    aggregated = aggregateAdminExposure(
+      roleAssignmentsResult.items,
+      roleEligibilityResult.items,
+      roleDefinitionById,
+      userById,
+      groupMemberUserIdsByGroupId,
     );
 
-    for (const result of groupFetchResults) {
-      if (result.users.length === 0) continue;
-      const memberIds = new Set<string>();
-      for (const user of result.users) {
-        if (!user.id) continue;
-        memberIds.add(user.id);
-        if (!userById.has(user.id)) {
-          const hasProductivityLicense = (user.assignedPlans ?? []).some(
-            (plan) =>
-              plan.capabilityStatus === "Enabled" &&
-              PRODUCTIVITY_SERVICE_PLAN_IDS.has(plan.servicePlanId ?? ""),
-          );
-          userById.set(user.id, {
-            id: user.id,
-            displayName: user.displayName ?? "",
-            userPrincipalName: user.userPrincipalName ?? "",
-            accountEnabled: user.accountEnabled ?? false,
-            hasProductivityLicense,
-          });
+    const activePrincipalIds = new Set(
+      roleAssignmentsResult.items.map((r: RoleAssignmentItem) => r.principalId).filter(Boolean),
+    );
+    const eligiblePrincipalIds = new Set(
+      roleEligibilityResult.items.map((r: RoleAssignmentItem) => r.principalId).filter(Boolean),
+    );
+    eligibleAssignmentCount = roleEligibilityResult.items.length;
+    dormantEligibleCount = Array.from(eligiblePrincipalIds).filter(
+      (id) => !activePrincipalIds.has(id),
+    ).length;
+  }
+
+  // In fallback mode the eligible (PIM) figures are genuinely unknown, not zero.
+  const eligibleOverride =
+    roleDataSource === "directoryRolesFallback"
+      ? {
+          eligibleGlobalAdminsCount: null,
+          eligibleGlobalAdminsWithProductivityCount: null,
+          eligibleAdminsCount: null,
+          eligibleAdminsWithProductivityCount: null,
+          eligibleGlobalAdmins: null,
+          eligibleGlobalAdminsWithProductivity: null,
+          eligibleAdmins: null,
+          eligibleAdminsWithProductivity: null,
         }
-      }
-      if (memberIds.size > 0) groupMemberUserIdsByGroupId.set(result.principalId, memberIds);
-    }
-  }
-
-  const displayNameToTemplateId = new Map<string, string>();
-  Object.entries(CURATED_ADMIN_ROLE_TEMPLATE_IDS).forEach(([templateId, displayName]) => {
-    displayNameToTemplateId.set(displayName.toLowerCase(), templateId);
-  });
-
-  const referencedRoleDefinitionIds = new Set<string>();
-  for (const item of roleAssignmentsResult.items) {
-    if (item.roleDefinitionId) referencedRoleDefinitionIds.add(item.roleDefinitionId);
-  }
-  for (const item of roleEligibilityResult.items) {
-    if (item.roleDefinitionId) referencedRoleDefinitionIds.add(item.roleDefinitionId);
-  }
-
-  const roleDefinitionById = new Map<string, { templateId: string; displayName: string }>();
-  for (const roleDef of roleDefinitionsResult.items) {
-    if (!roleDef.id || !referencedRoleDefinitionIds.has(roleDef.id)) continue;
-    let templateId = roleDef.templateId ?? roleDef.roleTemplateId;
-    let displayName = roleDef.displayName ?? "";
-    if (!templateId && displayName) {
-      templateId = displayNameToTemplateId.get(displayName.toLowerCase());
-    }
-    const isInCuratedList = templateId && templateId in CURATED_ADMIN_ROLE_TEMPLATE_IDS;
-    const appearsAdminRelated =
-      displayName.toLowerCase().includes("admin") || displayName.toLowerCase().includes("administrator");
-    if (isInCuratedList || appearsAdminRelated) {
-      roleDefinitionById.set(roleDef.id, {
-        templateId: templateId || roleDef.id,
-        displayName: CURATED_ADMIN_ROLE_TEMPLATE_IDS[templateId as string] ?? displayName,
-      });
-    }
-  }
-
-  const aggregated = aggregateAdminExposure(
-    roleAssignmentsResult.items,
-    roleEligibilityResult.items,
-    roleDefinitionById,
-    userById,
-    groupMemberUserIdsByGroupId,
-  );
-
-  const activePrincipalIds = new Set(
-    roleAssignmentsResult.items.map((r: RoleAssignmentItem) => r.principalId).filter(Boolean),
-  );
-  const eligiblePrincipalIds = new Set(
-    roleEligibilityResult.items.map((r: RoleAssignmentItem) => r.principalId).filter(Boolean),
-  );
-  const dormantEligibleCount = Array.from(eligiblePrincipalIds).filter(
-    (id) => !activePrincipalIds.has(id),
-  ).length;
+      : {};
 
   return {
     ...aggregated,
-    eligibleAssignmentCount: roleEligibilityResult.items.length,
+    ...eligibleOverride,
+    eligibleAssignmentCount,
     dormantEligibleCount,
+    roleDataSource,
     partialData: collectionIssues.length > 0,
     permissionError: collectionIssues.some(isPermissionIssue),
     collectionIssues,

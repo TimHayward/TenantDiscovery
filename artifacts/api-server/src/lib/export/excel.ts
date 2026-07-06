@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { FINDING_EXPORT_COLUMNS, type FindingExportRow } from "./model.js";
+import type { FrameworkCoverage } from "../findings/frameworks/coverage.js";
 
 const SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
@@ -17,11 +18,48 @@ function addSheet(wb: ExcelJS.Workbook, name: string, rows: FindingExportRow[]):
   sheet.autoFilter = { from: "A1", to: { row: 1, column: FINDING_EXPORT_COLUMNS.length } };
 }
 
+function addFrameworkSheet(wb: ExcelJS.Workbook, coverage: FrameworkCoverage[]): void {
+  const sheet = wb.addWorksheet("Framework Coverage");
+  sheet.columns = [
+    { header: "Framework", key: "framework", width: 36 },
+    { header: "Control", key: "controlId", width: 12 },
+    { header: "Title", key: "title", width: 40 },
+    { header: "Requirement", key: "requirement", width: 50 },
+    { header: "Status", key: "status", width: 14 },
+    { header: "Mapped findings", key: "findingCount", width: 16 },
+    { header: "Fail", key: "failCount", width: 8 },
+    { header: "Review", key: "warningCount", width: 8 },
+    { header: "Manual", key: "manualCount", width: 8 },
+    { header: "Pass", key: "passCount", width: 8 },
+  ];
+  sheet.getRow(1).font = { bold: true };
+  for (const fw of coverage) {
+    for (const c of fw.controls) {
+      sheet.addRow({
+        framework: fw.name,
+        controlId: c.controlId,
+        title: c.title,
+        requirement: c.requirement,
+        status: c.status,
+        findingCount: c.findingCount,
+        failCount: c.failCount,
+        warningCount: c.warningCount,
+        manualCount: c.manualCount,
+        passCount: c.passCount,
+      });
+    }
+  }
+  sheet.autoFilter = { from: "A1", to: { row: 1, column: 10 } };
+}
+
 /**
  * Build an architect evidence workbook: a summary sheet plus one sheet per
- * finding category.
+ * finding category, and a framework-coverage sheet when coverage is supplied.
  */
-export async function buildFindingsWorkbook(rows: FindingExportRow[]): Promise<Buffer> {
+export async function buildFindingsWorkbook(
+  rows: FindingExportRow[],
+  coverage?: FrameworkCoverage[],
+): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "TenentDiscovery";
   wb.created = new Date();
@@ -49,6 +87,11 @@ export async function buildFindingsWorkbook(rows: FindingExportRow[]): Promise<B
   const categories = Array.from(new Set(rows.map((r) => r.category))).sort();
   for (const cat of categories) {
     addSheet(wb, cat, rows.filter((r) => r.category === cat));
+  }
+
+  // Framework control coverage (CIS / NCSC), when supplied.
+  if (coverage && coverage.length > 0) {
+    addFrameworkSheet(wb, coverage);
   }
 
   const arrayBuffer = await wb.xlsx.writeBuffer();

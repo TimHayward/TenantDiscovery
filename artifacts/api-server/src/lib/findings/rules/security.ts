@@ -1,4 +1,5 @@
 import type { RuleDefinition, RuleOutcome } from "./helpers.js";
+import { cis, ce } from "../frameworks/catalogue.js";
 import type { Severity } from "../types.js";
 
 /** Minimal shape of the m365-security snapshot consumed by these rules. */
@@ -46,6 +47,7 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     severity: "critical",
     metricId: "security.checklist.6.2.mfaCoverage",
     remediation: "Enforce MFA registration via Conditional Access / registration campaigns for all users.",
+    frameworks: [cis("5.1.2"), ce("UAC")],
     evaluate: (d) => {
       if (!d) return null;
       const pct = d.mfaEnabledPercent ?? 0;
@@ -60,6 +62,7 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     severity: "high",
     metricId: "security.checklist.6.3.conditionalAccess",
     remediation: "Deploy the Conditional Access baseline (MFA, legacy-auth block, risk-based sign-in) policies.",
+    frameworks: [cis("5.2.2"), ce("UAC")],
     evaluate: (d) => {
       if (!d) return null;
       const n = d.enabledCAPs ?? 0;
@@ -110,6 +113,7 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     severity: "medium",
     metricId: "security.checklist.6.6.phishingResistantMfa",
     remediation: "Roll out FIDO2 / certificate-based / Windows Hello for Business to privileged users.",
+    frameworks: [cis("5.1.2"), ce("UAC")],
     evaluate: (d) => {
       const count = d?.mfaMethodsBreakdown?.find((m) => m.strength === "Phishing-resistant")?.count ?? 0;
       return count > 0
@@ -125,6 +129,7 @@ export const securityRules: RuleDefinition<SecurityData>[] = [
     severity: "high",
     metricId: "security.checklist.6.7.legacyAuthBlocked",
     remediation: "Block legacy authentication via Conditional Access and confirm no break-glass exceptions remain.",
+    frameworks: [cis("5.2.2"), ce("UAC")],
     evaluate: () => [{ checkStatus: "manual" }],
   },
   {

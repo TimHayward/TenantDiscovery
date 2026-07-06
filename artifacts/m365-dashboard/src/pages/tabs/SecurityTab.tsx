@@ -9,20 +9,15 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { CSVLink } from "react-csv";
 import {
-  Download, ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp,
   CheckCircle2, XCircle, ShieldCheck, ShieldAlert, AlertTriangle,
   Settings2,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
-import {
-  useReactTable, getCoreRowModel, getSortedRowModel,
-  getFilteredRowModel, getPaginationRowModel, flexRender,
-  type ColumnDef, type SortingState,
-} from "@tanstack/react-table";
+import { type ColumnDef } from "@tanstack/react-table";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -36,16 +31,12 @@ import type {
   SecureScoreControl,
 } from "@workspace/api-client-react";
 import { getMetricDataSourceEntry } from "@workspace/permissions-manifest";
+import { chartPalette } from "@/lib/chartPalette";
+import { RISK_BADGE_CLASS } from "@/lib/statusTokens";
+import { ExportBtn } from "@/components/ExportBtn";
+import { DataTable } from "@/components/DataTable";
 
-const C = {
-  blue:   "#1E3D59",
-  purple: "#795EFF",
-  green:  "#009118",
-  red:    "#A60808",
-  yellow: "#eab308",
-  orange: "#f97316",
-  gray:   "#9ca3af",
-};
+const C = { ...chartPalette, gray: "#9ca3af" };
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Identity":       "#1E3D59",
@@ -91,29 +82,7 @@ function StrengthBadge({ strength }: { strength: string }) {
 }
 
 function RiskBadge({ level }: { level: string }) {
-  const cls: Record<string, string> = {
-    high:   "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-    medium: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-    low:    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-    none:   "bg-muted text-muted-foreground",
-  };
-  return <Badge className={`${cls[level] ?? ""} font-normal text-xs capitalize border-0`}>{level}</Badge>;
-}
-
-function ExportBtn({ filename, csvData }: { filename: string; csvData: object[] }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  if (!csvData.length) return null;
-  return (
-    <CSVLink
-      data={csvData} filename={filename}
-      className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80"
-      style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
-      aria-label="Export CSV"
-    >
-      <Download className="w-3.5 h-3.5" />
-    </CSVLink>
-  );
+  return <Badge className={`${RISK_BADGE_CLASS[level] ?? ""} font-normal text-xs capitalize border-0`}>{level}</Badge>;
 }
 
 const caColumns: ColumnDef<ConditionalAccessPolicyItem>[] = [
@@ -278,47 +247,6 @@ function RiskTooltip({ active, payload, label }: any) {
   );
 }
 
-function renderTable<T>(table: ReturnType<typeof useReactTable<T>>, emptyMsg = "No data.") {
-  return (
-    <div className="rounded-md border overflow-x-auto">
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((hg) => (
-            <TableRow key={hg.id}>
-              {hg.headers.map((header) => (
-                <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
-                  <div className="flex items-center gap-1">
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                  </div>
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.length > 0 ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="py-2">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={table.getAllColumns().length} className="h-16 text-center text-muted-foreground">
-                {emptyMsg}
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
 
 const methodColumns: ColumnDef<MfaMethodStrengthItem>[] = [
   { accessorKey: "strengthLevel", header: "Strength", cell: ({ row }) => <StrengthBadge strength={row.original.strength} /> },
@@ -368,23 +296,8 @@ export function SecurityTab() {
   const tickColor = isDark ? "#98999C" : "#71717a";
 
   const [mfaUserFilter, setMfaUserFilter] = useState("");
-  const [mfaUserSorting, setMfaUserSorting] = useState<SortingState>([{ id: "isMfaRegistered", desc: false }]);
-
-  const mfaUserTable = useReactTable({
-    data: data?.mfaUsersList ?? [],
-    columns: mfaUserColumns,
-    state: { sorting: mfaUserSorting, globalFilter: mfaUserFilter },
-    onSortingChange: setMfaUserSorting,
-    onGlobalFilterChange: setMfaUserFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 20 } },
-  });
 
   const [settingsFilter, setSettingsFilter] = useState("");
-  const [settingsSorting, setSettingsSorting] = useState<SortingState>([{ id: "scoreInPercentage", desc: false }]);
   const [settingsCategoryFilter, setSettingsCategoryFilter] = useState("All");
   const [settingsStatusFilter, setSettingsStatusFilter] = useState("All");
 
@@ -397,19 +310,6 @@ export function SecurityTab() {
     if (settingsStatusFilter !== "All") c = c.filter((x) => x.status === settingsStatusFilter);
     return c;
   }, [controls, settingsCategoryFilter, settingsStatusFilter]);
-
-  const settingsTable = useReactTable({
-    data: filteredControls,
-    columns: secureScoreControlColumns,
-    state: { sorting: settingsSorting, globalFilter: settingsFilter },
-    onSortingChange: setSettingsSorting,
-    onGlobalFilterChange: setSettingsFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 20 } },
-  });
 
   const configuredCount   = controls.filter((c) => c.status === "configured").length;
   const partialCount      = controls.filter((c) => c.status === "partial").length;
@@ -549,32 +449,7 @@ export function SecurityTab() {
     },
   ];
 
-  const [caSorting, setCaSorting] = useState<SortingState>([{ id: "state", desc: false }]);
   const [caFilter, setCaFilter] = useState("");
-
-  const caTable = useReactTable({
-    data: data?.caPolicies ?? [],
-    columns: caColumns,
-    state: { sorting: caSorting, globalFilter: caFilter },
-    onSortingChange: setCaSorting,
-    onGlobalFilterChange: setCaFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 15 } },
-  });
-
-  const [methodSorting, setMethodSorting] = useState<SortingState>([{ id: "strengthLevel", desc: true }]);
-
-  const methodTable = useReactTable({
-    data: data?.mfaMethodsBreakdown ?? [],
-    columns: methodColumns,
-    state: { sorting: methodSorting },
-    onSortingChange: setMethodSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
 
   const [resetKey, setResetKey] = useState(0);
 
@@ -790,7 +665,7 @@ export function SecurityTab() {
           description={`${data!.riskDetectionTimeline.length} days with detections`}
           storageKey="security-risk-timeline"
           defaultOpen={true}
-          actions={<ExportBtn filename="risk-detections.csv" csvData={data?.riskDetectionTimeline ?? []} />}
+          actions={<ExportBtn filename="risk-detections.csv" data={data?.riskDetectionTimeline ?? []} />}
         >
           {loading ? <Skeleton className="w-full h-[200px]" /> : (
             <ResponsiveContainer width="100%" height={200} debounce={0}>
@@ -816,7 +691,7 @@ export function SecurityTab() {
           description="Users currently flagged as at-risk or compromised"
           storageKey="security-risky-users"
           defaultOpen={true}
-          actions={<ExportBtn filename="risky-users.csv" csvData={data?.riskyUsersDetail ?? []} />}
+          actions={<ExportBtn filename="risky-users.csv" data={data?.riskyUsersDetail ?? []} />}
         >
           {loading ? <Skeleton className="w-full h-32" /> : (
             <div className="space-y-3">
@@ -864,9 +739,16 @@ export function SecurityTab() {
             description={loading ? undefined : `${data?.mfaMethodsBreakdown?.length ?? 0} authentication methods in use`}
             storageKey="security-mfa-strength"
             defaultOpen={true}
-            actions={<ExportBtn filename="mfa-methods.csv" csvData={data?.mfaMethodsBreakdown ?? []} />}
+            actions={<ExportBtn filename="mfa-methods.csv" data={data?.mfaMethodsBreakdown ?? []} />}
           >
-            {loading ? <Skeleton className="w-full h-32" /> : renderTable(methodTable, "No MFA method data available.")}
+            {loading ? <Skeleton className="w-full h-32" /> : (
+              <DataTable
+                columns={methodColumns}
+                data={data?.mfaMethodsBreakdown ?? []}
+                initialSorting={[{ id: "strengthLevel", desc: true }]}
+                emptyMessage="No MFA method data available."
+              />
+            )}
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -874,7 +756,7 @@ export function SecurityTab() {
             description={loading ? undefined : `${data?.mfaEnabledUsers ?? 0} registered · ${data?.mfaDisabledUsers ?? 0} not registered`}
             storageKey="security-mfa-users"
             defaultOpen={false}
-            actions={<ExportBtn filename="mfa-users.csv" csvData={data?.mfaUsersList ?? []} />}
+            actions={<ExportBtn filename="mfa-users.csv" data={data?.mfaUsersList ?? []} />}
           >
             {loading ? <Skeleton className="w-full h-32" /> : (
               <div className="space-y-3">
@@ -886,14 +768,15 @@ export function SecurityTab() {
                     className="h-8 w-60 text-sm"
                   />
                 </div>
-                {renderTable(mfaUserTable, "No users found.")}
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">{mfaUserTable.getFilteredRowModel().rows.length} users</p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => mfaUserTable.previousPage()} disabled={!mfaUserTable.getCanPreviousPage()}>Previous</Button>
-                    <Button variant="outline" size="sm" onClick={() => mfaUserTable.nextPage()} disabled={!mfaUserTable.getCanNextPage()}>Next</Button>
-                  </div>
-                </div>
+                <DataTable
+                  columns={mfaUserColumns}
+                  data={data?.mfaUsersList ?? []}
+                  globalFilter={mfaUserFilter}
+                  initialSorting={[{ id: "isMfaRegistered", desc: false }]}
+                  pageSize={20}
+                  rowNoun="users"
+                  emptyMessage="No users found."
+                />
               </div>
             )}
           </CollapsibleSection>
@@ -906,7 +789,7 @@ export function SecurityTab() {
         description={loading ? undefined : `${data?.conditionalAccessPolicies ?? 0} total — ${data?.enabledCAPs ?? 0} enabled, ${data?.reportOnlyCAPs ?? 0} report-only, ${data?.disabledCAPs ?? 0} disabled`}
         storageKey="security-ca-policies"
         defaultOpen={true}
-        actions={<ExportBtn filename="ca-policies.csv" csvData={data?.caPolicies ?? []} />}
+        actions={<ExportBtn filename="ca-policies.csv" data={data?.caPolicies ?? []} />}
       >
         {loading ? <Skeleton className="w-full h-32" /> : (
           <div className="space-y-3">
@@ -918,14 +801,15 @@ export function SecurityTab() {
                 className="h-8 w-60 text-sm"
               />
             </div>
-            {renderTable(caTable, "No conditional access policies found.")}
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{caTable.getFilteredRowModel().rows.length} policies</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => caTable.previousPage()} disabled={!caTable.getCanPreviousPage()}>Previous</Button>
-                <Button variant="outline" size="sm" onClick={() => caTable.nextPage()} disabled={!caTable.getCanNextPage()}>Next</Button>
-              </div>
-            </div>
+            <DataTable
+              columns={caColumns}
+              data={data?.caPolicies ?? []}
+              globalFilter={caFilter}
+              initialSorting={[{ id: "state", desc: false }]}
+              pageSize={15}
+              rowNoun="policies"
+              emptyMessage="No conditional access policies found."
+            />
           </div>
         )}
       </CollapsibleSection>
@@ -936,7 +820,7 @@ export function SecurityTab() {
         description={loading ? undefined : `${configuredCount} configured · ${partialCount} partial · ${notConfiguredCount} not configured`}
         storageKey="security-settings"
         defaultOpen={false}
-        actions={<ExportBtn filename="secure-score-controls.csv" csvData={filteredControls} />}
+        actions={<ExportBtn filename="secure-score-controls.csv" data={filteredControls} />}
       >
         {loading ? <Skeleton className="w-full h-32" /> : (
           <div className="space-y-3">
@@ -964,14 +848,15 @@ export function SecurityTab() {
                 ))}
               </select>
             </div>
-            {renderTable(settingsTable, "No controls match the filters.")}
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{settingsTable.getFilteredRowModel().rows.length} controls</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => settingsTable.previousPage()} disabled={!settingsTable.getCanPreviousPage()}>Previous</Button>
-                <Button variant="outline" size="sm" onClick={() => settingsTable.nextPage()} disabled={!settingsTable.getCanNextPage()}>Next</Button>
-              </div>
-            </div>
+            <DataTable
+              columns={secureScoreControlColumns}
+              data={filteredControls}
+              globalFilter={settingsFilter}
+              initialSorting={[{ id: "scoreInPercentage", desc: false }]}
+              pageSize={20}
+              rowNoun="controls"
+              emptyMessage="No controls match the filters."
+            />
           </div>
         )}
       </CollapsibleSection>

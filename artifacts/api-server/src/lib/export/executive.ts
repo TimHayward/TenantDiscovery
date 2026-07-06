@@ -64,6 +64,20 @@ export function renderExecutiveHtml(m: ExecutiveModel): string {
   <table><thead><tr><th>Severity</th><th>Category</th><th>Finding</th><th>Check</th><th>Status</th></tr></thead>
   <tbody>${topRows || '<tr><td colspan="5" class="muted">No open findings</td></tr>'}</tbody></table>
 
+  <h2>Framework Coverage</h2>
+  <table><thead><tr><th>Framework</th><th>Coverage</th><th>Pass</th><th>Fail</th><th>Review</th><th>Manual</th><th>Not assessed</th></tr></thead>
+  <tbody>${
+    m.frameworks.length === 0
+      ? '<tr><td colspan="7" class="muted">No framework mapping available</td></tr>'
+      : m.frameworks
+          .map(
+            (f) =>
+              `<tr><td>${escapeHtml(f.name)}</td><td>${f.coveragePercent}%</td>` +
+              `<td>${f.pass}</td><td>${f.fail}</td><td>${f.warning}</td><td>${f.manual}</td><td>${f.notAssessed}</td></tr>`,
+          )
+          .join("")
+  }</tbody></table>
+
   <h2>What Changed Since Last Scan</h2>
   ${driftList("New", m.drift.added)}
   ${driftList("Resolved", m.drift.resolved)}
@@ -113,6 +127,15 @@ export async function renderExecutivePdf(m: ExecutiveModel): Promise<Buffer> {
     for (const f of m.topFindings) {
       const label = `[${f.severity}] ${f.category} — ${f.title} (${f.checkStatus})`;
       text(label.length > 95 ? label.slice(0, 92) + "…" : label, 10);
+    }
+  }
+
+  heading("Framework Coverage");
+  if (m.frameworks.length === 0) {
+    text("No framework mapping available.", 10, false, rgb(0.45, 0.45, 0.45));
+  } else {
+    for (const f of m.frameworks) {
+      text(`${f.name}: ${f.coveragePercent}% (pass ${f.pass}, fail ${f.fail}, review ${f.warning}, manual ${f.manual}, n/a ${f.notAssessed})`, 10);
     }
   }
 

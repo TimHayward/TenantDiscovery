@@ -51,6 +51,7 @@ Thumbs.db
 # Environment variables — never commit credentials
 .env
 .env.*
+!.env.example
 .env.local
 .env.*.local
 

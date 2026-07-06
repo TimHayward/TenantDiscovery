@@ -12,11 +12,13 @@ import {
 } from "@/components/EnterpriseAppsSection";
 import { summarizeIssues, getCollectionIssues, type IssueKind } from "@/lib/collectionStatus";
 
+import { chartPalette, kpiAccent } from "@/lib/chartPalette";
+
 const EXPIRY_COLORS: Record<string, string> = {
-  Expired: "#A60808",
-  "≤ 30 days": "#FA9819",
-  "31–90 days": "#eab308",
-  "> 90 days": "#009118",
+  Expired: chartPalette.red,
+  "≤ 30 days": kpiAccent,
+  "31–90 days": chartPalette.yellow,
+  "> 90 days": chartPalette.green,
   "No expiry": "#71717a",
 };
 
@@ -73,9 +75,9 @@ export function AppsTab() {
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <KPICard title="App Registrations" value={appsData?.totalApps} loading={appsLoadingAny} density="compact" evidenceStatus={appsMeta.totalApps?.evidenceStatus} confidenceLabel={appsMeta.totalApps?.confidenceLabel} issueKind={appsIssueKind} issueMessage={appsIssue?.message} />
-          <KPICard title="Ownerless Apps" value={appsData?.appsWithNoOwner} loading={appsLoadingAny} density="compact" valueColor="#A60808" evidenceStatus={appsMeta.appsWithNoOwner?.evidenceStatus} confidenceLabel={appsMeta.appsWithNoOwner?.confidenceLabel} issueKind={appsIssueKind} issueMessage={appsIssue?.message} />
-          <KPICard title="High-Risk Apps" value={appsData?.appsWithHighRisk} loading={appsLoadingAny} density="compact" valueColor="#A60808" evidenceStatus={appsMeta.appsWithHighRisk?.evidenceStatus} confidenceLabel={appsMeta.appsWithHighRisk?.confidenceLabel} issueKind={appsIssueKind} issueMessage={appsIssue?.message} />
-          <KPICard title="Expired Credentials" value={appsData?.appsWithExpiredCredentials} loading={appsLoadingAny} density="compact" valueColor="#FA9819" evidenceStatus={appsMeta.appsWithExpiredCredentials?.evidenceStatus} confidenceLabel={appsMeta.appsWithExpiredCredentials?.confidenceLabel} issueKind={appsIssueKind} issueMessage={appsIssue?.message} />
+          <KPICard title="Ownerless Apps" value={appsData?.appsWithNoOwner} loading={appsLoadingAny} density="compact" valueColor={chartPalette.red} evidenceStatus={appsMeta.appsWithNoOwner?.evidenceStatus} confidenceLabel={appsMeta.appsWithNoOwner?.confidenceLabel} issueKind={appsIssueKind} issueMessage={appsIssue?.message} />
+          <KPICard title="High-Risk Apps" value={appsData?.appsWithHighRisk} loading={appsLoadingAny} density="compact" valueColor={chartPalette.red} evidenceStatus={appsMeta.appsWithHighRisk?.evidenceStatus} confidenceLabel={appsMeta.appsWithHighRisk?.confidenceLabel} issueKind={appsIssueKind} issueMessage={appsIssue?.message} />
+          <KPICard title="Expired Credentials" value={appsData?.appsWithExpiredCredentials} loading={appsLoadingAny} density="compact" valueColor={kpiAccent} evidenceStatus={appsMeta.appsWithExpiredCredentials?.evidenceStatus} confidenceLabel={appsMeta.appsWithExpiredCredentials?.confidenceLabel} issueKind={appsIssueKind} issueMessage={appsIssue?.message} />
           <KPICard title="Multi-Tenant Apps" value={appsData?.multiTenantApps} loading={appsLoadingAny} density="compact" evidenceStatus={appsMeta.multiTenantApps?.evidenceStatus} confidenceLabel={appsMeta.multiTenantApps?.confidenceLabel} issueKind={appsIssueKind} issueMessage={appsIssue?.message} />
         </div>
       </CollapsibleSection>

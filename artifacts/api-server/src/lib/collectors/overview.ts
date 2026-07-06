@@ -5,6 +5,13 @@ import {
   type CollectionIssue,
 } from "../collectionIssues.js";
 
+const GRAPH_MAX_PAGE_SIZE = 500;
+
+function numeric(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export async function collectOverview() {
   const [orgData, usersData, subsData, secScoreData, mfaData, healthData] =
     await Promise.all([
@@ -13,7 +20,7 @@ export async function collectOverview() {
         "organization",
       ),
       fetchAllGraphPages<any>(
-        "https://graph.microsoft.com/v1.0/users?$select=id,accountEnabled,userType&$top=999",
+        `https://graph.microsoft.com/v1.0/users?$select=id,accountEnabled,userType&$top=${GRAPH_MAX_PAGE_SIZE}`,
         "users",
       ),
       fetchGraphJson<any>(
@@ -25,7 +32,7 @@ export async function collectOverview() {
         "secureScores",
       ),
       fetchAllGraphPages<any>(
-        "https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails?$select=id,isMfaRegistered&$top=999",
+        `https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails?$select=id,isMfaRegistered&$top=${GRAPH_MAX_PAGE_SIZE}`,
         "userRegistrationDetails",
       ),
       fetchGraphJson<any>(
@@ -63,8 +70,10 @@ export async function collectOverview() {
   let totalLicenses = 0;
   let assignedLicenses = 0;
   for (const sku of subs) {
-    totalLicenses += sku.prepaidUnits?.enabled ?? 0;
-    assignedLicenses += sku.consumedUnits ?? 0;
+    const assigned = numeric(sku.consumedUnits);
+    const enabled = numeric(sku.prepaidUnits?.enabled);
+    totalLicenses += enabled > 0 ? enabled : assigned;
+    assignedLicenses += assigned;
   }
 
   const secureScore = secScore?.currentScore ?? 0;

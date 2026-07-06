@@ -29,6 +29,7 @@ import {
 } from "recharts";
 import { useTheme } from "next-themes";
 import { summarizeIssues, getCollectionIssues } from "@/lib/collectionStatus";
+import { chartPalette } from "@/lib/chartPalette";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -244,7 +245,7 @@ export function ServicePrincipalsTab() {
   const [viewFilter, setViewFilter]     = useState<ViewFilter>("thirdParty");
   const [riskFilter, setRiskFilter]     = useState<RiskFilter>("all");
 
-  const C = { green: "#009118", red: "#A60808", yellow: "#eab308", blue: "#1E3D59" };
+  const C = chartPalette;
 
   const { theme } = useTheme();
   const isDark = theme === "dark";

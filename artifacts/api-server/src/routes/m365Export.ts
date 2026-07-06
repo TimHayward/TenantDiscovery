@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getFindingRows, getExecutiveModel, FINDING_EXPORT_COLUMNS } from "../lib/export/model.js";
+import { getFindingRows, getExecutiveModel, getFrameworkCoverage, FINDING_EXPORT_COLUMNS } from "../lib/export/model.js";
 import { toCsv } from "../lib/export/csv.js";
 import { buildFindingsWorkbook } from "../lib/export/excel.js";
 import { renderExecutiveHtml, renderExecutivePdf } from "../lib/export/executive.js";
@@ -30,7 +30,7 @@ router.get("/m365/export/findings.csv", async (req, res): Promise<void> => {
 router.get("/m365/export/findings.xlsx", async (req, res): Promise<void> => {
   try {
     const rows = await getFindingRows(scanIdParam(req.query.scanId));
-    const buf = await buildFindingsWorkbook(rows);
+    const buf = await buildFindingsWorkbook(rows, await getFrameworkCoverage());
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="findings-${stamp()}.xlsx"`);
     res.send(buf);
@@ -44,7 +44,7 @@ router.get("/m365/export/findings.xlsx", async (req, res): Promise<void> => {
 router.get("/m365/export/evidence.xlsx", async (req, res): Promise<void> => {
   try {
     const rows = await getFindingRows(scanIdParam(req.query.scanId));
-    const buf = await buildFindingsWorkbook(rows);
+    const buf = await buildFindingsWorkbook(rows, await getFrameworkCoverage());
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="evidence-${stamp()}.xlsx"`);
     res.send(buf);

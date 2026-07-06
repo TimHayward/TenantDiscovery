@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowUpIcon, ArrowDownIcon, AlertTriangleIcon, KeyRoundIcon, BadgeAlertIcon } from "lucide-react";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 import { issueKindLabel, type IssueKind } from "@/lib/collectionStatus";
+import { kpiAccent } from "@/lib/chartPalette";
 
 const EVIDENCE_STATUS_LABELS: Record<EvidenceStatus, string> = {
   apiBacked: "API-backed",
@@ -48,7 +49,7 @@ export function KPICard({
   change,
   trend,
   loading,
-  valueColor = "#FA9819",
+  valueColor = kpiAccent,
   evidenceStatus,
   confidenceLabel,
   density = "compact",

@@ -11,55 +11,100 @@ function toIso(seconds: unknown): string {
   return new Date((seconds as number) * 1000).toISOString();
 }
 
+// Single-flight guard so concurrent regenerations (e.g. many dashboard polls)
+// share one run instead of racing the upsert/delete against each other.
+let regenInflight: Promise<Finding[]> | null = null;
+// Signature of the metric snapshots the register was last generated from, so
+// reads can skip regeneration when nothing has been collected since.
+let lastRegenSnapshotSignature: string | null = null;
+
+/**
+ * A cheap fingerprint of the current metric snapshots. Snapshots are only ever
+ * upserted (never mutated in place without bumping fetched_at), so the row count
+ * plus the newest fetched_at changes whenever any collector runs.
+ */
+async function snapshotSignature(client: Awaited<ReturnType<typeof getClient>>): Promise<string> {
+  const res = await client.execute(
+    "SELECT COUNT(*) AS n, COALESCE(MAX(fetched_at), 0) AS m FROM metric_snapshots WHERE status = 'ok'",
+  );
+  const row = res.rows[0];
+  return `${row?.n ?? 0}:${row?.m ?? 0}`;
+}
+
 /**
  * Regenerate findings from the latest metric snapshots and persist them to the
  * `findings` table. Upserts preserve `first_seen`; fingerprints no longer present
  * are removed from the live table (their `finding_state` rows are retained so
- * lifecycle re-binds if the finding reappears). Returns the generated findings.
+ * lifecycle re-binds if the finding reappears). The upserts and the prune run in
+ * a single transaction so concurrent readers never observe a partially-rebuilt
+ * register. Returns the generated findings.
  */
 export async function regenerateFindings(): Promise<Finding[]> {
-  const findings = await evaluateFindings();
+  if (regenInflight) return regenInflight;
+  regenInflight = doRegenerate().finally(() => {
+    regenInflight = null;
+  });
+  return regenInflight;
+}
+
+/**
+ * Regenerate only when the metric snapshots have changed since the last run.
+ * Used by read paths so a burst of dashboard polls doesn't rewrite the register
+ * on every request when no new data has been collected.
+ */
+export async function ensureFindingsCurrent(): Promise<void> {
   const client = await getClient();
+  const signature = await snapshotSignature(client);
+  if (signature === lastRegenSnapshotSignature) return;
+  await regenerateFindings();
+}
+
+async function doRegenerate(): Promise<Finding[]> {
+  const client = await getClient();
+  const signature = await snapshotSignature(client);
+  const findings = await evaluateFindings();
   const now = Math.floor(Date.now() / 1000);
 
-  for (const f of findings) {
-    await client.execute({
-      sql: `INSERT INTO findings
-              (fingerprint, rule_id, category, title, description, severity, check_status,
-               evidence_status, confidence_label, metric_id, remediation, evidence, first_seen, last_seen)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(fingerprint) DO UPDATE SET
-              rule_id = excluded.rule_id,
-              category = excluded.category,
-              title = excluded.title,
-              description = excluded.description,
-              severity = excluded.severity,
-              check_status = excluded.check_status,
-              evidence_status = excluded.evidence_status,
-              confidence_label = excluded.confidence_label,
-              metric_id = excluded.metric_id,
-              remediation = excluded.remediation,
-              evidence = excluded.evidence,
-              last_seen = excluded.last_seen`,
-      args: [
-        f.fingerprint, f.ruleId, f.category, f.title, f.description, f.severity, f.checkStatus,
-        f.evidenceStatus, f.confidenceLabel, f.metricId ?? null, f.remediation ?? null,
-        f.evidence !== undefined ? JSON.stringify(f.evidence) : null, now, now,
-      ],
-    });
-  }
+  const statements = findings.map((f) => ({
+    sql: `INSERT INTO findings
+            (fingerprint, rule_id, category, title, description, severity, check_status,
+             evidence_status, confidence_label, metric_id, remediation, evidence, first_seen, last_seen)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(fingerprint) DO UPDATE SET
+            rule_id = excluded.rule_id,
+            category = excluded.category,
+            title = excluded.title,
+            description = excluded.description,
+            severity = excluded.severity,
+            check_status = excluded.check_status,
+            evidence_status = excluded.evidence_status,
+            confidence_label = excluded.confidence_label,
+            metric_id = excluded.metric_id,
+            remediation = excluded.remediation,
+            evidence = excluded.evidence,
+            last_seen = excluded.last_seen`,
+    args: [
+      f.fingerprint, f.ruleId, f.category, f.title, f.description, f.severity, f.checkStatus,
+      f.evidenceStatus, f.confidenceLabel, f.metricId ?? null, f.remediation ?? null,
+      f.evidence !== undefined ? JSON.stringify(f.evidence) : null, now, now,
+    ] as (string | number | null)[],
+  }));
 
   // Remove findings that were not regenerated this run.
   const fingerprints = findings.map((f) => f.fingerprint);
   if (fingerprints.length > 0) {
     const placeholders = fingerprints.map(() => "?").join(",");
-    await client.execute({
+    statements.push({
       sql: `DELETE FROM findings WHERE fingerprint NOT IN (${placeholders})`,
       args: fingerprints,
     });
   } else {
-    await client.execute({ sql: "DELETE FROM findings", args: [] });
+    statements.push({ sql: "DELETE FROM findings", args: [] });
   }
+
+  // Atomic: all upserts + the prune commit together or not at all.
+  await client.batch(statements, "write");
+  lastRegenSnapshotSignature = signature;
 
   return findings;
 }

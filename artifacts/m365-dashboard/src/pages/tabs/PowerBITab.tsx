@@ -2,18 +2,9 @@ import { useGetM365PowerBIWithMetadata } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Download } from "lucide-react";
-import { CSVLink } from "react-csv";
+import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  type ColumnDef,
-  type SortingState,
-  flexRender,
-} from "@tanstack/react-table";
+import { type ColumnDef } from "@tanstack/react-table";
 import {
   Table,
   TableBody,
@@ -23,6 +14,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { ExportBtn } from "@/components/ExportBtn";
+import { DataTable } from "@/components/DataTable";
+import { chartPalette } from "@/lib/chartPalette";
 import type { PowerBIWorkspaceItem } from "@workspace/api-client-react";
 
 const workspaceColumns: ColumnDef<PowerBIWorkspaceItem>[] = [
@@ -102,31 +96,9 @@ export function PowerBITab() {
   const data = response?.data;
   const loading = isLoading || isFetching;
 
-  const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
-  const PAGE_SIZE = 25;
-  const [page, setPage] = useState(0);
-
   const workspaces = data?.workspaces ?? [];
-
-  const table = useReactTable({
-    data: workspaces,
-    columns: workspaceColumns,
-    state: { sorting, globalFilter },
-    onSortingChange: (updater) => {
-      setSorting(updater);
-      setPage(0);
-    },
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
-
-  const allRows = table.getRowModel().rows;
-  const pageCount = Math.ceil(allRows.length / PAGE_SIZE);
-  const pageRows = allRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const csvData = workspaces.map((w) => ({
     Name: w.name,
@@ -178,7 +150,7 @@ export function PowerBITab() {
           loading={loading}
           density="compact"
           valueColor={
-            data?.available && (data.activeWorkspaces ?? 0) > 0 ? "#009118" : undefined
+            data?.available && (data.activeWorkspaces ?? 0) > 0 ? chartPalette.green : undefined
           }
         />
         <KPICard
@@ -274,91 +246,20 @@ export function PowerBITab() {
               <Input
                 placeholder="Filter workspaces…"
                 value={globalFilter}
-                onChange={(e) => {
-                  setGlobalFilter(e.target.value);
-                  setPage(0);
-                }}
+                onChange={(e) => setGlobalFilter(e.target.value)}
                 className="max-w-xs h-8 text-[12px]"
               />
-              {csvData.length > 0 && (
-                <CSVLink
-                  data={csvData}
-                  filename="powerbi-workspaces.csv"
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] rounded border border-border hover:bg-accent transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Export CSV
-                </CSVLink>
-              )}
+              <ExportBtn filename="powerbi-workspaces.csv" data={csvData} variant="button" />
             </div>
 
-            <div className="overflow-x-auto rounded border border-border">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map((hg) => (
-                    <TableRow key={hg.id}>
-                      {hg.headers.map((header) => (
-                        <TableHead
-                          key={header.id}
-                          className="text-[11px] cursor-pointer select-none whitespace-nowrap"
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getIsSorted() === "asc"
-                            ? " ↑"
-                            : header.column.getIsSorted() === "desc"
-                            ? " ↓"
-                            : ""}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {pageRows.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={workspaceColumns.length} className="text-center text-[12px] text-muted-foreground py-6">
-                        No workspaces found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    pageRows.map((row) => (
-                      <TableRow key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} className="py-2 align-top">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            {pageCount > 1 && (
-              <div className="flex items-center justify-between text-[12px] text-muted-foreground">
-                <span>
-                  Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, allRows.length)} of {allRows.length}
-                </span>
-                <div className="flex gap-1">
-                  <button
-                    className="px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-40"
-                    disabled={page === 0}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    ‹ Prev
-                  </button>
-                  <button
-                    className="px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-40"
-                    disabled={page >= pageCount - 1}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    Next ›
-                  </button>
-                </div>
-              </div>
-            )}
+            <DataTable
+              columns={workspaceColumns}
+              data={workspaces}
+              globalFilter={globalFilter}
+              pageSize={25}
+              rowNoun="workspaces"
+              emptyMessage="No workspaces found"
+            />
           </div>
         </CollapsibleSection>
       )}

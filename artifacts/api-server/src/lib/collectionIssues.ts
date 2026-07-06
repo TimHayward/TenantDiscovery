@@ -35,9 +35,87 @@ interface PagedFetchResult<T> {
   permissionError: boolean;
 }
 
-let cachedToken: { token: string; expiresOnTimestamp: number } | null = null;
+const GRAPH_SCOPE = "https://graph.microsoft.com/.default";
 
-const FETCH_TIMEOUT_MS = 25_000;
+/** Per-scope access-token cache so we can issue tokens for Graph and other resources (e.g. Exchange Online). */
+const cachedTokens = new Map<string, { token: string; expiresOnTimestamp: number }>();
+
+function getFetchTimeoutMs(): number {
+  const configured = Number(process.env.GRAPH_FETCH_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : 60_000;
+}
+
+const FETCH_TIMEOUT_MS = getFetchTimeoutMs();
+
+function getMaxRetries(): number {
+  const configured = Number(process.env.GRAPH_MAX_RETRIES);
+  return Number.isFinite(configured) && configured >= 0 ? Math.floor(configured) : 3;
+}
+
+const MAX_RETRIES = getMaxRetries();
+const MAX_RETRY_DELAY_MS = 30_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Parse a Retry-After header (delta-seconds or HTTP-date) into milliseconds. */
+function parseRetryAfterMs(headerValue: string | null): number | null {
+  if (!headerValue) return null;
+  const seconds = Number(headerValue);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const dateMs = Date.parse(headerValue);
+  if (!Number.isNaN(dateMs)) return Math.max(0, dateMs - Date.now());
+  return null;
+}
+
+/** Exponential backoff with full jitter, capped. */
+function backoffDelayMs(attempt: number): number {
+  const ceiling = Math.min(MAX_RETRY_DELAY_MS, 500 * 2 ** attempt);
+  return ceiling / 2 + Math.random() * (ceiling / 2);
+}
+
+/**
+ * Fetch a Graph resource with bounded retries. Retries throttling (429) and
+ * transient upstream (5xx) responses honoring `Retry-After`, and transient
+ * network/timeout errors with jittered backoff. Returns the final Response
+ * (which may still be non-ok) or throws the last transport error.
+ */
+async function graphFetchWithRetry(
+  url: string,
+  extraHeaders?: Record<string, string>,
+): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const token = await getGraphAccessToken();
+      const resp = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Accept-Language": "en-US",
+          ...extraHeaders,
+        },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+
+      const retryable = resp.status === 429 || resp.status >= 500;
+      if (retryable && attempt < MAX_RETRIES) {
+        const retryAfter = parseRetryAfterMs(resp.headers.get("retry-after"));
+        const delay = Math.min(MAX_RETRY_DELAY_MS, retryAfter ?? backoffDelayMs(attempt));
+        await sleep(delay);
+        continue;
+      }
+      return resp;
+    } catch (error) {
+      lastError = error;
+      if (attempt < MAX_RETRIES) {
+        await sleep(backoffDelayMs(attempt));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
 
 function classifyStatus(status: number | null): CollectionIssueCategory {
   if (status === 401 || status === 403) return "permission";
@@ -94,26 +172,32 @@ export function getErrorStatus(error: unknown): number | null {
   return null;
 }
 
-async function getGraphAccessToken(): Promise<string> {
+/** Acquire an app-only access token for the given resource scope, caching per scope. */
+export async function getAccessToken(scope: string): Promise<string> {
   const now = Date.now();
-  if (cachedToken && cachedToken.expiresOnTimestamp - now > 60_000) {
-    return cachedToken.token;
+  const cached = cachedTokens.get(scope);
+  if (cached && cached.expiresOnTimestamp - now > 60_000) {
+    return cached.token;
   }
 
   const { tenantId, clientId, clientSecret } = await getGraphCredentialValues();
   const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
-  const token = await credential.getToken("https://graph.microsoft.com/.default");
+  const token = await credential.getToken(scope);
 
   if (!token?.token || !token.expiresOnTimestamp) {
-    throw new Error("Failed to acquire Graph access token.");
+    throw new Error(`Failed to acquire access token for scope ${scope}.`);
   }
 
-  cachedToken = {
+  cachedTokens.set(scope, {
     token: token.token,
     expiresOnTimestamp: token.expiresOnTimestamp,
-  };
+  });
 
   return token.token;
+}
+
+function getGraphAccessToken(): Promise<string> {
+  return getAccessToken(GRAPH_SCOPE);
 }
 
 async function readResponseError(resp: Response): Promise<string> {
@@ -142,15 +226,7 @@ export async function fetchGraphJson<T>(
   extraHeaders?: Record<string, string>,
 ): Promise<JsonFetchResult<T>> {
   try {
-    const token = await getGraphAccessToken();
-    const resp = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Accept-Language": "en-US",
-        ...extraHeaders,
-      },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    const resp = await graphFetchWithRetry(url, extraHeaders);
 
     if (!resp.ok) {
       const message = await readResponseError(resp);
@@ -164,7 +240,7 @@ export async function fetchGraphJson<T>(
     return { data, issue: null };
   } catch (error) {
     const message = isAbortError(error)
-      ? `Graph request timed out after ${FETCH_TIMEOUT_MS / 1000}s`
+      ? `${source} timed out after ${FETCH_TIMEOUT_MS / 1000}s`
       : error instanceof Error ? error.message : "Unexpected Graph request failure";
     const issue = createIssue(source, null, message);
     if (isAbortError(error)) {
@@ -180,11 +256,7 @@ export async function fetchGraphText(
   source: string,
 ): Promise<TextFetchResult> {
   try {
-    const token = await getGraphAccessToken();
-    const resp = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, "Accept-Language": "en-US" },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    const resp = await graphFetchWithRetry(url);
 
     if (!resp.ok) {
       const message = await readResponseError(resp);
@@ -198,7 +270,7 @@ export async function fetchGraphText(
     return { text, issue: null };
   } catch (error) {
     const message = isAbortError(error)
-      ? `Graph request timed out after ${FETCH_TIMEOUT_MS / 1000}s`
+      ? `${source} timed out after ${FETCH_TIMEOUT_MS / 1000}s`
       : error instanceof Error ? error.message : "Unexpected Graph request failure";
     const issue = createIssue(source, null, message);
     if (isAbortError(error)) {

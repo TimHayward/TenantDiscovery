@@ -49,15 +49,10 @@ import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-man
 
 // ── palette ───────────────────────────────────────────────────────────────────
 
-const C = {
-  blue:   "#1E3D59",
-  purple: "#795EFF",
-  green:  "#009118",
-  red:    "#A60808",
-  yellow: "#eab308",
-  orange: "#f97316",
-  gray:   "#9ca3af",
-};
+import { chartPalette } from "@/lib/chartPalette";
+import { ExportBtn } from "@/components/ExportBtn";
+
+const C = { ...chartPalette, gray: "#9ca3af" };
 
 const OS_COLORS: Record<string, string> = {
   Windows:  C.blue,
@@ -121,21 +116,6 @@ const DEVICE_REMEDIATION: Record<DeviceStaleBucket, DeviceRemediationItem[]> = {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function ExportBtn({ filename, csvData }: { filename: string; csvData: object[] }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  if (!csvData.length) return null;
-  return (
-    <CSVLink
-      data={csvData} filename={filename}
-      className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80 flex-shrink-0"
-      style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }}
-      aria-label="Export CSV"
-    >
-      <Download className="w-3.5 h-3.5" />
-    </CSVLink>
-  );
-}
 
 function ComplianceBadge({ state }: { state: string }) {
   const map: Record<string, { cls: string; label: string }> = {
@@ -1236,7 +1216,7 @@ export function IntuneTab() {
         <Card>
           <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Enrolled Devices by Platform</CardTitle>
-            <ExportBtn filename="enrolled-by-os.csv" csvData={data?.enrolledByOS ?? []} />
+            <ExportBtn filename="enrolled-by-os.csv" data={data?.enrolledByOS ?? []} />
           </CardHeader>
           <CardContent>
             {loading ? <Skeleton className="w-full h-[240px]" /> : enrolledByOSChart.length === 0 ? (
@@ -1278,7 +1258,7 @@ export function IntuneTab() {
         <Card>
           <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Overall Compliance by State</CardTitle>
-            <ExportBtn filename="compliance-by-state.csv" csvData={data?.complianceByState ?? []} />
+            <ExportBtn filename="compliance-by-state.csv" data={data?.complianceByState ?? []} />
           </CardHeader>
           <CardContent>
             {loading ? <Skeleton className="w-full h-[240px]" /> : (
@@ -1317,7 +1297,7 @@ export function IntuneTab() {
         <Card>
           <CardHeader className="px-4 pt-4 pb-2 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Compliance by Platform</CardTitle>
-            <ExportBtn filename="compliance-by-os.csv" csvData={data?.complianceByOS ?? []} />
+            <ExportBtn filename="compliance-by-os.csv" data={data?.complianceByOS ?? []} />
           </CardHeader>
           <CardContent>
             {loading ? <Skeleton className="w-full h-[220px]" /> : complianceByOSChart.length === 0 ? (
@@ -1447,7 +1427,7 @@ export function IntuneTab() {
               );
             })}
           </div>
-          <ExportBtn filename={`${policyTab}-policies.csv`} csvData={activePolicies.map((p) => ({
+          <ExportBtn filename={`${policyTab}-policies.csv`} data={activePolicies.map((p) => ({
             Name: p.displayName, Platform: p.platform, "Assigned Groups": p.assignedGroups,
             Description: p.description, "Last Modified": p.lastModifiedDateTime ?? "",
           }))} />
@@ -1553,7 +1533,7 @@ export function IntuneTab() {
                   <CardTitle className="text-base">Stale by Category</CardTitle>
                   <ExportBtn
                     filename="stale-devices-by-category.csv"
-                    csvData={staleDeviceChartData}
+                    data={staleDeviceChartData}
                   />
                 </CardHeader>
                 <CardContent>
@@ -1659,7 +1639,7 @@ export function IntuneTab() {
                 description={`${filteredStaleDevices.length} device${filteredStaleDevices.length !== 1 ? "s" : ""} — click a row to see remediation guidance`}
                 actions={<ExportBtn
                     filename="stale-devices.csv"
-                    csvData={staleDevices.map((d) => ({
+                    data={staleDevices.map((d) => ({
                       Device: d.deviceName,
                       Model: d.model ?? "",
                       OS: d.operatingSystem,
@@ -1767,7 +1747,7 @@ export function IntuneTab() {
         title={<>Enrolled Devices{!loading && <Badge variant="outline" className="font-normal text-xs">{data?.totalDevices ?? 0} total</Badge>}</>}
         storageKey="intune-enrolled-devices"
         description={!loading && deviceOsFilter !== "all" ? `Filtered: ${deviceOsFilter} (${filteredDevices.length} devices)` : undefined}
-        actions={<ExportBtn filename="enrolled-devices.csv" csvData={(data?.deviceList ?? []).map((d) => ({
+        actions={<ExportBtn filename="enrolled-devices.csv" data={(data?.deviceList ?? []).map((d) => ({
             Name: d.deviceName, OS: d.operatingSystem, Version: d.osVersion,
             Compliance: d.complianceState, User: d.userDisplayName, UPN: d.userPrincipalName,
             Encrypted: d.isEncrypted, Supervised: d.isSupervised, JailBroken: d.jailBroken,
@@ -1981,7 +1961,7 @@ export function IntuneTab() {
         description="Comprehensive evaluation of device management posture across all Intune areas"
         storageKey="intune-assessment"
         defaultOpen={false}
-        actions={<ExportBtn filename="intune-assessment-section4.csv" csvData={(data?.assessmentItems ?? []).map((i) => ({
+        actions={<ExportBtn filename="intune-assessment-section4.csv" data={(data?.assessmentItems ?? []).map((i) => ({
           Area: i.area, Item: i.item, Value: i.value, Status: i.status, Notes: i.notes,
         }))} />}
       >
@@ -2192,7 +2172,7 @@ export function IntuneTab() {
           description={`${appsData?.totalAssignedApps ?? 0} assigned app${(appsData?.totalAssignedApps ?? 0) !== 1 ? "s" : ""}`}
           actions={<ExportBtn
               filename="app-install-status.csv"
-              csvData={(appsData?.appInstallList ?? []).map((a) => ({
+              data={(appsData?.appInstallList ?? []).map((a) => ({
                 App: a.displayName, Publisher: a.publisher ?? "", Platform: a.platform,
                 Installed: a.installed, Failed: a.failed, Pending: a.pending,
                 "Not Installed": a.notInstalled, "Not Applicable": a.notApplicable,
@@ -2393,7 +2373,7 @@ export function IntuneTab() {
           description={`${appsData?.totalDiscoveredApps ?? 0} apps detected across enrolled devices`}
           actions={<ExportBtn
               filename="discovered-apps.csv"
-              csvData={(appsData?.discoveredAppList ?? []).map((a) => ({
+              data={(appsData?.discoveredAppList ?? []).map((a) => ({
                 App: a.displayName, Version: a.version ?? "", Platform: a.platform,
                 Status: a.managed ? "Managed" : "Unmanaged", Devices: a.deviceCount,
               }))}

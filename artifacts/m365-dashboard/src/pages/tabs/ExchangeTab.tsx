@@ -11,14 +11,7 @@ import { useTheme } from "next-themes";
 import { formatCompact } from "@/lib/utils";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
-const CHART_COLORS = {
-  blue: "#1E3D59",
-  purple: "#795EFF",
-  green: "#009118",
-  red: "#A60808",
-  pink: "#ec4899",
-};
-const CHART_COLOR_LIST = [CHART_COLORS.blue, CHART_COLORS.purple, CHART_COLORS.green, CHART_COLORS.red, CHART_COLORS.pink];
+import { chartPalette as CHART_COLORS, chartSeries as CHART_COLOR_LIST } from "@/lib/chartPalette";
 
 export function ExchangeTab() {
   const { data: exchangeWithMetadata, isLoading, isFetching } = useGetM365ExchangeWithMetadata();
@@ -308,15 +301,25 @@ export function ExchangeTab() {
                     <td className="px-3 py-2 font-mono text-[12px]">{rec.domain}</td>
                     <td className="px-3 py-2 text-center">{rec.mxConfigured ? <span className="text-green-600 font-bold">✓</span> : <span className="text-red-500 font-bold">✗</span>}</td>
                     <td className="px-3 py-2 text-center">{rec.hasSpf ? <span className="text-green-600 font-bold">✓</span> : <span className="text-red-500 font-bold">✗</span>}</td>
-                    <td className="px-3 py-2 text-center">{rec.hasDkim ? <span className="text-green-600 font-bold">✓</span> : <span className="text-amber-500 font-bold">?</span>}</td>
-                    <td className="px-3 py-2 text-center"><span className="text-muted-foreground text-[11px] italic">Manual</span></td>
+                    <td className="px-3 py-2 text-center">
+                      {rec.dkimSource === "none" && !rec.hasDkim
+                        ? <span className="text-amber-500 font-bold" title="DKIM status could not be determined">?</span>
+                        : rec.hasDkim
+                          ? <span className="text-green-600 font-bold" title={rec.dkimSource === "exchange" ? "Exchange Online signing config" : "DNS selector CNAME"}>✓{rec.dkimSource === "dns" ? <span className="text-[9px] font-normal text-muted-foreground ml-0.5">(DNS)</span> : null}</span>
+                          : <span className="text-red-500 font-bold">✗</span>}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {rec.hasDmarc
+                        ? <span className="text-green-600 font-bold" title={rec.dmarcPolicy ? `p=${rec.dmarcPolicy}` : undefined}>✓{rec.dmarcPolicy ? <span className="text-[9px] font-normal text-muted-foreground ml-0.5">p={rec.dmarcPolicy}</span> : null}</span>
+                        : <span className="text-red-500 font-bold">✗</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-        <p className="text-[11px] text-muted-foreground mt-2">DMARC status requires external DNS lookup and cannot be checked via the Graph API. DKIM detection is based on Microsoft's recommended CName records.</p>
+        <p className="text-[11px] text-muted-foreground mt-2">SPF, DMARC and MX are validated against live DNS records. DKIM uses Exchange Online signing config where available, otherwise a DNS selector CName lookup (shown as "DNS").</p>
       </CollapsibleSection>
 
       <CollapsibleSection title="Summary Check List" description="Exchange Online security controls assessment" storageKey="exchange-checklist" defaultOpen={false} density="compact">

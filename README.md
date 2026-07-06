@@ -92,6 +92,22 @@ Preview production build:
 pnpm --filter @workspace/m365-dashboard run serve
 ```
 
+## Running with Docker
+
+Build and run the whole stack (API server + dashboard behind nginx) with Docker Compose:
+
+```bash
+cp .env.example .env   # fill in the AZURE_* values, or configure them later via the onboarding UI
+docker compose up -d --build
+```
+
+Then open http://localhost:8089 (change with `DASHBOARD_PORT` in `.env`). The dashboard's nginx serves the built SPA and reverse-proxies `/api` to the API container, so no CORS setup is needed and only one port is exposed.
+
+Notes:
+- The metrics database (`metrics.db`) and onboarding settings persist in the `api-data` named volume. `docker compose down` keeps them; `docker compose down -v` wipes them.
+- Health: `curl http://localhost:8089/api/healthz` (proxied to the API server).
+- Docker is for production-style runs; local development continues via the pnpm commands above.
+
 ## Type Checking
 
 Check TypeScript types for all packages:
