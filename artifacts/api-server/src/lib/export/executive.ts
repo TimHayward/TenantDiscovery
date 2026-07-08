@@ -9,6 +9,13 @@ function escapeHtml(s: string): string {
   );
 }
 
+/** Replace any code point the WinAnsi-encoded standard font can't draw with "?" so pdf-lib's drawText never throws. */
+function toWinAnsi(s: string, supportedCodePoints: ReadonlySet<number>): string {
+  return Array.from(s)
+    .map((ch) => (supportedCodePoints.has(ch.codePointAt(0)!) ? ch : "?"))
+    .join("");
+}
+
 /** Render the executive summary as a self-contained, print-ready HTML document. */
 export function renderExecutiveHtml(m: ExecutiveModel): string {
   const sevRows = SEVERITY_ORDER.map(
@@ -90,6 +97,7 @@ export async function renderExecutivePdf(m: ExecutiveModel): Promise<Buffer> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const supportedCodePoints = new Set(font.getCharacterSet());
 
   let page = doc.addPage([595, 842]); // A4 portrait
   const margin = 48;
@@ -104,7 +112,7 @@ export async function renderExecutivePdf(m: ExecutiveModel): Promise<Buffer> {
   };
   const text = (s: string, size = 11, useBold = false, color = rgb(0.1, 0.1, 0.1)) => {
     ensureSpace();
-    page.drawText(s, { x: margin, y, size, font: useBold ? bold : font, color });
+    page.drawText(toWinAnsi(s, supportedCodePoints), { x: margin, y, size, font: useBold ? bold : font, color });
     y -= lineGap;
   };
   const heading = (s: string) => {

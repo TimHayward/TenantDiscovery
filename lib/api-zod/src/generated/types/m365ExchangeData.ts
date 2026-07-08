@@ -27,4 +27,6 @@ export interface M365ExchangeData {
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];
+  /** Informational notes about collection scope/limits that are not failures (e.g. DKIM falling back to DNS, the per-run domain cap). */
+  collectionNotes: string[];
 }

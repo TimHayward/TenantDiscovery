@@ -16,31 +16,52 @@ import {
 } from "@/lib/licenseFilters";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { CSVLink } from "react-csv";
-import { Download } from "lucide-react";
-import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useMemo, useState } from "react";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { ExportBtn } from "@/components/ExportBtn";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { useChartTheme } from "@/lib/useChartTheme";
 
 import { chartPalette as CHART_COLORS } from "@/lib/chartPalette";
 
 export function OverviewTab() {
-  const { data: overviewWithMetadata, isLoading: isOverviewLoading, isFetching: isOverviewFetching } = useGetM365OverviewWithMetadata();
-  const { data: licensesWithMetadata, isLoading: isLicensesLoading, isFetching: isLicensesFetching } = useGetM365LicensesWithMetadata();
-  const { data: healthWithMetadata, isLoading: isHealthLoading, isFetching: isHealthFetching } = useGetM365ServiceHealthWithMetadata();
+  const {
+    data: overviewWithMetadata,
+    isLoading: isOverviewLoading,
+    isFetching: isOverviewFetching,
+    isError: isOverviewError,
+    error: overviewError,
+    refetch: refetchOverview,
+  } = useGetM365OverviewWithMetadata();
+  const {
+    data: licensesWithMetadata,
+    isLoading: isLicensesLoading,
+    isFetching: isLicensesFetching,
+    isError: isLicensesError,
+    error: licensesError,
+    refetch: refetchLicenses,
+  } = useGetM365LicensesWithMetadata();
+  const {
+    data: healthWithMetadata,
+    isLoading: isHealthLoading,
+    isFetching: isHealthFetching,
+    isError: isHealthError,
+    error: healthError,
+    refetch: refetchHealth,
+  } = useGetM365ServiceHealthWithMetadata();
   const [hiddenSkus, setHiddenSkus] = useState<Set<string>>(() => readHiddenLicenseSkus());
-  
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
 
-  const loading = isOverviewLoading || isOverviewFetching || isLicensesLoading || isLicensesFetching || isHealthLoading || isHealthFetching;
+  const isAnyLoading = isOverviewLoading || isLicensesLoading || isHealthLoading;
+  const isAnyFetching = isOverviewFetching || isLicensesFetching || isHealthFetching;
+  const loading = isOverviewLoading || isLicensesLoading;
 
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { gridColor, tickColor } = useChartTheme();
 
   const overview = overviewWithMetadata?.data;
   const licenses = licensesWithMetadata?.data;
   const health = healthWithMetadata?.data;
+  const overviewIssue = summarizeIssues(getCollectionIssues(overview));
   const licenseIssue = summarizeIssues(getCollectionIssues(licenses));
 
   useEffect(() => {
@@ -91,10 +112,15 @@ export function OverviewTab() {
     return healthWithMetadata?.fieldMetadata?.[mapping.field];
   };
 
+  if (isOverviewError) {
+    return <ErrorPanel title="Couldn't load the tenant overview" error={overviewError} onRetry={() => refetchOverview()} />;
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={isAnyFetching && !isAnyLoading} />
       <ConnectionTestPanel />
-      <CollapsibleSection title="Summary" description="Key metrics across your Microsoft 365 tenant" storageKey="overview-summary" defaultOpen={true} density="compact">
+      <CollapsibleSection title="Summary" description="Key metrics across your Microsoft 365 tenant" storageKey="overview-summary" defaultOpen={true} density="compact" issue={overviewIssue}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <KPICard
           title="Total Users"
@@ -156,18 +182,18 @@ export function OverviewTab() {
         <Card>
           <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Top Licenses Utilization</CardTitle>
-            {!loading && licenseData.length > 0 && (
-              <CSVLink data={licenseData} filename="top-licenses.csv" className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }} aria-label="Export chart data as CSV">
-                <Download className="w-3.5 h-3.5" />
-              </CSVLink>
+            {!isLicensesLoading && (
+              <ExportBtn data={licenseData} filename="top-licenses.csv" ariaLabel="Export chart data as CSV" />
             )}
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
-            {loading ? <Skeleton className="w-full h-[240px]" /> : (
+            {isLicensesError ? (
+              <ErrorPanel title="Couldn't load licenses" error={licensesError} onRetry={() => refetchLicenses()} />
+            ) : isLicensesLoading ? <Skeleton className="w-full h-[240px]" /> : (
               <ResponsiveContainer width="100%" height={240} debounce={0}>
                 <BarChart data={licenseData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                  <XAxis dataKey="displayName" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + "..." : v} />
+                  <XAxis dataKey="displayName" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} tickFormatter={(v) => v.length > 15 ? v.substring(0, 15) + "…" : v} />
                   <YAxis tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
                   <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)', stroke: 'none' }} isAnimationActive={false} />
                   <Legend />
@@ -184,10 +210,10 @@ export function OverviewTab() {
             <CardTitle className="text-base">M365 Service Health Status</CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
-            {loading ? (
-              <div className="space-y-2 mt-2">
-                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-              </div>
+            {isHealthError ? (
+              <ErrorPanel title="Couldn't load service health" error={healthError} onRetry={() => refetchHealth()} />
+            ) : isHealthLoading ? (
+              <TableSkeleton rows={6} rowClassName="h-10" className="mt-2 p-0" />
             ) : (
               <div className="grid grid-cols-1 gap-2 mt-2 max-h-[240px] overflow-y-auto pr-2">
                 {health?.services.map(service => {

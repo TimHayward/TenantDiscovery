@@ -788,7 +788,196 @@ paths:
               schema:
                 $ref: "#/components/schemas/PowerBIDataWithMetadata"
 
+  /m365/collection-status:
+    get:
+      operationId: getM365CollectionStatus
+      tags: [m365]
+      summary: Background collection status for every metric key
+      responses:
+        "200":
+          description: Per-key collection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionStatus"
+
+  /m365/refresh:
+    post:
+      operationId: postM365Refresh
+      tags: [m365]
+      summary: Trigger a full background re-collection of all metrics
+      responses:
+        "202":
+          description: Refresh accepted; collection runs in the background
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  keys:
+                    type: array
+                    items:
+                      type: string
+                required: [message, keys]
+
+  /m365/sharepoint/policies:
+    get:
+      operationId: getM365SharePointPolicies
+      tags: [m365]
+      summary: SharePoint tenant sharing policies
+      responses:
+        "200":
+          description: SharePoint tenant sharing policy settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharePointPoliciesData"
+
+  /m365/sharepoint/policies/with-metadata:
+    get:
+      operationId: getM365SharePointPoliciesWithMetadata
+      tags: [m365]
+      summary: SharePoint tenant sharing policies with field metadata
+      responses:
+        "200":
+          description: SharePoint tenant sharing policy settings with field metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharePointPoliciesDataWithMetadata"
+
+  /m365/sharepoint/sharing-summary:
+    get:
+      operationId: getM365SharePointSharingSummary
+      tags: [m365]
+      summary: Sampled sharing-link exposure across SharePoint sites
+      responses:
+        "200":
+          description: Sharing-link summary (sampled)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SharePointSharingSummary"
+                required: [data]
+
+  /m365/groups/{id}/device-members:
+    get:
+      operationId: getM365GroupDeviceMembers
+      tags: [m365]
+      summary: Display names of every device object in a group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Device display names in the group
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deviceNames:
+                    type: array
+                    items:
+                      type: string
+                required: [deviceNames]
+
+  /m365/export/findings.csv:
+    get:
+      operationId: getM365ExportFindingsCsv
+      tags: [m365]
+      summary: Findings register as CSV evidence
+      parameters:
+        - $ref: "#/components/parameters/ExportScanId"
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+
+  /m365/export/findings.xlsx:
+    get:
+      operationId: getM365ExportFindingsXlsx
+      tags: [m365]
+      summary: Findings register as an Excel workbook
+      parameters:
+        - $ref: "#/components/parameters/ExportScanId"
+      responses:
+        "200":
+          description: Excel workbook
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /m365/export/evidence.xlsx:
+    get:
+      operationId: getM365ExportEvidenceXlsx
+      tags: [m365]
+      summary: Evidence pack as an Excel workbook
+      parameters:
+        - $ref: "#/components/parameters/ExportScanId"
+      responses:
+        "200":
+          description: Excel workbook
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /m365/export/executive.html:
+    get:
+      operationId: getM365ExportExecutiveHtml
+      tags: [m365]
+      summary: Executive posture report as print-ready HTML
+      parameters:
+        - $ref: "#/components/parameters/ExportScanId"
+      responses:
+        "200":
+          description: Self-contained HTML document
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /m365/export/executive.pdf:
+    get:
+      operationId: getM365ExportExecutivePdf
+      tags: [m365]
+      summary: Executive posture report as PDF
+      parameters:
+        - $ref: "#/components/parameters/ExportScanId"
+      responses:
+        "200":
+          description: PDF document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
 components:
+  parameters:
+    ExportScanId:
+      name: scanId
+      in: query
+      required: false
+      description: Archived scan to export; omit for the live register.
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
@@ -1384,6 +1573,18 @@ components:
         - permissionError
         - collectionIssues
 
+    IssueRequiredPermission:
+      type: object
+      properties:
+        name:
+          type: string
+        accessKind:
+          type: string
+          enum: [application, external-scope]
+      required:
+        - name
+        - accessKind
+
     CollectionIssue:
       type: object
       properties:
@@ -1401,6 +1602,11 @@ components:
           type: boolean
         permissionRequired:
           type: boolean
+        requiredPermissions:
+          type: array
+          description: Permissions that would unblock this source. Present only when category is "permission".
+          items:
+            $ref: "#/components/schemas/IssueRequiredPermission"
       required:
         - source
         - status
@@ -2024,6 +2230,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CollectionIssue"
+        collectionNotes:
+          type: array
+          items:
+            type: string
+          description: Informational notes about collection scope/limits that are not failures (e.g. DKIM falling back to DNS, the per-run domain cap).
       required:
         - totalMailboxes
         - activeMailboxes
@@ -2041,6 +2252,7 @@ components:
         - partialData
         - permissionError
         - collectionIssues
+        - collectionNotes
 
     DomainEmailAuthRecord:
       type: object
@@ -2340,6 +2552,11 @@ components:
             $ref: "#/components/schemas/SensitivityLabelItem"
         sensitivityLabelsPermissionRequired:
           type: boolean
+        collectionNotes:
+          type: array
+          items:
+            type: string
+          description: Informational notes about collection scope/limits that are not failures (e.g. eDiscovery/DLP not obtainable via a simple Graph permission grant).
       required:
         - dlpPolicies
         - activeDlpPolicies
@@ -3803,8 +4020,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CollectionIssue"
+        collectionNotes:
+          type: array
+          items:
+            type: string
+          description: Informational notes about collection scope/limits that are not failures (e.g. Copilot usage reports unavailable on tenants without Copilot licenses).
       required:
-        [workloads, totalActiveUsers, totalLicensedUsers, overallAdoptionPercent, valueGapCount, appsActivation, copilotAdoption, partialData, permissionError, collectionIssues]
+        [workloads, totalActiveUsers, totalLicensedUsers, overallAdoptionPercent, valueGapCount, appsActivation, copilotAdoption, partialData, permissionError, collectionIssues, collectionNotes]
 
     M365AdoptionDataWithMetadata:
       type: object
@@ -3909,3 +4131,96 @@ components:
         metadataVersion:
           type: string
       required: [data, fieldMetadata, metadataVersion]
+
+    CollectionKeyStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, error, collecting, pending]
+        fetchedAt:
+          type: string
+          nullable: true
+        expiresAt:
+          type: string
+          nullable: true
+      required: [status, fetchedAt, expiresAt]
+
+    CollectionStatus:
+      type: object
+      properties:
+        isCollecting:
+          type: boolean
+        keys:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/CollectionKeyStatus"
+      required: [isCollecting, keys]
+
+    SharePointPoliciesData:
+      type: object
+      properties:
+        sharingCapability:
+          type: string
+          nullable: true
+        oneDriveSharingCapability:
+          type: string
+          nullable: true
+        sharingDomainRestrictionMode:
+          type: string
+          nullable: true
+        sharingAllowedDomainCount:
+          type: integer
+        sharingBlockedDomainCount:
+          type: integer
+        defaultSharingLinkType:
+          type: string
+          nullable: true
+        defaultLinkPermission:
+          type: string
+          nullable: true
+        anyoneLinkExpirationInDays:
+          type: integer
+          nullable: true
+        policyPermissionError:
+          type: boolean
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+        collectionIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionIssue"
+      required:
+        [sharingCapability, oneDriveSharingCapability, sharingDomainRestrictionMode, sharingAllowedDomainCount, sharingBlockedDomainCount, defaultSharingLinkType, defaultLinkPermission, anyoneLinkExpirationInDays, policyPermissionError, partialData, permissionError, collectionIssues]
+
+    SharePointPoliciesDataWithMetadata:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SharePointPoliciesData"
+        fieldMetadata:
+          $ref: "#/components/schemas/FieldMetadataMap"
+        metadataVersion:
+          type: string
+      required: [data, fieldMetadata, metadataVersion]
+
+    SharePointSharingSummary:
+      type: object
+      properties:
+        totalSharingLinks:
+          type: integer
+        orgWideLinks:
+          type: integer
+        anonymousLinks:
+          type: integer
+        sampledSites:
+          type: integer
+        totalSitesAvailable:
+          type: integer
+        partialData:
+          type: boolean
+        permissionError:
+          type: boolean
+      required: [totalSharingLinks, orgWideLinks, anonymousLinks, sampledSites, totalSitesAvailable, partialData, permissionError]

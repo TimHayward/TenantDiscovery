@@ -23,6 +23,9 @@ import {
 } from "lucide-react";
 import { PermissionCodeList } from "@/components/PermissionCodeList";
 import { ENTERPRISE_APPS_PERMISSIONS } from "@/lib/permissions";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { sortableHeadA11yProps } from "@/components/DataTable";
+import { chartPalette as C } from "@/lib/chartPalette";
 import { formatDate } from "@/lib/utils";
 
 // ── high-risk scopes (mirrored from backend for inline highlighting) ──────────
@@ -290,9 +293,9 @@ function AppDetailPanel({ app, usersCanRegisterApps }: { app: AppRegistration; u
 // ── main exported section ─────────────────────────────────────────────────────
 
 export function AppRegistrationsSection() {
-  const { data, isLoading, isFetching } = useGetM365Apps();
+  const { data, isLoading } = useGetM365Apps();
   const { data: dataSources } = useGetM365DataSources({ tab: "enterprise-apps" });
-  const loading = isLoading || isFetching;
+  const loading = isLoading;
 
   const registryItems =
     (dataSources as {
@@ -310,10 +313,6 @@ export function AppRegistrationsSection() {
   const [appFilter, setAppFilter]         = useState("");
   const [appSorting, setAppSorting]       = useState<SortingState>([{ id: "riskScore", desc: true }]);
   const [riskFilter, setRiskFilter]       = useState<"all" | "high" | "medium" | "low">("all");
-
-  const C = {
-    green: "#009118", red: "#A60808", yellow: "#eab308", blue: "#1E3D59",
-  };
 
   // ── table column definitions ────────────────────────────────────────────────
   const appColumns = useMemo<ColumnDef<AppRegistration>[]>(() => [
@@ -604,10 +603,7 @@ export function AppRegistrationsSection() {
           </div>}
       >
           {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-64" />
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
           ) : (
             <div className="space-y-3">
               <Input
@@ -625,7 +621,9 @@ export function AppRegistrationsSection() {
                         {hg.headers.map((header) => (
                           <TableHead
                             key={header.id}
-                            onClick={header.column.getToggleSortingHandler()}
+                            {...(header.column.getCanSort()
+                              ? sortableHeadA11yProps(header.column.getIsSorted(), () => header.column.toggleSorting())
+                              : {})}
                             className={`whitespace-nowrap ${header.column.getCanSort() ? "cursor-pointer select-none" : ""}`}
                           >
                             <div className="flex items-center gap-1">
@@ -697,8 +695,8 @@ export function AppRegistrationsSection() {
 // ── standalone checklist component (re-uses cached query) ────────────────────
 
 export function AppRegistrationsChecklist() {
-  const { data, isLoading, isFetching } = useGetM365Apps();
-  const loading = isLoading || isFetching;
+  const { data, isLoading } = useGetM365Apps();
+  const loading = isLoading;
 
   const appChecklist = useMemo<ChecklistGroup[]>(() => [
     { id: "EA.1", title: "EA.1 Permission Model Hardening — least privilege for all apps", items: [

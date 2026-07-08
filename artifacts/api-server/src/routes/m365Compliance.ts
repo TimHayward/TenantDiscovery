@@ -20,8 +20,8 @@ router.get("/m365/compliance/with-metadata", async (req, res): Promise<void> => 
     const data = await getOrFetch("m365-compliance", collectCompliance);
 
     const fieldMetadata = {
-      dlpPolicies: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "InformationProtectionPolicy.Read.All" },
-      activeDlpPolicies: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "InformationProtectionPolicy.Read.All" },
+      dlpPolicies: { evidenceStatus: "manual" as const, confidenceLabel: "low" as const, sourceLabel: "Microsoft Purview portal", notes: ["DLP policy listing is not exposed by a supported Microsoft Graph endpoint"] },
+      activeDlpPolicies: { evidenceStatus: "manual" as const, confidenceLabel: "low" as const, sourceLabel: "Microsoft Purview portal", notes: ["DLP policy listing is not exposed by a supported Microsoft Graph endpoint"] },
       retentionPolicies: data.retentionEvidence === "apiBacked"
         ? { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "RecordsManagement.Read.All" }
         : { evidenceStatus: "manual" as const, confidenceLabel: "low" as const, sourceLabel: "RecordsManagement.Read.All", notes: ["Retention labels API unavailable — manual check required"] },
@@ -32,10 +32,11 @@ router.get("/m365/compliance/with-metadata", async (req, res): Promise<void> => 
       sensitivityLabels: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "InformationProtectionPolicy.Read.All" },
       complianceScore: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "SecurityEvents.Read.All" },
       complianceScoreMax: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "SecurityEvents.Read.All" },
-      eDiscoveryCases: { evidenceStatus: "partial" as const, confidenceLabel: "medium" as const, sourceLabel: "eDiscovery.Read.All" },
+      eDiscoveryCases: { evidenceStatus: "manual" as const, confidenceLabel: "low" as const, sourceLabel: "eDiscovery.Read.All", notes: ["Requires eDiscovery.Read.All plus a Purview eDiscovery role-group assignment and an eDiscovery (Premium) license"] },
       sensitivityLabelsList: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "InformationProtectionPolicy.Read.All" },
       sensitivityLabelsPermissionRequired: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Derived from labels endpoint permission probe" },
       permissionMetadata: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Static permission manifest" },
+      collectionNotes: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Route diagnostics", notes: ["Non-failure notes about collection scope/limits (e.g. eDiscovery/DLP not obtainable via a simple Graph permission grant)"] },
     };
 
     res.json(withMetadata(data, fieldMetadata));

@@ -26,4 +26,6 @@ export interface M365ComplianceData {
   eDiscoveryCases: number;
   sensitivityLabelsList: SensitivityLabelItem[];
   sensitivityLabelsPermissionRequired: boolean;
+  /** Informational notes about collection scope/limits that are not failures (e.g. eDiscovery/DLP not obtainable via a simple Graph permission grant). */
+  collectionNotes?: string[];
 }

@@ -21,4 +21,6 @@ export interface M365AdoptionData {
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];
+  /** Informational notes about collection scope/limits that are not failures (e.g. Copilot usage reports unavailable on tenants without Copilot licenses). */
+  collectionNotes: string[];
 }

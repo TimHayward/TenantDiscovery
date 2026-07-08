@@ -5,21 +5,7 @@ import { ArrowUpIcon, ArrowDownIcon, AlertTriangleIcon, KeyRoundIcon, BadgeAlert
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 import { issueKindLabel, type IssueKind } from "@/lib/collectionStatus";
 import { kpiAccent } from "@/lib/chartPalette";
-
-const EVIDENCE_STATUS_LABELS: Record<EvidenceStatus, string> = {
-  apiBacked: "API-backed",
-  partial: "Partial",
-  manual: "Manual",
-  automationCandidate: "Automation candidate",
-  notAssessed: "Not assessed",
-};
-
-const CONFIDENCE_LABELS: Record<ConfidenceLabel, string> = {
-  high: "High confidence",
-  medium: "Medium confidence",
-  low: "Low confidence",
-  unknown: "Unknown confidence",
-};
+import { CONFIDENCE_LABEL, EVIDENCE_STATUS_LABEL } from "@/lib/statusTokens";
 
 const ISSUE_ICONS: Record<IssueKind, typeof AlertTriangleIcon> = {
   permission: KeyRoundIcon,
@@ -104,12 +90,12 @@ export function KPICard({
               <div className={`${isCompact ? "mt-1.5" : "mt-2"} flex flex-wrap gap-1`}>
                 {evidenceStatus && (
                   <Badge variant="outline" className="max-w-full whitespace-normal break-words text-[10px] font-normal leading-tight">
-                    {EVIDENCE_STATUS_LABELS[evidenceStatus]}
+                    {EVIDENCE_STATUS_LABEL[evidenceStatus]}
                   </Badge>
                 )}
                 {confidenceLabel && (
                   <Badge variant="outline" className="max-w-full whitespace-normal break-words text-[10px] font-normal leading-tight">
-                    {CONFIDENCE_LABELS[confidenceLabel]}
+                    {CONFIDENCE_LABEL[confidenceLabel]}
                   </Badge>
                 )}
               </div>

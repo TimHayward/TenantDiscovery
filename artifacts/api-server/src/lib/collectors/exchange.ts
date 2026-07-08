@@ -6,14 +6,14 @@ import {
   type CollectionIssue,
 } from "../collectionIssues.js";
 import { lookupDomainEmailAuth } from "../dns/emailAuthDns.js";
-import { fetchDkimSigningConfigs } from "../exchangeOnline.js";
+import { fetchDkimSigningConfigs, isExchangeCertAuthConfigured } from "../exchangeOnline.js";
 import { parseCsv } from "../csv.js";
 
 export async function collectExchange() {
   const [mailboxCsvResult, activityCsvResult, domainsResult] = await Promise.all([
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getMailboxUsageDetail(period='D30')", "mailboxUsageDetailReport"),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getEmailActivityCounts(period='D30')", "emailActivityCountsReport"),
-    fetchAllGraphPages<any>("https://graph.microsoft.com/v1.0/domains?$select=id,isVerified,supportedServices", "domains"),
+    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getMailboxUsageDetail(period='D30')", "mailboxUsageDetailReport", ["Reports.Read.All"]),
+    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getEmailActivityCounts(period='D30')", "emailActivityCountsReport", ["Reports.Read.All"]),
+    fetchAllGraphPages<any>("https://graph.microsoft.com/v1.0/domains?$select=id,isVerified,supportedServices", "domains", ["Domain.Read.All"]),
   ]);
 
   const collectionIssues: CollectionIssue[] = [];
@@ -69,10 +69,24 @@ export async function collectExchange() {
   );
 
   const domainsToCheck = emailDomains.slice(0, 20);
+  const collectionNotes: string[] = [];
+  if (emailDomains.length > domainsToCheck.length) {
+    collectionNotes.push(
+      `Only the first ${domainsToCheck.length} of ${emailDomains.length} verified email domains were checked for SPF/DKIM/DMARC.`,
+    );
+  }
 
   // Authoritative M365 DKIM signing status (best-effort; falls back to DNS per domain).
-  const dkimResult = await fetchDkimSigningConfigs();
-  collectionIssues.push(...dkimResult.issues);
+  // App-only EXO access is impossible under a client-secret credential (see backlog 6.1),
+  // so skip the guaranteed-failing call rather than raising a permission issue every run.
+  let dkimResult: Awaited<ReturnType<typeof fetchDkimSigningConfigs>>;
+  if (isExchangeCertAuthConfigured()) {
+    dkimResult = await fetchDkimSigningConfigs();
+    collectionIssues.push(...dkimResult.issues);
+  } else {
+    dkimResult = { byDomain: null, issues: [] };
+    collectionNotes.push("Authoritative DKIM status unavailable without certificate auth; using DNS selector records instead.");
+  }
 
   const domainAuthRecords = await Promise.all(
     domainsToCheck.map(async (domain: any) => {
@@ -86,6 +100,8 @@ export async function collectExchange() {
       const expected = await fetchGraphJson<any>(
         `https://graph.microsoft.com/v1.0/domains/${encodeURIComponent(domainId)}/serviceConfigurationRecords`,
         `domainConfigRecords:${domainId}`,
+        undefined,
+        ["Domain.Read.All"],
       );
       if (expected.issue) collectionIssues.push(expected.issue);
       const expectedRecords: any[] = expected.data?.value ?? [];
@@ -137,5 +153,6 @@ export async function collectExchange() {
     partialData: collectionIssues.length > 0,
     permissionError: collectionIssues.some(isPermissionIssue),
     collectionIssues,
+    collectionNotes,
   };
 }

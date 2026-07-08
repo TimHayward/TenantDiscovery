@@ -87,7 +87,11 @@ export function CollapsibleSection({
             {issue && (
               <span
                 className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-300"
-                title={issue.message}
+                title={
+                  issue.permissions && issue.permissions.length > 0
+                    ? `${issue.message}\nRequired: ${issue.permissions.map((p) => `${p.name} (${p.accessKind})`).join(", ")}`
+                    : issue.message
+                }
               >
                 <AlertTriangle className="h-3 w-3" />
                 {issueKindLabel(issue.kind)}

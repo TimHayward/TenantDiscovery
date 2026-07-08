@@ -16,20 +16,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
 
-import { SEVERITY_BADGE_CLASS } from "@/lib/statusTokens";
+import { CHECK_STATUS_LABEL, SEVERITY_BADGE_CLASS } from "@/lib/statusTokens";
 
 const SEVERITY_ORDER: FindingSeverity[] = ["critical", "high", "medium", "low", "info"];
 const STATUS_OPTIONS: FindingStatus[] = ["open", "acknowledged", "remediated", "suppressed"];
 
 const SEVERITY_STYLES = SEVERITY_BADGE_CLASS;
-
-const CHECK_STATUS_LABEL: Record<string, string> = {
-  pass: "Pass",
-  fail: "Fail",
-  warning: "Review",
-  manual: "Manual",
-};
 
 function DriftColumn({ title, entries, tone }: { title: string; entries: DriftEntry[]; tone: string }) {
   return (
@@ -62,9 +58,10 @@ export function FindingsTab() {
   const [search, setSearch] = useState("");
 
   const queryClient = useQueryClient();
-  const { data, isLoading, isFetching } = useGetM365Findings();
+  const { data, isLoading, isFetching, isError, error, refetch } = useGetM365Findings();
   const { data: drift } = useGetM365Drift();
-  const loading = isLoading || isFetching;
+  const loading = isLoading;
+  const issue = summarizeIssues(getCollectionIssues(data));
 
   const patch = usePatchM365Finding({
     mutation: {
@@ -101,8 +98,13 @@ export function FindingsTab() {
   const hasDrift =
     drift && (drift.added.length > 0 || drift.resolved.length > 0 || drift.changed.length > 0);
 
+  if (isError) {
+    return <ErrorPanel title="Couldn't load the findings register" error={error} onRetry={() => refetch()} />;
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={isFetching && !isLoading} />
       <CollapsibleSection
         title="What Changed Since Last Scan"
         description="Findings that appeared, were resolved, or changed between the two most recent scans"
@@ -131,6 +133,7 @@ export function FindingsTab() {
         storageKey="findings-summary"
         defaultOpen={true}
         density="compact"
+        issue={issue}
       >
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {SEVERITY_ORDER.map((sev) => (
@@ -208,9 +211,7 @@ export function FindingsTab() {
           <Card>
             <CardContent className="p-0">
               {loading ? (
-                <div className="p-4 space-y-2">
-                  {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
-                </div>
+                <TableSkeleton rows={8} />
               ) : (
                 <Table>
                   <TableHeader>
@@ -262,7 +263,10 @@ export function FindingsTab() {
                             </select>
                           </TableCell>
                           <TableCell className="py-2 align-top">
+                            {/* Keyed on the server value so a refetched change remounts with fresh data
+                                (an uncontrolled defaultValue alone goes stale). */}
                             <Input
+                              key={`owner-${f.owner ?? ""}`}
                               defaultValue={f.owner ?? ""}
                               placeholder="Unassigned"
                               onBlur={(e) => {
@@ -273,6 +277,7 @@ export function FindingsTab() {
                           </TableCell>
                           <TableCell className="py-2 align-top">
                             <Input
+                              key={`notes-${f.stateNotes ?? ""}`}
                               defaultValue={f.stateNotes ?? ""}
                               placeholder="Add note…"
                               onBlur={(e) => {

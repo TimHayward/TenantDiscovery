@@ -2,8 +2,12 @@ import { useGetM365FrameworkCoverage, type FrameworkCoverage, type FrameworkCont
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { EmptyState } from "@/components/EmptyState";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { SectionStatusBanner } from "@/components/SectionStatusBanner";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
 import { CHECK_STATUS_BADGE_CLASS as STATUS_STYLES, CHECK_STATUS_LABEL as STATUS_LABEL } from "@/lib/statusTokens";
 
 function StatusBadge({ status }: { status: string }) {
@@ -87,25 +91,38 @@ function FrameworkPanel({ fw }: { fw: FrameworkCoverage }) {
 }
 
 export function FrameworkMappingTab() {
-  const { data, isLoading, isFetching } = useGetM365FrameworkCoverage();
-  const loading = isLoading || isFetching;
+  const { data, isLoading, isFetching, isError, error, refetch } = useGetM365FrameworkCoverage();
   const frameworks = data?.frameworks ?? [];
+  const issue = summarizeIssues(getCollectionIssues(data));
 
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-48 w-full" />)}
-      </div>
-    );
+  if (isError) {
+    return <ErrorPanel title="Couldn't load framework coverage" error={error} onRetry={() => refetch()} />;
   }
 
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={isFetching && !isLoading} />
       <p className="text-sm text-muted-foreground">
         Each recognised-baseline control is rolled up from the findings that evidence it (worst status wins).
         Controls with no mapped findings show as “Not assessed”.
       </p>
-      {frameworks.map((fw) => <FrameworkPanel key={fw.framework} fw={fw} />)}
+      <SectionStatusBanner issue={issue} />
+      {isLoading ? (
+        [...Array(2)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-0">
+              <TableSkeleton rows={5} />
+            </CardContent>
+          </Card>
+        ))
+      ) : frameworks.length === 0 ? (
+        <EmptyState
+          title="No framework coverage yet"
+          description="Coverage appears once findings have been evaluated against the recognised baselines."
+        />
+      ) : (
+        frameworks.map((fw) => <FrameworkPanel key={fw.framework} fw={fw} />)
+      )}
     </div>
   );
 }

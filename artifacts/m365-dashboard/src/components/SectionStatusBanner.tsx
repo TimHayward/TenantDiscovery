@@ -1,5 +1,5 @@
 import { AlertTriangle, KeyRound, BadgeAlert } from "lucide-react";
-import { issueKindLabel, type IssueSummary } from "@/lib/collectionStatus";
+import { accessKindLabel, issueKindLabel, type IssueSummary } from "@/lib/collectionStatus";
 
 const ICONS = {
   permission: KeyRound,
@@ -22,6 +22,19 @@ export function SectionStatusBanner({ issue }: { issue: IssueSummary | null | un
         <span className="font-semibold">{issueKindLabel(issue.kind)}</span>
         {issue.count > 1 ? <span className="ml-1 opacity-80">({issue.count} sources affected)</span> : null}
         <span className="ml-1 block opacity-90 break-words">{issue.message}</span>
+        {issue.kind === "permission" && issue.permissions && issue.permissions.length > 0 && (
+          <span className="mt-1 block opacity-90 break-words">
+            Grant{" "}
+            {issue.permissions.map((permission, index) => (
+              <span key={permission.name}>
+                {index > 0 && ", "}
+                <code className="rounded bg-amber-100 px-1 text-[11px] dark:bg-amber-900/60">{permission.name}</code>{" "}
+                <span className="opacity-80">({accessKindLabel(permission.accessKind)})</span>
+              </span>
+            ))}{" "}
+            to the app registration and grant admin consent.
+          </span>
+        )}
       </div>
     </div>
   );

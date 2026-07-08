@@ -6,10 +6,16 @@ import {
   RefreshCw, ChevronDown, Printer, Sun, Moon, PanelLeftClose, PanelLeftOpen,
   LayoutDashboard, Users, CreditCard, Shield, Mail,
   MessageSquare, ClipboardCheck, Smartphone, Swords, AppWindow, TrendingUp, BarChart2,
-  Database, X, ListChecks, Download, KeyRound, ShieldCheck,
+  Database, X, ListChecks, Download, KeyRound, ShieldCheck, Settings,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useGetM365Overview, useGetM365DataSources } from "@workspace/api-client-react";
+import {
+  useGetM365Overview,
+  useGetM365DataSources,
+  useGetM365CollectionStatus,
+  getGetM365CollectionStatusQueryKey,
+  postM365Refresh,
+} from "@workspace/api-client-react";
 import { getOnboardingStatus } from "@/lib/onboardingApi";
 
 import { OverviewTab } from "./tabs/OverviewTab";
@@ -27,6 +33,7 @@ import { AppsTab } from "./tabs/AppsTab";
 import { DefenderTab } from "./tabs/DefenderTab";
 import { AdoptionTab } from "./tabs/AdoptionTab";
 import { PowerBITab } from "./tabs/PowerBITab";
+import { SettingsTab } from "./tabs/SettingsTab";
 import { TabErrorBoundary } from "@/components/TabErrorBoundary";
 
 const INTERVAL_OPTIONS = [
@@ -39,7 +46,10 @@ const INTERVAL_OPTIONS = [
 // Control-plane queries that must not be refetched by a data refresh: re-running
 // onboarding-status can flip the app to the onboarding screen, and collection
 // status is invalidated deliberately where needed.
-const CONTROL_PLANE_KEYS = new Set(["onboarding-status", "m365-collection-status"]);
+const CONTROL_PLANE_KEYS = new Set<string>([
+  "onboarding-status",
+  ...getGetM365CollectionStatusQueryKey(),
+]);
 
 /**
  * Invalidate only the M365 data queries (generated hooks keyed by `/api/m365/*`
@@ -73,6 +83,7 @@ const NAV_ITEMS = [
   { value: "apps",               label: "Apps & Permissions",   icon: KeyRound        },
   { value: "adoption",           label: "Adoption",             icon: TrendingUp      },
   { value: "power-bi",           label: "Power BI",             icon: BarChart2       },
+  { value: "settings",           label: "Settings",             icon: Settings        },
 ] as const;
 
 type NavValue = typeof NAV_ITEMS[number]["value"];
@@ -171,20 +182,10 @@ const NAV_SECTIONS: Partial<Record<NavValue, Array<NavSectionLink>>> = {
   "power-bi": [
     { label: "Workspaces", id: "powerbi-workspaces" },
   ],
+  settings: [
+    { label: "Permissions", id: "settings-permissions" },
+  ],
 };
-
-type CollectionKeyStatus = { status: "ok" | "error" | "collecting" | "pending"; fetchedAt: string | null; expiresAt: string | null };
-type CollectionStatus = { isCollecting: boolean; keys: Record<string, CollectionKeyStatus> };
-
-async function fetchCollectionStatus(): Promise<CollectionStatus> {
-  const resp = await fetch("/api/m365/collection-status");
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json() as Promise<CollectionStatus>;
-}
-
-async function triggerRefresh(): Promise<void> {
-  await fetch("/api/m365/refresh", { method: "POST" });
-}
 
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
@@ -207,14 +208,15 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const refreshObservedCollecting = useRef(false);
 
-  const { data: collectionStatus } = useQuery({
-    queryKey: ["m365-collection-status"],
-    queryFn: fetchCollectionStatus,
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      return data?.isCollecting || isRefreshing ? 5000 : false;
+  const { data: collectionStatus } = useGetM365CollectionStatus({
+    query: {
+      queryKey: getGetM365CollectionStatusQueryKey(),
+      refetchInterval: (query) => {
+        const data = query.state.data;
+        return data?.isCollecting || isRefreshing ? 5000 : false;
+      },
+      retry: false,
     },
-    retry: false,
   });
 
   const showCollectionBanner = !bannerDismissed && (collectionStatus?.isCollecting || isRefreshing);
@@ -327,8 +329,10 @@ export default function Dashboard() {
     setBannerDismissed(false);
     refreshObservedCollecting.current = false;
     try {
-      await triggerRefresh();
-      queryClient.invalidateQueries({ queryKey: ["m365-collection-status"] });
+      // postM365Refresh throws on a non-2xx response, so a failed trigger
+      // clears the spinner instead of hanging until the safety timeout.
+      await postM365Refresh();
+      queryClient.invalidateQueries({ queryKey: getGetM365CollectionStatusQueryKey() });
     } catch {
       setIsRefreshing(false);
     }
@@ -758,6 +762,7 @@ export default function Dashboard() {
             {visitedTabs.has("apps")               && <div className={activeTab === "apps"               ? "" : "hidden"}><TabErrorBoundary><AppsTab /></TabErrorBoundary></div>}
             {visitedTabs.has("adoption")           && <div className={activeTab === "adoption"           ? "" : "hidden"}><TabErrorBoundary><AdoptionTab /></TabErrorBoundary></div>}
             {visitedTabs.has("power-bi")           && <div className={activeTab === "power-bi"           ? "" : "hidden"}><TabErrorBoundary><PowerBITab /></TabErrorBoundary></div>}
+            {visitedTabs.has("settings")           && <div className={activeTab === "settings"           ? "" : "hidden"}><TabErrorBoundary><SettingsTab /></TabErrorBoundary></div>}
 
           </div>
         </main>

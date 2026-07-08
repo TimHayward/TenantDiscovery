@@ -5,8 +5,13 @@ import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Filter, EyeOff } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useState, useMemo, useEffect } from "react";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { EmptyState } from "@/components/EmptyState";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
+import { useChartTheme } from "@/lib/useChartTheme";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,17 +41,17 @@ const columns: ColumnDef<LicenseItem>[] = [
   {
     accessorKey: "total",
     header: "Total",
-    cell: ({ row }) => <span>{row.original.total.toLocaleString()}</span>,
+    cell: ({ row }) => <span>{formatNumber(row.original.total)}</span>,
   },
   {
     accessorKey: "assigned",
     header: "Assigned",
-    cell: ({ row }) => <span className="font-semibold" style={{ color: CHART_COLORS.blue }}>{row.original.assigned.toLocaleString()}</span>,
+    cell: ({ row }) => <span className="font-semibold" style={{ color: CHART_COLORS.blue }}>{formatNumber(row.original.assigned)}</span>,
   },
   {
     accessorKey: "available",
     header: "Available",
-    cell: ({ row }) => <span>{row.original.available.toLocaleString()}</span>,
+    cell: ({ row }) => <span>{formatNumber(row.original.available)}</span>,
   },
   {
     accessorKey: "suspended",
@@ -77,7 +82,7 @@ const ghostColumns: ColumnDef<GhostUserItem>[] = [
     cell: ({ row }) => (
       <span className="text-sm">
         {row.original.lastSignIn
-          ? new Date(row.original.lastSignIn).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+          ? formatDate(row.original.lastSignIn)
           : <span className="text-muted-foreground italic">Never</span>}
       </span>
     ),
@@ -110,13 +115,12 @@ const ghostColumns: ColumnDef<GhostUserItem>[] = [
 ];
 
 export function LicensesTab() {
-  const { data: licensesWithMetadata, isLoading, isFetching } = useGetM365LicensesWithMetadata();
+  const { data: licensesWithMetadata, isLoading, isFetching, isError, error, refetch } = useGetM365LicensesWithMetadata();
   const { data: usersData } = useGetM365Users();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
 
-  const loading = isLoading || isFetching;
+  const loading = isLoading;
   const data = licensesWithMetadata?.data;
+  const issue = summarizeIssues(getCollectionIssues(data));
 
   const metricToFieldMap: Record<string, string> = {
     "licenses.totalLicenses": "totalLicenses",
@@ -130,8 +134,7 @@ export function LicensesTab() {
     return field ? licensesWithMetadata?.fieldMetadata?.[field] : undefined;
   };
 
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { gridColor, tickColor } = useChartTheme();
 
   const [globalFilter, setGlobalFilter] = useState("");
   const [hideFree, setHideFree] = useState(true);
@@ -182,9 +185,14 @@ export function LicensesTab() {
     return calculateLicenseStats(filteredLicenses);
   }, [filteredLicenses]);
 
+  if (isError) {
+    return <ErrorPanel title="Couldn't load licensing data" error={error} onRetry={() => refetch()} />;
+  }
+
   return (
-    <div className="space-y-4">
-      <CollapsibleSection title="Summary" description="License counts, allocation, and utilization" storageKey="licenses-summary" defaultOpen={true} density="compact">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={isFetching && !isLoading} />
+      <CollapsibleSection title="Summary" description="License counts, allocation, and utilization" storageKey="licenses-summary" defaultOpen={true} density="compact" issue={issue}>
       <div className="space-y-4">
       {/* Filter controls */}
       <div className="flex flex-wrap items-center gap-4 p-3 rounded-lg border bg-muted/30">
@@ -220,7 +228,7 @@ export function LicensesTab() {
           </PopoverTrigger>
           <PopoverContent className="w-80 p-0" align="start">
             <Command>
-              <CommandInput placeholder="Search SKUs..." />
+              <CommandInput placeholder="Search SKUs…" />
               <CommandList>
                 <CommandEmpty>No SKUs found.</CommandEmpty>
                 <CommandGroup>
@@ -265,14 +273,14 @@ export function LicensesTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Total Licenses"
-          value={loading ? undefined : filteredStats.totalLicenses.toLocaleString()}
+          value={loading ? undefined : formatNumber(filteredStats.totalLicenses)}
           loading={loading}
           evidenceStatus={getMetricMeta("licenses.totalLicenses")?.evidenceStatus}
           confidenceLabel={getMetricMeta("licenses.totalLicenses")?.confidenceLabel}
         />
         <KPICard
           title="Assigned Licenses"
-          value={loading ? undefined : filteredStats.assignedLicenses.toLocaleString()}
+          value={loading ? undefined : formatNumber(filteredStats.assignedLicenses)}
           loading={loading}
           valueColor={CHART_COLORS.blue}
           evidenceStatus={getMetricMeta("licenses.assignedLicenses")?.evidenceStatus}
@@ -280,7 +288,7 @@ export function LicensesTab() {
         />
         <KPICard
           title="Available Licenses"
-          value={loading ? undefined : filteredStats.availableLicenses.toLocaleString()}
+          value={loading ? undefined : formatNumber(filteredStats.availableLicenses)}
           loading={loading}
           evidenceStatus={getMetricMeta("licenses.availableLicenses")?.evidenceStatus}
           confidenceLabel={getMetricMeta("licenses.availableLicenses")?.confidenceLabel}
@@ -331,27 +339,25 @@ export function LicensesTab() {
         storageKey="licenses-ghost-users"
       >
         {loading ? (
-          <div className="space-y-2">
-            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-          </div>
+          <TableSkeleton rows={3} rowClassName="h-12" className="p-0" />
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <KPICard
                 title="Stale Licensed Users"
-                value={ghostLicensedCount.toLocaleString()}
+                value={formatNumber(ghostLicensedCount)}
                 loading={false}
                 valueColor={ghostLicensedCount > 0 ? CHART_COLORS.red : CHART_COLORS.green}
               />
               <KPICard
                 title="Est. Monthly Waste"
-                value={estimatedMonthlyWaste > 0 ? `$${estimatedMonthlyWaste.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ghostLicensedCount > 0 ? "SKU unknown" : "$0"}
+                value={estimatedMonthlyWaste > 0 ? formatCurrency(estimatedMonthlyWaste) : ghostLicensedCount > 0 ? "SKU unknown" : "$0"}
                 loading={false}
                 valueColor={estimatedMonthlyWaste > 0 ? CHART_COLORS.red : undefined}
               />
               <KPICard
                 title="Est. Annual Waste"
-                value={estimatedMonthlyWaste > 0 ? `$${(estimatedMonthlyWaste * 12).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ghostLicensedCount > 0 ? "SKU unknown" : "$0"}
+                value={estimatedMonthlyWaste > 0 ? formatCurrency(estimatedMonthlyWaste * 12) : ghostLicensedCount > 0 ? "SKU unknown" : "$0"}
                 loading={false}
                 valueColor={estimatedMonthlyWaste > 0 ? CHART_COLORS.red : undefined}
               />
@@ -361,7 +367,7 @@ export function LicensesTab() {
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <Input
-                    placeholder="Search users..."
+                    placeholder="Search users…"
                     value={ghostFilter}
                     onChange={(e) => setGhostFilter(e.target.value)}
                     className="max-w-sm"
@@ -384,7 +390,10 @@ export function LicensesTab() {
             )}
 
             {ghostUsers.length === 0 && (
-              <p className="text-sm text-muted-foreground py-4 text-center">No stale licensed users found. All licensed users have signed in within the last 90 days.</p>
+              <EmptyState
+                title="No stale licensed users found"
+                description="All licensed users have signed in within the last 90 days."
+              />
             )}
           </div>
         )}
@@ -392,14 +401,11 @@ export function LicensesTab() {
 
       <CollapsibleSection title="License Subscriptions" storageKey="licenses-subscriptions">
           {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
           ) : (
             <div className="space-y-4">
               <Input
-                placeholder="Search licenses..."
+                placeholder="Search licenses…"
                 value={globalFilter}
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 className="max-w-sm"

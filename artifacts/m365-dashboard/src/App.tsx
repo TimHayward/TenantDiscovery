@@ -13,6 +13,9 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
+      // Snapshots refresh server-side on a 30-min tick; a 0 staleTime only
+      // multiplied refetches (and skeleton blanking) without fresher data.
+      staleTime: 60_000,
     },
   },
 });

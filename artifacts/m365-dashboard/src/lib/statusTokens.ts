@@ -12,9 +12,10 @@
  * duplication is removed, not the semantic distinction.
  */
 import type { FindingSeverity } from "@workspace/api-client-react";
+import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
 /** Shared colour tones (Tailwind light+dark badge classes). */
-const TONE = {
+export const BADGE_TONE = {
   red: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   orange: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   yellow: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -25,29 +26,29 @@ const TONE = {
 
 // ── Finding severity (critical → info) ──────────────────────────────────────
 export const SEVERITY_BADGE_CLASS: Record<FindingSeverity, string> = {
-  critical: TONE.red,
-  high: TONE.orange,
-  medium: TONE.yellow,
-  low: TONE.blue,
-  info: TONE.muted,
+  critical: BADGE_TONE.red,
+  high: BADGE_TONE.orange,
+  medium: BADGE_TONE.yellow,
+  low: BADGE_TONE.blue,
+  info: BADGE_TONE.muted,
 };
 
 // ── Identity-protection risk level (high → none) ────────────────────────────
 export const RISK_BADGE_CLASS: Record<string, string> = {
-  high: TONE.red,
-  medium: TONE.orange,
-  low: TONE.yellow,
-  none: TONE.muted,
+  high: BADGE_TONE.red,
+  medium: BADGE_TONE.orange,
+  low: BADGE_TONE.yellow,
+  none: BADGE_TONE.muted,
 };
 
 // ── Check / coverage status ─────────────────────────────────────────────────
 // "manual" is canonically blue (distinct from "notAssessed" muted).
 export const CHECK_STATUS_BADGE_CLASS: Record<string, string> = {
-  pass: TONE.green,
-  fail: TONE.red,
-  warning: TONE.yellow,
-  manual: TONE.blue,
-  notAssessed: TONE.muted,
+  pass: BADGE_TONE.green,
+  fail: BADGE_TONE.red,
+  warning: BADGE_TONE.yellow,
+  manual: BADGE_TONE.blue,
+  notAssessed: BADGE_TONE.muted,
 };
 
 export const CHECK_STATUS_LABEL: Record<string, string> = {
@@ -56,4 +57,21 @@ export const CHECK_STATUS_LABEL: Record<string, string> = {
   warning: "Review",
   manual: "Manual",
   notAssessed: "Not assessed",
+};
+
+// ── Evidence provenance / confidence (previously triplicated in KPICard and
+// ChecklistTable) ────────────────────────────────────────────────────────────
+export const EVIDENCE_STATUS_LABEL: Record<EvidenceStatus, string> = {
+  apiBacked: "API-backed",
+  partial: "Partial",
+  manual: "Manual",
+  automationCandidate: "Automation candidate",
+  notAssessed: "Not assessed",
+};
+
+export const CONFIDENCE_LABEL: Record<ConfidenceLabel, string> = {
+  high: "High confidence",
+  medium: "Medium confidence",
+  low: "Low confidence",
+  unknown: "Unknown confidence",
 };

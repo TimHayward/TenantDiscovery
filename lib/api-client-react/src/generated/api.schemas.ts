@@ -276,6 +276,19 @@ export const CollectionIssueCategory = {
   unknown: 'unknown',
 } as const;
 
+export type IssueRequiredPermissionAccessKind = typeof IssueRequiredPermissionAccessKind[keyof typeof IssueRequiredPermissionAccessKind];
+
+
+export const IssueRequiredPermissionAccessKind = {
+  application: 'application',
+  'external-scope': 'external-scope',
+} as const;
+
+export interface IssueRequiredPermission {
+  name: string;
+  accessKind: IssueRequiredPermissionAccessKind;
+}
+
 export interface CollectionIssue {
   source: string;
   status: number | null;
@@ -283,6 +296,8 @@ export interface CollectionIssue {
   message: string;
   retryable: boolean;
   permissionRequired: boolean;
+  /** Permissions that would unblock this source. Present only when category is "permission". */
+  requiredPermissions?: IssueRequiredPermission[];
 }
 
 export interface M365AdminExposureData {
@@ -630,6 +645,8 @@ export interface M365ExchangeData {
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];
+  /** Informational notes about collection scope/limits that are not failures (e.g. DKIM falling back to DNS, the per-run domain cap). */
+  collectionNotes: string[];
 }
 
 export interface M365ExchangeDataWithMetadata {
@@ -749,6 +766,8 @@ export interface M365ComplianceData {
   eDiscoveryCases: number;
   sensitivityLabelsList: SensitivityLabelItem[];
   sensitivityLabelsPermissionRequired: boolean;
+  /** Informational notes about collection scope/limits that are not failures (e.g. eDiscovery/DLP not obtainable via a simple Graph permission grant). */
+  collectionNotes?: string[];
 }
 
 export interface M365ComplianceDataWithMetadata {
@@ -1419,6 +1438,8 @@ export interface M365AdoptionData {
   partialData: boolean;
   permissionError: boolean;
   collectionIssues: CollectionIssue[];
+  /** Informational notes about collection scope/limits that are not failures (e.g. Copilot usage reports unavailable on tenants without Copilot licenses). */
+  collectionNotes: string[];
 }
 
 export interface M365AdoptionDataWithMetadata {
@@ -1471,6 +1492,65 @@ export interface PowerBIDataWithMetadata {
   metadataVersion: string;
 }
 
+export type CollectionKeyStatusStatus = typeof CollectionKeyStatusStatus[keyof typeof CollectionKeyStatusStatus];
+
+
+export const CollectionKeyStatusStatus = {
+  ok: 'ok',
+  error: 'error',
+  collecting: 'collecting',
+  pending: 'pending',
+} as const;
+
+export interface CollectionKeyStatus {
+  status: CollectionKeyStatusStatus;
+  fetchedAt: string | null;
+  expiresAt: string | null;
+}
+
+export type CollectionStatusKeys = {[key: string]: CollectionKeyStatus};
+
+export interface CollectionStatus {
+  isCollecting: boolean;
+  keys: CollectionStatusKeys;
+}
+
+export interface SharePointPoliciesData {
+  sharingCapability: string | null;
+  oneDriveSharingCapability: string | null;
+  sharingDomainRestrictionMode: string | null;
+  sharingAllowedDomainCount: number;
+  sharingBlockedDomainCount: number;
+  defaultSharingLinkType: string | null;
+  defaultLinkPermission: string | null;
+  anyoneLinkExpirationInDays: number | null;
+  policyPermissionError: boolean;
+  partialData: boolean;
+  permissionError: boolean;
+  collectionIssues: CollectionIssue[];
+}
+
+export interface SharePointPoliciesDataWithMetadata {
+  data: SharePointPoliciesData;
+  fieldMetadata: FieldMetadataMap;
+  metadataVersion: string;
+}
+
+export interface SharePointSharingSummary {
+  totalSharingLinks: number;
+  orgWideLinks: number;
+  anonymousLinks: number;
+  sampledSites: number;
+  totalSitesAvailable: number;
+  partialData: boolean;
+  permissionError: boolean;
+}
+
+/**
+ * Archived scan to export; omit for the live register.
+ */
+export type ExportScanIdParameter = string;
+
 export type GetM365GroupsParams = {
 q?: string;
 };
@@ -1494,5 +1574,53 @@ export type GetM365DataSourcesParams = {
 tab?: string;
 metricId?: string;
 evidenceStatus?: EvidenceStatus;
+};
+
+export type PostM365Refresh202 = {
+  message: string;
+  keys: string[];
+};
+
+export type GetM365SharePointSharingSummary200 = {
+  data: SharePointSharingSummary;
+};
+
+export type GetM365GroupDeviceMembers200 = {
+  deviceNames: string[];
+};
+
+export type GetM365ExportFindingsCsvParams = {
+/**
+ * Archived scan to export; omit for the live register.
+ */
+scanId?: ExportScanIdParameter;
+};
+
+export type GetM365ExportFindingsXlsxParams = {
+/**
+ * Archived scan to export; omit for the live register.
+ */
+scanId?: ExportScanIdParameter;
+};
+
+export type GetM365ExportEvidenceXlsxParams = {
+/**
+ * Archived scan to export; omit for the live register.
+ */
+scanId?: ExportScanIdParameter;
+};
+
+export type GetM365ExportExecutiveHtmlParams = {
+/**
+ * Archived scan to export; omit for the live register.
+ */
+scanId?: ExportScanIdParameter;
+};
+
+export type GetM365ExportExecutivePdfParams = {
+/**
+ * Archived scan to export; omit for the live register.
+ */
+scanId?: ExportScanIdParameter;
 };
 

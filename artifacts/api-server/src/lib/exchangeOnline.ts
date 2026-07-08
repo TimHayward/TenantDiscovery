@@ -18,6 +18,16 @@ export interface DkimSigningResult {
 }
 
 /**
+ * Whether app-only Exchange Online access is possible under the current credential.
+ * App-only EXO access requires certificate-based app auth plus the `Exchange.ManageAsApp`
+ * permission and a directory role (see backlog 6.1); the graph client only builds a
+ * client-secret credential today, so this is always false until that lands.
+ */
+export function isExchangeCertAuthConfigured(): boolean {
+  return false;
+}
+
+/**
  * Fetch DKIM signing configuration for all domains via the Exchange Online REST admin
  * API (the same endpoint EXO PowerShell V3 uses under the hood, `Get-DkimSigningConfig`).
  *

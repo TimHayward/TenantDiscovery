@@ -1,5 +1,13 @@
 import React from "react";
-import { useGetM365IntuneWithMetadata, useGetM365IntuneApps, useGetM365DataSources } from "@workspace/api-client-react";
+import {
+  useGetM365IntuneWithMetadata,
+  useGetM365IntuneApps,
+  useGetM365DataSources,
+  useGetM365IntuneDeviceCompliance,
+  useGetM365GroupDeviceMembers,
+  getGetM365GroupDeviceMembersQueryKey,
+  getM365Groups,
+} from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,13 +17,16 @@ import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { CSVLink } from "react-csv";
 import {
-  Download, ShieldCheck, ShieldAlert, Monitor, Smartphone,
+  ShieldCheck, ShieldAlert, Monitor, Smartphone,
   Apple, AlertTriangle, CheckCircle2, XCircle, Clock, Info, Search, X, ChevronDown, ClipboardList,
   Package, PackageCheck, PackageX, Layers,
 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { sortableHeadA11yProps } from "@/components/DataTable";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
+import { useChartTheme } from "@/lib/useChartTheme";
 import { PermissionCodeList } from "@/components/PermissionCodeList";
 import {
   INTUNE_APP_INSTALL_PERMISSION,
@@ -52,7 +63,7 @@ import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-man
 import { chartPalette } from "@/lib/chartPalette";
 import { ExportBtn } from "@/components/ExportBtn";
 
-const C = { ...chartPalette, gray: "#9ca3af" };
+const C = chartPalette;
 
 const OS_COLORS: Record<string, string> = {
   Windows:  C.blue,
@@ -576,34 +587,14 @@ function isUsefulRule(rule: ComplianceRuleState): boolean {
 }
 
 type ComplianceRuleState = { settingName: string; state: string; errorDescription: string };
-type CompliancePolicyDetail = {
-  policyId: string; policyName: string; platformType: string;
-  state: string; lastReportedDateTime: string | null; failingRules: ComplianceRuleState[];
-};
-type ComplianceDetail = {
-  deviceId: string; totalPolicies: number; nonCompliantPolicies: number;
-  policies: CompliancePolicyDetail[];
-};
 
 function ComplianceDrillDownPanel({
   deviceId, deviceName,
 }: {
   deviceId: string; deviceName: string;
 }) {
-  const [detail, setDetail] = useState<ComplianceDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setFetchError(null);
-    fetch(`/api/m365/intune/device/${encodeURIComponent(deviceId)}/compliance`)
-      .then((r) => r.json())
-      .then((d) => { if (!cancelled) { setDetail(d); setLoading(false); } })
-      .catch((e) => { if (!cancelled) { setFetchError(String(e.message)); setLoading(false); } });
-    return () => { cancelled = true; };
-  }, [deviceId]);
+  const { data: detail, isLoading: loading, error: queryError } = useGetM365IntuneDeviceCompliance(deviceId);
+  const fetchError = queryError ? queryError.message : null;
 
   const NON_COMPLIANT = new Set(["noncompliant", "nonCompliant", "error"]);
 
@@ -725,12 +716,11 @@ function ComplianceDrillDownPanel({
 // ── component ─────────────────────────────────────────────────────────────────
 
 export function IntuneTab() {
-  const { data: intuneWithMetadata, isLoading, isFetching } = useGetM365IntuneWithMetadata();
+  const { data: intuneWithMetadata, isLoading, isFetching, isError, error, refetch } = useGetM365IntuneWithMetadata();
   const { data: dataSources } = useGetM365DataSources({ tab: "intune" });
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const loading = isLoading || isFetching;
+  const loading = isLoading;
   const data = intuneWithMetadata?.data;
+  const intuneIssue = summarizeIssues(getCollectionIssues(data));
 
   const registryItems =
     (dataSources as {
@@ -767,10 +757,8 @@ export function IntuneTab() {
   const [avdGroupId, setAvdGroupIdState] = useState<string>(() => localStorage.getItem("avdGroupId") ?? "");
   const [avdGroupName, setAvdGroupNameState] = useState<string>(() => localStorage.getItem("avdGroupName") ?? "");
   const [avdGroupSearch, setAvdGroupSearch] = useState("");
-  const [groups, setGroups] = useState<Array<{ id: string; displayName: string; description?: string }>>([]);
+  const [groups, setGroups] = useState<Array<{ id: string; displayName: string; description?: string | null }>>([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
-  const [groupDeviceNames, setGroupDeviceNames] = useState<Set<string>>(new Set());
-  const [groupMembersLoading, setGroupMembersLoading] = useState(false);
   const [showGroupDropdown, setShowGroupDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -784,25 +772,23 @@ export function IntuneTab() {
   const fetchGroups = useCallback(async (q: string) => {
     setGroupsLoading(true);
     try {
-      const resp = await fetch(`/api/m365/groups?q=${encodeURIComponent(q)}`);
-      if (resp.ok) {
-        const d = await resp.json();
-        setGroups(d.groups ?? []);
-      }
+      const d = await getM365Groups({ q });
+      setGroups(d.groups ?? []);
+    } catch {
+      setGroups([]);
     } finally {
       setGroupsLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    if (!avdGroupId) { setGroupDeviceNames(new Set()); return; }
-    setGroupMembersLoading(true);
-    fetch(`/api/m365/groups/${encodeURIComponent(avdGroupId)}/device-members`)
-      .then((r) => r.json())
-      .then((d) => setGroupDeviceNames(new Set<string>(d.deviceNames ?? [])))
-      .catch(() => setGroupDeviceNames(new Set()))
-      .finally(() => setGroupMembersLoading(false));
-  }, [avdGroupId]);
+  const { data: groupDeviceMembers, isFetching: groupMembersLoading } = useGetM365GroupDeviceMembers(
+    avdGroupId,
+    { query: { queryKey: getGetM365GroupDeviceMembersQueryKey(avdGroupId), enabled: !!avdGroupId } },
+  );
+  const groupDeviceNames = useMemo(
+    () => new Set<string>(avdGroupId ? groupDeviceMembers?.deviceNames ?? [] : []),
+    [avdGroupId, groupDeviceMembers],
+  );
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -842,8 +828,7 @@ export function IntuneTab() {
     return { adjustedTotal: eligible.length, adjustedEncrypted: encCount, adjustedPercent: pct };
   }, [data, excludedDeviceNames]);
 
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { isDark, gridColor, tickColor } = useChartTheme();
 
   // ── Section 4: Intune security checklist ────────────────────────────────────
   const intuneChecklist: ChecklistGroup[] = [
@@ -1136,10 +1121,15 @@ export function IntuneTab() {
     );
   }
 
-  return (
-    <div className="space-y-4">
+  if (isError) {
+    return <ErrorPanel title="Couldn't load Intune data" error={error} onRetry={() => refetch()} />;
+  }
 
-      <CollapsibleSection title="Summary" description="Device compliance and enrollment overview" storageKey="intune-summary" defaultOpen={true} density="compact">
+  return (
+    <div className="relative space-y-4">
+      <RefreshIndicator active={isFetching && !isLoading} />
+
+      <CollapsibleSection title="Summary" description="Device compliance and enrollment overview" storageKey="intune-summary" defaultOpen={true} density="compact" issue={intuneIssue}>
       <div className="space-y-4">
       {/* ── Device list unavailable notice ──────────────────────────────────── */}
       {!loading && data && !data.deviceListAvailable && (
@@ -1324,7 +1314,7 @@ export function IntuneTab() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+              <TableSkeleton rows={4} rowClassName="h-16" className="p-0" />
             ) : (data?.osVersionBreakdown ?? []).length === 0 ? (
               <div className="flex items-center justify-center h-[180px] text-muted-foreground text-sm">No data</div>
             ) : (
@@ -1434,7 +1424,7 @@ export function IntuneTab() {
         </>}
       >
           {loading ? (
-            <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+            <TableSkeleton rows={4} rowClassName="h-12" className="p-0" />
           ) : activePolicies.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground text-sm">
               <ShieldAlert className="w-8 h-8" />
@@ -1452,7 +1442,7 @@ export function IntuneTab() {
                     {policyTable.getHeaderGroups().map((hg) => (
                       <TableRow key={hg.id}>
                         {hg.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
+                          <TableHead key={header.id} {...sortableHeadA11yProps(header.column.getIsSorted(), () => header.column.toggleSorting())} className="cursor-pointer select-none whitespace-nowrap">
                             <div className="flex items-center gap-1">
                               {flexRender(header.column.columnDef.header, header.getContext())}
                               {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
@@ -1576,7 +1566,7 @@ export function IntuneTab() {
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+                    <TableSkeleton rows={3} rowClassName="h-14" className="p-0" />
                   ) : staleDevices.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-2">
                       <p className="text-sm font-medium text-green-600 dark:text-green-400">No stale devices — great hygiene!</p>
@@ -1678,9 +1668,9 @@ export function IntuneTab() {
                               {hg.headers.map((header) => (
                                 <TableHead
                                   key={header.id}
-                                  onClick={header.column.getToggleSortingHandler()}
+                                  {...sortableHeadA11yProps(header.column.getIsSorted(), () => header.column.toggleSorting())}
                                   className="cursor-pointer select-none whitespace-nowrap"
-                                >
+                                  >
                                   <div className="flex items-center gap-1">
                                     {flexRender(header.column.columnDef.header, header.getContext())}
                                     {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
@@ -1695,9 +1685,17 @@ export function IntuneTab() {
                             staleDeviceTable.getRowModel().rows.map((row) => (
                               <TableRow
                                 key={row.id}
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => setSelectedStaleDevice(
                                   selectedStaleDevice?.id === row.original.id ? null : row.original
                                 )}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    setSelectedStaleDevice(selectedStaleDevice?.id === row.original.id ? null : row.original);
+                                  }
+                                }}
                                 className={`cursor-pointer transition-colors ${
                                   selectedStaleDevice?.id === row.original.id
                                     ? "bg-muted/60 ring-1 ring-inset ring-primary/20"
@@ -1756,10 +1754,7 @@ export function IntuneTab() {
           }))} />}
       >
           {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-9 w-80" />
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
           ) : !data?.deviceListAvailable ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
               <Info className="w-10 h-10 text-blue-400" />
@@ -1884,7 +1879,7 @@ export function IntuneTab() {
                     {deviceTable.getHeaderGroups().map((hg) => (
                       <TableRow key={hg.id}>
                         {hg.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap">
+                          <TableHead key={header.id} {...sortableHeadA11yProps(header.column.getIsSorted(), () => header.column.toggleSorting())} className="cursor-pointer select-none whitespace-nowrap">
                             <div className="flex items-center gap-1">
                               {flexRender(header.column.columnDef.header, header.getContext())}
                               {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
@@ -1969,7 +1964,7 @@ export function IntuneTab() {
         <Card>
           <CardContent className="pt-4 px-0 pb-0">
             {loading ? (
-              <div className="space-y-2 px-4 pb-4">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+              <TableSkeleton rows={6} rowClassName="h-12" className="p-0 px-4 pb-4" />
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -1977,7 +1972,7 @@ export function IntuneTab() {
                     {assessmentTable.getHeaderGroups().map((hg) => (
                       <TableRow key={hg.id}>
                         {hg.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap first:pl-6 last:pr-6">
+                          <TableHead key={header.id} {...sortableHeadA11yProps(header.column.getIsSorted(), () => header.column.toggleSorting())} className="cursor-pointer select-none whitespace-nowrap first:pl-6 last:pr-6">
                             <div className="flex items-center gap-1">
                               {flexRender(header.column.columnDef.header, header.getContext())}
                               {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
@@ -2208,7 +2203,7 @@ export function IntuneTab() {
               </button>
             </div>
             {appEstateLoading ? (
-              <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+              <TableSkeleton rows={5} rowClassName="h-10" className="p-0" />
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -2216,7 +2211,7 @@ export function IntuneTab() {
                     {appInstallTable.getHeaderGroups().map((hg) => (
                       <TableRow key={hg.id}>
                         {hg.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap first:pl-4 last:pr-4">
+                          <TableHead key={header.id} {...sortableHeadA11yProps(header.column.getIsSorted(), () => header.column.toggleSorting())} className="cursor-pointer select-none whitespace-nowrap first:pl-4 last:pr-4">
                             <div className="flex items-center gap-1">
                               {flexRender(header.column.columnDef.header, header.getContext())}
                               {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
@@ -2420,7 +2415,7 @@ export function IntuneTab() {
               ))}
             </div>
             {appEstateLoading ? (
-              <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+              <TableSkeleton rows={5} rowClassName="h-10" className="p-0" />
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -2428,7 +2423,7 @@ export function IntuneTab() {
                     {discoveredAppTable.getHeaderGroups().map((hg) => (
                       <TableRow key={hg.id}>
                         {hg.headers.map((header) => (
-                          <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none whitespace-nowrap first:pl-4 last:pr-4">
+                          <TableHead key={header.id} {...sortableHeadA11yProps(header.column.getIsSorted(), () => header.column.toggleSorting())} className="cursor-pointer select-none whitespace-nowrap first:pl-4 last:pr-4">
                             <div className="flex items-center gap-1">
                               {flexRender(header.column.columnDef.header, header.getContext())}
                               {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}

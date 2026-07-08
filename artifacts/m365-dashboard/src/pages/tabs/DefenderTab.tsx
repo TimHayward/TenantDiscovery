@@ -23,14 +23,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Monitor, ShieldCheck, ShieldAlert, Globe, Lock, AlertTriangle, Building2, ChevronDown,
+  Monitor, Smartphone, Apple, ShieldCheck, ShieldAlert, Globe, Lock, AlertTriangle, Building2, ChevronDown,
 } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer } from "recharts";
-import { useTheme } from "next-themes";
 import { formatDate } from "@/lib/utils";
 
 // ── constants ─────────────────────────────────────────────────────────────────
@@ -38,8 +37,19 @@ import { formatDate } from "@/lib/utils";
 import { chartPalette } from "@/lib/chartPalette";
 import { ExportBtn } from "@/components/ExportBtn";
 import { DataTable } from "@/components/DataTable";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
+import { BADGE_TONE, SEVERITY_BADGE_CLASS } from "@/lib/statusTokens";
+import { useChartTheme } from "@/lib/useChartTheme";
 
-const C = { ...chartPalette, gray: "#9ca3af" };
+const C = chartPalette;
+
+/** Map a Defender alert severity string onto the shared severity badge tokens. */
+function alertSeverityBadgeClass(severity: string): string {
+  const key = severity.toLowerCase() === "informational" ? "info" : severity.toLowerCase();
+  return SEVERITY_BADGE_CLASS[key as keyof typeof SEVERITY_BADGE_CLASS] ?? "bg-muted text-muted-foreground";
+}
 
 const TRUST_LABELS: Record<string, string> = {
   AzureAd:  "Azure AD Joined",
@@ -75,7 +85,7 @@ function complianceFilterKey(v: boolean | null | undefined): "compliant" | "nonc
 
 function MgmtBadge({ managementType, isManaged }: { managementType: string | null; isManaged: boolean }) {
   if (!isManaged && !managementType) {
-    return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 font-normal text-xs border-0">Unmanaged</Badge>;
+    return <Badge className={`${BADGE_TONE.red} font-normal text-xs border-0`}>Unmanaged</Badge>;
   }
   if (managementType === "MicrosoftSense") {
     return <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 font-normal text-xs border-0">Defender (MDE)</Badge>;
@@ -101,16 +111,25 @@ function TrustBadge({ trustType }: { trustType: string | null }) {
 }
 
 function OsBadge({ os }: { os: string }) {
-  const icons: Record<string, string> = { Windows: "🪟", MacMDM: "🍎", IPhone: "📱", IPad: "📱", Android: "🤖", AndroidForWork: "🤖" };
-  const icon = icons[os] ?? "💻";
-  return <span className="text-sm text-muted-foreground">{icon} {os}</span>;
+  const lower = os.toLowerCase();
+  const Icon =
+    lower.includes("windows") ? Monitor :
+    lower.includes("iphone") || lower.includes("ipad") || lower.includes("android") ? Smartphone :
+    lower.includes("mac") ? Apple :
+    Monitor;
+  return (
+    <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+      {os}
+    </span>
+  );
 }
 
 function ConsentBadge({ consentType }: { consentType: string }) {
   if (consentType === "AllPrincipals") {
-    return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 font-normal text-xs border-0">Org-wide</Badge>;
+    return <Badge className={`${BADGE_TONE.red} font-normal text-xs border-0`}>Org-wide</Badge>;
   }
-  return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 font-normal text-xs border-0">User-specific</Badge>;
+  return <Badge className={`${BADGE_TONE.blue} font-normal text-xs border-0`}>User-specific</Badge>;
 }
 
 // ── column definitions ────────────────────────────────────────────────────────
@@ -280,7 +299,7 @@ const oauthColumns: ColumnDef<OAuthAppItem>[] = [
 // ── main component ────────────────────────────────────────────────────────────
 
 export function DefenderTab() {
-  const { data: estateWithMetadata, isLoading, isFetching } = useGetM365SecurityEstateWithMetadata();
+  const { data: estateWithMetadata, isLoading, isFetching, isError, error, refetch } = useGetM365SecurityEstateWithMetadata();
   const { data: intuneData, isLoading: intuneLoading, isFetching: intuneFetching } = useGetM365Intune();
   const data = estateWithMetadata?.data;
   const fieldMetadata = estateWithMetadata?.fieldMetadata ?? {};
@@ -313,9 +332,9 @@ export function DefenderTab() {
       informational: number;
     };
   } | undefined;
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const loading = isLoading || isFetching || intuneLoading || intuneFetching;
+  const loading = isLoading || intuneLoading;
+  const anyFetching = isFetching || intuneFetching;
+  const estateIssue = summarizeIssues(getCollectionIssues(data));
 
   const metricToFieldMap: Record<string, string> = {
     "defender.deviceSummaryTotal": "deviceSummary",
@@ -423,8 +442,7 @@ export function DefenderTab() {
     ]},
   ];
 
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { gridColor, tickColor } = useChartTheme();
 
   // ── device table state ──
   const [deviceFilter, setDeviceFilter] = useState("");
@@ -575,10 +593,15 @@ export function DefenderTab() {
   const thirdPartyApps = (data?.saasApps ?? []).filter((a) => !a.isFirstParty).length;
   const orgWideOauth   = (data?.oauthApps ?? []).filter((a) => a.isOrgWide).length;
 
-  return (
-    <div className="space-y-4">
+  if (isError) {
+    return <ErrorPanel title="Couldn't load Defender data" error={error} onRetry={() => refetch()} />;
+  }
 
-      <CollapsibleSection title="Summary" description="Device estate overview" storageKey="defender-summary" defaultOpen={true} density="compact">
+  return (
+    <div className="relative space-y-4">
+      <RefreshIndicator active={anyFetching && !loading} />
+
+      <CollapsibleSection title="Summary" description="Device estate overview" storageKey="defender-summary" defaultOpen={true} density="compact" issue={estateIssue}>
       <div className="space-y-4">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
@@ -767,10 +790,7 @@ export function DefenderTab() {
           />}
       >
           {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-64" />
-              {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton rows={7} rowClassName="h-12" className="p-0" />
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-3 flex-wrap">
@@ -911,10 +931,7 @@ export function DefenderTab() {
           />}
       >
           {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-64" />
-              {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton rows={7} rowClassName="h-12" className="p-0" />
           ) : (
             <div className="space-y-3">
               {mdeStatus?.ok === false && (
@@ -956,7 +973,7 @@ export function DefenderTab() {
         defaultOpen={true}
       >
         {loading ? (
-          <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          <TableSkeleton rows={4} rowClassName="h-12" className="p-0" />
         ) : estateData?.defenderEndpointStatus?.ok === false ? (
           <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40">
             <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
@@ -968,9 +985,9 @@ export function DefenderTab() {
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KPICard title="Total Alerts" value={estateData?.defenderEndpointStatus?.totalAlerts} loading={false} valueColor={(estateData?.defenderEndpointStatus?.totalAlerts ?? 0) > 0 ? "#A60808" : "#009118"} density="compact" />
-              <KPICard title="High Severity" value={estateData?.defenderEndpointStatus?.high} loading={false} valueColor={(estateData?.defenderEndpointStatus?.high ?? 0) > 0 ? "#A60808" : "#009118"} density="compact" />
-              <KPICard title="Medium Severity" value={estateData?.defenderEndpointStatus?.medium} loading={false} valueColor={(estateData?.defenderEndpointStatus?.medium ?? 0) > 0 ? "#d97706" : "#009118"} density="compact" />
+              <KPICard title="Total Alerts" value={estateData?.defenderEndpointStatus?.totalAlerts} loading={false} valueColor={(estateData?.defenderEndpointStatus?.totalAlerts ?? 0) > 0 ? C.red : C.green} density="compact" />
+              <KPICard title="High Severity" value={estateData?.defenderEndpointStatus?.high} loading={false} valueColor={(estateData?.defenderEndpointStatus?.high ?? 0) > 0 ? C.red : C.green} density="compact" />
+              <KPICard title="Medium Severity" value={estateData?.defenderEndpointStatus?.medium} loading={false} valueColor={(estateData?.defenderEndpointStatus?.medium ?? 0) > 0 ? C.warning : C.green} density="compact" />
               <KPICard title="Low + Info" value={(estateData?.defenderEndpointStatus?.low ?? 0) + (estateData?.defenderEndpointStatus?.informational ?? 0)} loading={false} density="compact" />
             </div>
             {(estateData?.defenderEndpointAlerts?.length ?? 0) > 0 && (
@@ -990,14 +1007,14 @@ export function DefenderTab() {
                       <TableRow key={alert.id}>
                         <TableCell className="text-sm max-w-[300px] truncate font-medium">{alert.title}</TableCell>
                         <TableCell>
-                          <Badge variant={alert.severity.toLowerCase() === "high" ? "destructive" : "secondary"} className="text-[10px]">
+                          <Badge className={`${alertSeverityBadgeClass(alert.severity)} text-[10px] font-normal border-0`}>
                             {alert.severity}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{alert.category || "—"}</TableCell>
                         <TableCell className="text-xs">{alert.status}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {alert.createdDateTime ? new Date(alert.createdDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                          {alert.createdDateTime ? formatDate(alert.createdDateTime) : "—"}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1028,10 +1045,7 @@ export function DefenderTab() {
           />}
       >
           {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-64" />
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
           ) : (
             <div className="space-y-3">
               {/* Summary tiles */}
@@ -1104,10 +1118,7 @@ export function DefenderTab() {
           />}
       >
           {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-64" />
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
           ) : (
             <div className="space-y-3">
               {/* Summary + risk notice */}
@@ -1167,7 +1178,7 @@ export function DefenderTab() {
         defaultOpen={true}
       >
         {loading ? (
-          <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          <TableSkeleton rows={4} rowClassName="h-12" className="p-0" />
         ) : data?.defenderOfficeStatus?.ok === false ? (
           <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40">
             <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
@@ -1179,9 +1190,9 @@ export function DefenderTab() {
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KPICard title="Total Alerts" value={data?.defenderOfficeStatus?.totalAlerts} loading={false} valueColor={(data?.defenderOfficeStatus?.totalAlerts ?? 0) > 0 ? "#A60808" : "#009118"} density="compact" />
-              <KPICard title="High Severity" value={data?.defenderOfficeStatus?.high} loading={false} valueColor={(data?.defenderOfficeStatus?.high ?? 0) > 0 ? "#A60808" : "#009118"} density="compact" />
-              <KPICard title="Medium Severity" value={data?.defenderOfficeStatus?.medium} loading={false} valueColor={(data?.defenderOfficeStatus?.medium ?? 0) > 0 ? "#d97706" : "#009118"} density="compact" />
+              <KPICard title="Total Alerts" value={data?.defenderOfficeStatus?.totalAlerts} loading={false} valueColor={(data?.defenderOfficeStatus?.totalAlerts ?? 0) > 0 ? C.red : C.green} density="compact" />
+              <KPICard title="High Severity" value={data?.defenderOfficeStatus?.high} loading={false} valueColor={(data?.defenderOfficeStatus?.high ?? 0) > 0 ? C.red : C.green} density="compact" />
+              <KPICard title="Medium Severity" value={data?.defenderOfficeStatus?.medium} loading={false} valueColor={(data?.defenderOfficeStatus?.medium ?? 0) > 0 ? C.warning : C.green} density="compact" />
               <KPICard title="Low + Info" value={(data?.defenderOfficeStatus?.low ?? 0) + (data?.defenderOfficeStatus?.informational ?? 0)} loading={false} density="compact" />
             </div>
             {(data?.defenderOfficeAlerts?.length ?? 0) > 0 && (
@@ -1201,14 +1212,14 @@ export function DefenderTab() {
                       <TableRow key={alert.id}>
                         <TableCell className="text-sm max-w-[300px] truncate font-medium">{alert.title}</TableCell>
                         <TableCell>
-                          <Badge variant={alert.severity.toLowerCase() === "high" ? "destructive" : "secondary"} className="text-[10px]">
+                          <Badge className={`${alertSeverityBadgeClass(alert.severity)} text-[10px] font-normal border-0`}>
                             {alert.severity}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{alert.category || "—"}</TableCell>
                         <TableCell className="text-xs">{alert.status}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {alert.createdDateTime ? new Date(alert.createdDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                          {alert.createdDateTime ? formatDate(alert.createdDateTime) : "—"}
                         </TableCell>
                       </TableRow>
                     ))}

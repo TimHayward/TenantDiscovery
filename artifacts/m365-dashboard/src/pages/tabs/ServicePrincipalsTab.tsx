@@ -27,8 +27,11 @@ import { formatDate } from "@/lib/utils";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer,
 } from "recharts";
-import { useTheme } from "next-themes";
 import { summarizeIssues, getCollectionIssues } from "@/lib/collectionStatus";
+import { useChartTheme } from "@/lib/useChartTheme";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { sortableHeadA11yProps } from "@/components/DataTable";
 import { chartPalette } from "@/lib/chartPalette";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -219,8 +222,8 @@ type ViewFilter = "all" | "thirdParty" | "microsoft" | "managedIdentity";
 type RiskFilter = "all" | "high" | "medium" | "low";
 
 export function ServicePrincipalsTab() {
-  const { data: spWithMetadata, isLoading, isFetching } = useGetM365ServicePrincipalsWithMetadata();
-  const loading = isLoading || isFetching;
+  const { data: spWithMetadata, isLoading, isFetching, isError, error, refetch } = useGetM365ServicePrincipalsWithMetadata();
+  const loading = isLoading;
   const data = spWithMetadata?.data;
   const fieldMetadata = spWithMetadata?.fieldMetadata ?? {};
   const spIssue = summarizeIssues(getCollectionIssues(data));
@@ -247,10 +250,7 @@ export function ServicePrincipalsTab() {
 
   const C = chartPalette;
 
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { gridColor, tickColor, tooltipStyle } = useChartTheme();
 
   // ── filtered dataset ────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -290,8 +290,8 @@ export function ServicePrincipalsTab() {
       if (row.consentType === "AllPrincipals") orgWide += 1; else user += 1;
     }
     return [
-      { type: "Tenant-wide (admin)", count: orgWide, color: "#A60808" },
-      { type: "User-specific", count: user, color: "#1E3D59" },
+      { type: "Tenant-wide (admin)", count: orgWide, color: chartPalette.red },
+      { type: "User-specific", count: user, color: chartPalette.blue },
     ];
   }, [consentRows]);
 
@@ -492,8 +492,13 @@ export function ServicePrincipalsTab() {
   }
 
   // ── render ──────────────────────────────────────────────────────────────────
+  if (isError) {
+    return <ErrorPanel title="Couldn't load service principals" error={error} onRetry={() => refetch()} />;
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={isFetching && !isLoading} />
 
       <CollapsibleSection title="Summary" description="Service principal counts and risk overview" storageKey="sp-summary" defaultOpen={true} density="compact" issue={spIssue}>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -595,10 +600,7 @@ export function ServicePrincipalsTab() {
           </div>}
       >
           {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-64" />
-              {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton rows={8} rowClassName="h-12" className="p-0" />
           ) : (
             <div className="space-y-3">
               <Input
@@ -616,7 +618,9 @@ export function ServicePrincipalsTab() {
                         {hg.headers.map((h) => (
                           <TableHead
                             key={h.id}
-                            onClick={h.column.getToggleSortingHandler()}
+                            {...(h.column.getCanSort()
+                              ? sortableHeadA11yProps(h.column.getIsSorted(), () => h.column.toggleSorting())
+                              : {})}
                             className={`whitespace-nowrap ${h.column.getCanSort() ? "cursor-pointer select-none" : ""}`}
                           >
                             <div className="flex items-center gap-1">
@@ -694,7 +698,7 @@ export function ServicePrincipalsTab() {
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
                 <XAxis type="number" allowDecimals={false} tick={{ fill: tickColor, fontSize: 12 }} />
                 <YAxis type="category" dataKey="type" width={120} tick={{ fill: tickColor, fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: isDark ? "#1c1c1f" : "#fff", border: `1px solid ${gridColor}`, borderRadius: 8, fontSize: 12 }} />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Bar dataKey="count" name="Grants" radius={[0, 4, 4, 0]}>
                   {consentExposure.map((entry) => (
                     <Cell key={entry.type} fill={entry.color} />

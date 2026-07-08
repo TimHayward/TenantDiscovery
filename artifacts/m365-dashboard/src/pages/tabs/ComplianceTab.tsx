@@ -4,9 +4,12 @@ import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { useTheme } from "next-themes";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
+import { useChartTheme } from "@/lib/useChartTheme";
 import { PermissionCodeList } from "@/components/PermissionCodeList";
 import { COMPLIANCE_SENSITIVITY_LABELS_PERMISSIONS } from "@/lib/permissions";
 import { AlertTriangle, CheckCircle, Info, Lock, Tag } from "lucide-react";
@@ -18,9 +21,7 @@ import { DataTable } from "@/components/DataTable";
 import type { SensitivityLabelItem } from "@workspace/api-client-react";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
-import { chartPalette } from "@/lib/chartPalette";
-
-const CHART_COLORS = { ...chartPalette, gray: "#9ca3af" };
+import { chartPalette as CHART_COLORS } from "@/lib/chartPalette";
 
 const labelColumns: ColumnDef<SensitivityLabelItem>[] = [
   {
@@ -95,17 +96,32 @@ const labelColumns: ColumnDef<SensitivityLabelItem>[] = [
 ];
 
 export function ComplianceTab() {
-  const { data: complianceWithMetadata, isLoading: isComplianceLoading, isFetching: isComplianceFetching } = useGetM365ComplianceWithMetadata();
-  const { data: healthWithMetadata, isLoading: isHealthLoading, isFetching: isHealthFetching } = useGetM365ServiceHealthWithMetadata();
+  const {
+    data: complianceWithMetadata,
+    isLoading: isComplianceLoading,
+    isFetching: isComplianceFetching,
+    isError: isComplianceError,
+    error: complianceError,
+    refetch: refetchCompliance,
+  } = useGetM365ComplianceWithMetadata();
+  const {
+    data: healthWithMetadata,
+    isLoading: isHealthLoading,
+    isFetching: isHealthFetching,
+    isError: isHealthError,
+    error: healthError,
+    refetch: refetchHealth,
+  } = useGetM365ServiceHealthWithMetadata();
   const { data: dataSources } = useGetM365DataSources({ tab: "compliance" });
 
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const { isDark } = useChartTheme();
 
-  const compLoading = isComplianceLoading || isComplianceFetching;
-  const healthLoading = isHealthLoading || isHealthFetching;
+  const compLoading = isComplianceLoading;
+  const healthLoading = isHealthLoading;
   const compliance = complianceWithMetadata?.data;
   const health = healthWithMetadata?.data;
+  const complianceIssue = summarizeIssues(getCollectionIssues(compliance));
+  const healthIssue = summarizeIssues(getCollectionIssues(health));
 
   const registryItems =
     (dataSources as {
@@ -237,9 +253,14 @@ export function ComplianceTab() {
 
   const [labelFilter, setLabelFilter] = useState("");
 
+  if (isComplianceError) {
+    return <ErrorPanel title="Couldn't load compliance data" error={complianceError} onRetry={() => refetchCompliance()} />;
+  }
+
   return (
-    <div className="space-y-4">
-      <CollapsibleSection title="Summary" description="Compliance policies, score, and audit status" storageKey="compliance-summary" defaultOpen={true} density="compact">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={(isComplianceFetching || isHealthFetching) && !(isComplianceLoading || isHealthLoading)} />
+      <CollapsibleSection title="Summary" description="Compliance policies, score, and audit status" storageKey="compliance-summary" defaultOpen={true} density="compact" issue={complianceIssue}>
         <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
@@ -352,6 +373,9 @@ export function ComplianceTab() {
             </CardContent>
           </Card>
         </div>
+        {(compliance?.collectionNotes ?? []).map((note) => (
+          <p key={note} className="text-[11px] text-muted-foreground">{note}</p>
+        ))}
         </div>
       </CollapsibleSection>
 
@@ -378,9 +402,7 @@ export function ComplianceTab() {
         }
       >
         {compLoading ? (
-          <div className="space-y-2">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-          </div>
+          <TableSkeleton rows={4} rowClassName="h-12" className="p-0" />
         ) : compliance?.sensitivityLabelsPermissionRequired && compliance.sensitivityLabelsList.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
@@ -405,7 +427,7 @@ export function ComplianceTab() {
         ) : (
           <div className="space-y-3">
                 <Input
-                  placeholder="Search labels..."
+                  placeholder="Search labels…"
                   value={labelFilter}
                   onChange={(e) => setLabelFilter(e.target.value)}
                   className="max-w-sm"
@@ -423,7 +445,7 @@ export function ComplianceTab() {
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection title="Service Health" description="M365 service status and incidents" storageKey="compliance-service-health-outer" defaultOpen={true} density="compact">
+      <CollapsibleSection title="Service Health" description="M365 service status and incidents" storageKey="compliance-service-health-outer" defaultOpen={true} density="compact" issue={healthIssue}>
         <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <KPICard
@@ -452,10 +474,10 @@ export function ComplianceTab() {
         </div>
 
         <CollapsibleSection title="All Services Status" storageKey="compliance-service-health">
-            {healthLoading ? (
-              <div className="space-y-2 mt-2">
-                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
-              </div>
+            {isHealthError ? (
+              <ErrorPanel title="Couldn't load service health" error={healthError} onRetry={() => refetchHealth()} />
+            ) : healthLoading ? (
+              <TableSkeleton rows={8} rowClassName="h-14" className="mt-2 p-0" />
             ) : health?.services && health.services.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
                 {health.services.map((service) => {

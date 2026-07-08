@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CollectionStatus,
   ConnectionTestResult,
   DeviceComplianceDetail,
   DriftReport,
@@ -29,9 +30,16 @@ import type {
   FrameworkCoverageResponse,
   GetM365DataSourcesParams,
   GetM365DriftParams,
+  GetM365ExportEvidenceXlsxParams,
+  GetM365ExportExecutiveHtmlParams,
+  GetM365ExportExecutivePdfParams,
+  GetM365ExportFindingsCsvParams,
+  GetM365ExportFindingsXlsxParams,
   GetM365FindingsParams,
+  GetM365GroupDeviceMembers200,
   GetM365GroupsParams,
   GetM365GroupsWithMetadataParams,
+  GetM365SharePointSharingSummary200,
   HealthStatus,
   HealthStatusWithMetadata,
   M365AdminExposureData,
@@ -72,12 +80,15 @@ import type {
   OnboardingSetup,
   OnboardingSetupPatch,
   OnboardingStatus,
+  PostM365Refresh202,
   PowerBIData,
   PowerBIDataWithMetadata,
   ScanDetail,
   ScanListResponse,
   SecurityEstateData,
-  SecurityEstateDataWithMetadata
+  SecurityEstateDataWithMetadata,
+  SharePointPoliciesData,
+  SharePointPoliciesDataWithMetadata
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -4108,6 +4119,881 @@ export function useGetM365PowerBIWithMetadata<TData = Awaited<ReturnType<typeof 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetM365PowerBIWithMetadataQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Background collection status for every metric key
+ */
+export const getGetM365CollectionStatusUrl = () => {
+
+
+
+
+  return `/api/m365/collection-status`
+}
+
+export const getM365CollectionStatus = async ( options?: RequestInit): Promise<CollectionStatus> => {
+
+  return customFetch<CollectionStatus>(getGetM365CollectionStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365CollectionStatusQueryKey = () => {
+    return [
+    `/api/m365/collection-status`
+    ] as const;
+    }
+
+
+export const getGetM365CollectionStatusQueryOptions = <TData = Awaited<ReturnType<typeof getM365CollectionStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365CollectionStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365CollectionStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365CollectionStatus>>> = ({ signal }) => getM365CollectionStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365CollectionStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365CollectionStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getM365CollectionStatus>>>
+export type GetM365CollectionStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Background collection status for every metric key
+ */
+
+export function useGetM365CollectionStatus<TData = Awaited<ReturnType<typeof getM365CollectionStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365CollectionStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365CollectionStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Trigger a full background re-collection of all metrics
+ */
+export const getPostM365RefreshUrl = () => {
+
+
+
+
+  return `/api/m365/refresh`
+}
+
+export const postM365Refresh = async ( options?: RequestInit): Promise<PostM365Refresh202> => {
+
+  return customFetch<PostM365Refresh202>(getPostM365RefreshUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostM365RefreshMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postM365Refresh>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postM365Refresh>>, TError,void, TContext> => {
+
+const mutationKey = ['postM365Refresh'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postM365Refresh>>, void> = () => {
+
+
+          return  postM365Refresh(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostM365RefreshMutationResult = NonNullable<Awaited<ReturnType<typeof postM365Refresh>>>
+
+    export type PostM365RefreshMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Trigger a full background re-collection of all metrics
+ */
+export const usePostM365Refresh = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postM365Refresh>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postM365Refresh>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPostM365RefreshMutationOptions(options));
+    }
+
+/**
+ * @summary SharePoint tenant sharing policies
+ */
+export const getGetM365SharePointPoliciesUrl = () => {
+
+
+
+
+  return `/api/m365/sharepoint/policies`
+}
+
+export const getM365SharePointPolicies = async ( options?: RequestInit): Promise<SharePointPoliciesData> => {
+
+  return customFetch<SharePointPoliciesData>(getGetM365SharePointPoliciesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365SharePointPoliciesQueryKey = () => {
+    return [
+    `/api/m365/sharepoint/policies`
+    ] as const;
+    }
+
+
+export const getGetM365SharePointPoliciesQueryOptions = <TData = Awaited<ReturnType<typeof getM365SharePointPolicies>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365SharePointPolicies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365SharePointPoliciesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365SharePointPolicies>>> = ({ signal }) => getM365SharePointPolicies({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365SharePointPolicies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365SharePointPoliciesQueryResult = NonNullable<Awaited<ReturnType<typeof getM365SharePointPolicies>>>
+export type GetM365SharePointPoliciesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary SharePoint tenant sharing policies
+ */
+
+export function useGetM365SharePointPolicies<TData = Awaited<ReturnType<typeof getM365SharePointPolicies>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365SharePointPolicies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365SharePointPoliciesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary SharePoint tenant sharing policies with field metadata
+ */
+export const getGetM365SharePointPoliciesWithMetadataUrl = () => {
+
+
+
+
+  return `/api/m365/sharepoint/policies/with-metadata`
+}
+
+export const getM365SharePointPoliciesWithMetadata = async ( options?: RequestInit): Promise<SharePointPoliciesDataWithMetadata> => {
+
+  return customFetch<SharePointPoliciesDataWithMetadata>(getGetM365SharePointPoliciesWithMetadataUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365SharePointPoliciesWithMetadataQueryKey = () => {
+    return [
+    `/api/m365/sharepoint/policies/with-metadata`
+    ] as const;
+    }
+
+
+export const getGetM365SharePointPoliciesWithMetadataQueryOptions = <TData = Awaited<ReturnType<typeof getM365SharePointPoliciesWithMetadata>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365SharePointPoliciesWithMetadata>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365SharePointPoliciesWithMetadataQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365SharePointPoliciesWithMetadata>>> = ({ signal }) => getM365SharePointPoliciesWithMetadata({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365SharePointPoliciesWithMetadata>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365SharePointPoliciesWithMetadataQueryResult = NonNullable<Awaited<ReturnType<typeof getM365SharePointPoliciesWithMetadata>>>
+export type GetM365SharePointPoliciesWithMetadataQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary SharePoint tenant sharing policies with field metadata
+ */
+
+export function useGetM365SharePointPoliciesWithMetadata<TData = Awaited<ReturnType<typeof getM365SharePointPoliciesWithMetadata>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365SharePointPoliciesWithMetadata>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365SharePointPoliciesWithMetadataQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Sampled sharing-link exposure across SharePoint sites
+ */
+export const getGetM365SharePointSharingSummaryUrl = () => {
+
+
+
+
+  return `/api/m365/sharepoint/sharing-summary`
+}
+
+export const getM365SharePointSharingSummary = async ( options?: RequestInit): Promise<GetM365SharePointSharingSummary200> => {
+
+  return customFetch<GetM365SharePointSharingSummary200>(getGetM365SharePointSharingSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365SharePointSharingSummaryQueryKey = () => {
+    return [
+    `/api/m365/sharepoint/sharing-summary`
+    ] as const;
+    }
+
+
+export const getGetM365SharePointSharingSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getM365SharePointSharingSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365SharePointSharingSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365SharePointSharingSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365SharePointSharingSummary>>> = ({ signal }) => getM365SharePointSharingSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365SharePointSharingSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365SharePointSharingSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getM365SharePointSharingSummary>>>
+export type GetM365SharePointSharingSummaryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Sampled sharing-link exposure across SharePoint sites
+ */
+
+export function useGetM365SharePointSharingSummary<TData = Awaited<ReturnType<typeof getM365SharePointSharingSummary>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365SharePointSharingSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365SharePointSharingSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Display names of every device object in a group
+ */
+export const getGetM365GroupDeviceMembersUrl = (id: string,) => {
+
+
+
+
+  return `/api/m365/groups/${id}/device-members`
+}
+
+export const getM365GroupDeviceMembers = async (id: string, options?: RequestInit): Promise<GetM365GroupDeviceMembers200> => {
+
+  return customFetch<GetM365GroupDeviceMembers200>(getGetM365GroupDeviceMembersUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365GroupDeviceMembersQueryKey = (id: string,) => {
+    return [
+    `/api/m365/groups/${id}/device-members`
+    ] as const;
+    }
+
+
+export const getGetM365GroupDeviceMembersQueryOptions = <TData = Awaited<ReturnType<typeof getM365GroupDeviceMembers>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365GroupDeviceMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365GroupDeviceMembersQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365GroupDeviceMembers>>> = ({ signal }) => getM365GroupDeviceMembers(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365GroupDeviceMembers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365GroupDeviceMembersQueryResult = NonNullable<Awaited<ReturnType<typeof getM365GroupDeviceMembers>>>
+export type GetM365GroupDeviceMembersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Display names of every device object in a group
+ */
+
+export function useGetM365GroupDeviceMembers<TData = Awaited<ReturnType<typeof getM365GroupDeviceMembers>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365GroupDeviceMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365GroupDeviceMembersQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Findings register as CSV evidence
+ */
+export const getGetM365ExportFindingsCsvUrl = (params?: GetM365ExportFindingsCsvParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/m365/export/findings.csv?${stringifiedParams}` : `/api/m365/export/findings.csv`
+}
+
+export const getM365ExportFindingsCsv = async (params?: GetM365ExportFindingsCsvParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetM365ExportFindingsCsvUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365ExportFindingsCsvQueryKey = (params?: GetM365ExportFindingsCsvParams,) => {
+    return [
+    `/api/m365/export/findings.csv`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetM365ExportFindingsCsvQueryOptions = <TData = Awaited<ReturnType<typeof getM365ExportFindingsCsv>>, TError = ErrorType<unknown>>(params?: GetM365ExportFindingsCsvParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ExportFindingsCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365ExportFindingsCsvQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365ExportFindingsCsv>>> = ({ signal }) => getM365ExportFindingsCsv(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365ExportFindingsCsv>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365ExportFindingsCsvQueryResult = NonNullable<Awaited<ReturnType<typeof getM365ExportFindingsCsv>>>
+export type GetM365ExportFindingsCsvQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Findings register as CSV evidence
+ */
+
+export function useGetM365ExportFindingsCsv<TData = Awaited<ReturnType<typeof getM365ExportFindingsCsv>>, TError = ErrorType<unknown>>(
+ params?: GetM365ExportFindingsCsvParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ExportFindingsCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365ExportFindingsCsvQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Findings register as an Excel workbook
+ */
+export const getGetM365ExportFindingsXlsxUrl = (params?: GetM365ExportFindingsXlsxParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/m365/export/findings.xlsx?${stringifiedParams}` : `/api/m365/export/findings.xlsx`
+}
+
+export const getM365ExportFindingsXlsx = async (params?: GetM365ExportFindingsXlsxParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetM365ExportFindingsXlsxUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365ExportFindingsXlsxQueryKey = (params?: GetM365ExportFindingsXlsxParams,) => {
+    return [
+    `/api/m365/export/findings.xlsx`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetM365ExportFindingsXlsxQueryOptions = <TData = Awaited<ReturnType<typeof getM365ExportFindingsXlsx>>, TError = ErrorType<unknown>>(params?: GetM365ExportFindingsXlsxParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ExportFindingsXlsx>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365ExportFindingsXlsxQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365ExportFindingsXlsx>>> = ({ signal }) => getM365ExportFindingsXlsx(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365ExportFindingsXlsx>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365ExportFindingsXlsxQueryResult = NonNullable<Awaited<ReturnType<typeof getM365ExportFindingsXlsx>>>
+export type GetM365ExportFindingsXlsxQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Findings register as an Excel workbook
+ */
+
+export function useGetM365ExportFindingsXlsx<TData = Awaited<ReturnType<typeof getM365ExportFindingsXlsx>>, TError = ErrorType<unknown>>(
+ params?: GetM365ExportFindingsXlsxParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ExportFindingsXlsx>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365ExportFindingsXlsxQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Evidence pack as an Excel workbook
+ */
+export const getGetM365ExportEvidenceXlsxUrl = (params?: GetM365ExportEvidenceXlsxParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/m365/export/evidence.xlsx?${stringifiedParams}` : `/api/m365/export/evidence.xlsx`
+}
+
+export const getM365ExportEvidenceXlsx = async (params?: GetM365ExportEvidenceXlsxParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetM365ExportEvidenceXlsxUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365ExportEvidenceXlsxQueryKey = (params?: GetM365ExportEvidenceXlsxParams,) => {
+    return [
+    `/api/m365/export/evidence.xlsx`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetM365ExportEvidenceXlsxQueryOptions = <TData = Awaited<ReturnType<typeof getM365ExportEvidenceXlsx>>, TError = ErrorType<unknown>>(params?: GetM365ExportEvidenceXlsxParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ExportEvidenceXlsx>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365ExportEvidenceXlsxQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365ExportEvidenceXlsx>>> = ({ signal }) => getM365ExportEvidenceXlsx(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365ExportEvidenceXlsx>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365ExportEvidenceXlsxQueryResult = NonNullable<Awaited<ReturnType<typeof getM365ExportEvidenceXlsx>>>
+export type GetM365ExportEvidenceXlsxQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Evidence pack as an Excel workbook
+ */
+
+export function useGetM365ExportEvidenceXlsx<TData = Awaited<ReturnType<typeof getM365ExportEvidenceXlsx>>, TError = ErrorType<unknown>>(
+ params?: GetM365ExportEvidenceXlsxParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ExportEvidenceXlsx>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365ExportEvidenceXlsxQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Executive posture report as print-ready HTML
+ */
+export const getGetM365ExportExecutiveHtmlUrl = (params?: GetM365ExportExecutiveHtmlParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/m365/export/executive.html?${stringifiedParams}` : `/api/m365/export/executive.html`
+}
+
+export const getM365ExportExecutiveHtml = async (params?: GetM365ExportExecutiveHtmlParams, options?: RequestInit): Promise<string> => {
+
+  return customFetch<string>(getGetM365ExportExecutiveHtmlUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365ExportExecutiveHtmlQueryKey = (params?: GetM365ExportExecutiveHtmlParams,) => {
+    return [
+    `/api/m365/export/executive.html`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetM365ExportExecutiveHtmlQueryOptions = <TData = Awaited<ReturnType<typeof getM365ExportExecutiveHtml>>, TError = ErrorType<unknown>>(params?: GetM365ExportExecutiveHtmlParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ExportExecutiveHtml>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365ExportExecutiveHtmlQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365ExportExecutiveHtml>>> = ({ signal }) => getM365ExportExecutiveHtml(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365ExportExecutiveHtml>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365ExportExecutiveHtmlQueryResult = NonNullable<Awaited<ReturnType<typeof getM365ExportExecutiveHtml>>>
+export type GetM365ExportExecutiveHtmlQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Executive posture report as print-ready HTML
+ */
+
+export function useGetM365ExportExecutiveHtml<TData = Awaited<ReturnType<typeof getM365ExportExecutiveHtml>>, TError = ErrorType<unknown>>(
+ params?: GetM365ExportExecutiveHtmlParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ExportExecutiveHtml>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365ExportExecutiveHtmlQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Executive posture report as PDF
+ */
+export const getGetM365ExportExecutivePdfUrl = (params?: GetM365ExportExecutivePdfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/m365/export/executive.pdf?${stringifiedParams}` : `/api/m365/export/executive.pdf`
+}
+
+export const getM365ExportExecutivePdf = async (params?: GetM365ExportExecutivePdfParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetM365ExportExecutivePdfUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetM365ExportExecutivePdfQueryKey = (params?: GetM365ExportExecutivePdfParams,) => {
+    return [
+    `/api/m365/export/executive.pdf`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetM365ExportExecutivePdfQueryOptions = <TData = Awaited<ReturnType<typeof getM365ExportExecutivePdf>>, TError = ErrorType<unknown>>(params?: GetM365ExportExecutivePdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ExportExecutivePdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetM365ExportExecutivePdfQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getM365ExportExecutivePdf>>> = ({ signal }) => getM365ExportExecutivePdf(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getM365ExportExecutivePdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetM365ExportExecutivePdfQueryResult = NonNullable<Awaited<ReturnType<typeof getM365ExportExecutivePdf>>>
+export type GetM365ExportExecutivePdfQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Executive posture report as PDF
+ */
+
+export function useGetM365ExportExecutivePdf<TData = Awaited<ReturnType<typeof getM365ExportExecutivePdf>>, TError = ErrorType<unknown>>(
+ params?: GetM365ExportExecutivePdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getM365ExportExecutivePdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetM365ExportExecutivePdfQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

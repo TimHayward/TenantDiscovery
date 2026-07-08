@@ -60,19 +60,20 @@ const APP_DEFS = [
 
 export async function collectAdoption() {
   const collectionIssues: CollectionIssue[] = [];
+  const collectionNotes: string[] = [];
 
   const [periodResults, appsResult, teamsDepthResult, odDepthResult, spDepthResult, emailDepthResult, copilotResult] = await Promise.all([
     Promise.all(TREND_PERIODS.map(async (period) => {
-      const result = await fetchGraphText(`https://graph.microsoft.com/v1.0/reports/getOffice365ServicesUserCounts(period='${period}')`, `getOffice365ServicesUserCounts(${period})`);
+      const result = await fetchGraphText(`https://graph.microsoft.com/v1.0/reports/getOffice365ServicesUserCounts(period='${period}')`, `getOffice365ServicesUserCounts(${period})`, ["Reports.Read.All"]);
       if (result.issue) collectionIssues.push(result.issue);
       return { period, rows: parseCsv(result.text ?? "") };
     })),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getM365AppUserCounts(period='D30')", "getM365AppUserCounts(D30)"),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getTeamsUserActivityUserCounts(period='D30')", "getTeamsUserActivityUserCounts(D30)"),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getOneDriveActivityUserCounts(period='D30')", "getOneDriveActivityUserCounts(D30)"),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getSharePointActivityUserCounts(period='D30')", "getSharePointActivityUserCounts(D30)"),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getEmailActivityUserCounts(period='D30')", "getEmailActivityUserCounts(D30)"),
-    fetchGraphText("https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUserCounts(period='D30')", "getMicrosoft365CopilotUserCounts(D30)"),
+    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getM365AppUserCounts(period='D30')", "getM365AppUserCounts(D30)", ["Reports.Read.All"]),
+    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getTeamsUserActivityUserCounts(period='D30')", "getTeamsUserActivityUserCounts(D30)", ["Reports.Read.All"]),
+    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getOneDriveActivityUserCounts(period='D30')", "getOneDriveActivityUserCounts(D30)", ["Reports.Read.All"]),
+    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getSharePointActivityUserCounts(period='D30')", "getSharePointActivityUserCounts(D30)", ["Reports.Read.All"]),
+    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getEmailActivityUserCounts(period='D30')", "getEmailActivityUserCounts(D30)", ["Reports.Read.All"]),
+    fetchGraphText("https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUserCounts(period='D30')", "getMicrosoft365CopilotUserCounts(D30)", ["Reports.Read.All"]),
   ]);
 
   if (appsResult.issue) collectionIssues.push(appsResult.issue);
@@ -80,7 +81,15 @@ export async function collectAdoption() {
   if (odDepthResult.issue) collectionIssues.push(odDepthResult.issue);
   if (spDepthResult.issue) collectionIssues.push(spDepthResult.issue);
   if (emailDepthResult.issue) collectionIssues.push(emailDepthResult.issue);
-  if (copilotResult.issue) collectionIssues.push(copilotResult.issue);
+  if (copilotResult.issue) {
+    if (copilotResult.issue.category === "notFound") {
+      collectionNotes.push(
+        "Microsoft 365 Copilot usage reporting is not available for this tenant (report endpoint not found — typically the tenant has no Copilot licenses).",
+      );
+    } else {
+      collectionIssues.push(copilotResult.issue);
+    }
+  }
 
   const periodMap = new Map(periodResults.map((r) => [r.period, r.rows]));
   const d30Latest = latestRow(periodMap.get("D30") ?? []);
@@ -152,5 +161,6 @@ export async function collectAdoption() {
     partialData: collectionIssues.length > 0,
     permissionError: collectionIssues.some(isPermissionIssue),
     collectionIssues,
+    collectionNotes,
   };
 }

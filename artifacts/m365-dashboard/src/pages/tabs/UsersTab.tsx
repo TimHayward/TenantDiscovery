@@ -14,7 +14,10 @@ import {
   AlertTriangle, Clock, UserX, ShieldOff,
   ClipboardList, ChevronDown, ChevronUp,
 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
+import { useChartTheme } from "@/lib/useChartTheme";
 import { useState, useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
@@ -275,10 +278,7 @@ function AdminExposureTableSection({
       contentClassName="px-4 pb-3"
     >
       {loading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-10 w-full" />
-          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-        </div>
+        <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
       ) : (
         <div className="space-y-3">
           <Input
@@ -304,22 +304,21 @@ function AdminExposureTableSection({
 // ── component ─────────────────────────────────────────────────────────────────
 
 export function UsersTab() {
-  const { data: usersWithMetadata, isLoading, isFetching } = useGetM365UsersWithMetadata();
+  const { data: usersWithMetadata, isLoading, isFetching, isError, error, refetch } = useGetM365UsersWithMetadata();
   const {
     data: adminExposure,
     isLoading: isAdminExposureLoading,
     isFetching: isAdminExposureFetching,
   } = useGetM365AdminExposure();
   const { data: sec } = useGetM365Security();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const loading = isLoading || isFetching;
+  const loading = isLoading;
 
   const data = usersWithMetadata?.data;
   // Memoized so its reference only changes when the query data does, letting
   // downstream memos depend on it without recomputing every render.
   const fieldMetadata = useMemo(() => usersWithMetadata?.fieldMetadata ?? {}, [usersWithMetadata]);
-  const adminExposureLoading = isAdminExposureLoading || isAdminExposureFetching;
+  const adminExposureLoading = isAdminExposureLoading;
+  const usersIssue = summarizeIssues(getCollectionIssues(data));
 
   const getFieldMeta = (field: string) => fieldMetadata[field];
 
@@ -347,8 +346,7 @@ export function UsersTab() {
     return field ? getFieldMeta(field) : undefined;
   };
 
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { gridColor, tickColor } = useChartTheme();
 
   // ── stale account computation ──────────────────────────────────────────────
   const staleUsers = useMemo<StaleUser[]>(() => {
@@ -405,9 +403,6 @@ export function UsersTab() {
         { name: "Disabled", value: data.disabledUsers },
       ].filter((d) => d.value > 0)
     : [];
-
-  const exportBtn = (filename: string, csvData: object[]) =>
-    loading ? null : <ExportBtn filename={filename} data={csvData} />;
 
   // ── Section 1: Entra ID security checklist ─────────────────────────────────
   const section1Groups = useMemo<ChecklistGroup[]>(() => {
@@ -635,11 +630,16 @@ export function UsersTab() {
     ];
   }, [sec, data, fieldMetadata]);
 
+  if (isError) {
+    return <ErrorPanel title="Couldn't load user data" error={error} onRetry={() => refetch()} />;
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={(isFetching || isAdminExposureFetching) && !(isLoading || isAdminExposureLoading)} />
 
       {/* ── SUMMARY ──────────────────────────────────────────────────────────── */}
-      <CollapsibleSection title="Summary" description="KPI overview and user distribution" storageKey="users-summary" defaultOpen={true} density="compact">
+      <CollapsibleSection title="Summary" description="KPI overview and user distribution" storageKey="users-summary" defaultOpen={true} density="compact" issue={usersIssue}>
       <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
         <KPICard
@@ -701,7 +701,7 @@ export function UsersTab() {
         <Card className="lg:col-span-1">
           <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">User Types</CardTitle>
-            {exportBtn("user-types.csv", typeDonut)}
+            {!loading && <ExportBtn filename="user-types.csv" data={typeDonut} />}
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
             {loading ? <Skeleton className="w-full h-[220px]" /> : (
@@ -731,7 +731,7 @@ export function UsersTab() {
         <Card className="lg:col-span-2">
           <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Users by Department</CardTitle>
-            {exportBtn("users-by-department.csv", data?.usersByDepartment ?? [])}
+            {!loading && <ExportBtn filename="users-by-department.csv" data={data?.usersByDepartment ?? []} />}
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
             {loading ? <Skeleton className="w-full h-[240px]" /> : (
@@ -795,7 +795,7 @@ export function UsersTab() {
           <Card className="lg:col-span-1">
             <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Stale by Category</CardTitle>
-              {exportBtn("stale-by-category.csv", staleChartData)}
+              {!loading && <ExportBtn filename="stale-by-category.csv" data={staleChartData} />}
             </CardHeader>
             <CardContent className="px-3 pb-3 pt-0">
               {loading ? <Skeleton className="w-full h-[180px]" /> : staleChartData.length === 0 ? (
@@ -904,7 +904,7 @@ export function UsersTab() {
           storageKey="users-stale-accounts"
           density="compact"
           description={!loading && staleBucketFilter !== "all" ? `Filtered: ${BUCKET_META[staleBucketFilter].label} inactive (${filteredStaleUsers.length} users)` : undefined}
-          actions={exportBtn("stale-accounts.csv", filteredStaleUsers.map((u) => ({
+          actions={loading ? null : <ExportBtn filename="stale-accounts.csv" data={filteredStaleUsers.map((u) => ({
               Name: u.displayName,
               UPN: u.userPrincipalName,
               Staleness: BUCKET_META[u.bucket].severity,
@@ -914,14 +914,11 @@ export function UsersTab() {
               Type: u.userType,
               Licenses: u.assignedLicenses,
               Department: u.department ?? "",
-            })))}
+            }))} />}
           contentClassName="px-4 pb-3"
         >
             {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-9 w-64" />
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-              </div>
+              <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
             ) : staleUsers.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
                 <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-2">
@@ -984,18 +981,15 @@ export function UsersTab() {
         title={`All Users Directory (${data?.totalUsers ?? "…"} users)`}
         storageKey="users-all-users"
         density="compact"
-        actions={exportBtn("all-users.csv", (data?.users ?? []).map((u) => ({
+        actions={loading ? null : <ExportBtn filename="all-users.csv" data={(data?.users ?? []).map((u) => ({
             Name: u.displayName, UPN: u.userPrincipalName, Type: u.userType,
             MFA: u.mfaEnabled, Licenses: u.assignedLicenses, Department: u.department ?? "",
             "Last Sign-In": u.lastSignIn ?? "Never", Enabled: u.accountEnabled,
-          })))}
+          }))} />}
         contentClassName="px-4 pb-3"
       >
             {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-              </div>
+              <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
             ) : (
               <div className="space-y-3">
                 <Input

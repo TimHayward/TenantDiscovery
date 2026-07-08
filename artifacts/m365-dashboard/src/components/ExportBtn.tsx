@@ -40,7 +40,7 @@ export function ExportBtn({
       data={data}
       filename={filename}
       aria-label={ariaLabel}
-      className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80 bg-[#F0F1F2] text-[#4b5563] dark:bg-white/10 dark:text-[#c8c9cc]"
+      className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80 bg-muted text-muted-foreground"
     >
       <Download className="w-3.5 h-3.5" />
     </CSVLink>

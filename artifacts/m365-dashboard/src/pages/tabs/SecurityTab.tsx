@@ -14,7 +14,8 @@ import {
   CheckCircle2, XCircle, ShieldCheck, ShieldAlert, AlertTriangle,
   Settings2,
 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { useChartTheme } from "@/lib/useChartTheme";
 import { formatDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -36,14 +37,14 @@ import { RISK_BADGE_CLASS } from "@/lib/statusTokens";
 import { ExportBtn } from "@/components/ExportBtn";
 import { DataTable } from "@/components/DataTable";
 
-const C = { ...chartPalette, gray: "#9ca3af" };
+const C = chartPalette;
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "Identity":       "#1E3D59",
-  "Apps":           "#A60808",
-  "Data":           "#f97316",
-  "Device":         "#eab308",
-  "Infrastructure": "#795EFF",
+  "Identity":       chartPalette.blue,
+  "Apps":           chartPalette.red,
+  "Data":           chartPalette.orange,
+  "Device":         chartPalette.yellow,
+  "Infrastructure": chartPalette.purple,
 };
 
 const STRENGTH_COLOR: Record<string, string> = {
@@ -270,10 +271,8 @@ const methodColumns: ColumnDef<MfaMethodStrengthItem>[] = [
 ];
 
 export function SecurityTab() {
-  const { data: securityWithMetadata, isLoading, isFetching } = useGetM365SecurityWithMetadata();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const loading = isLoading || isFetching;
+  const { data: securityWithMetadata, isLoading, isFetching, isError, error, refetch } = useGetM365SecurityWithMetadata();
+  const loading = isLoading;
   const data = securityWithMetadata?.data;
   const fieldMetadata = securityWithMetadata?.fieldMetadata ?? {};
   const securityIssue = summarizeIssues(getCollectionIssues(data));
@@ -292,8 +291,7 @@ export function SecurityTab() {
     return field ? fieldMetadata[field] : undefined;
   };
 
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { gridColor, tickColor } = useChartTheme();
 
   const [mfaUserFilter, setMfaUserFilter] = useState("");
 
@@ -460,8 +458,13 @@ export function SecurityTab() {
     setResetKey((k) => k + 1);
   };
 
+  if (isError) {
+    return <ErrorPanel title="Couldn't load security data" error={error} onRetry={() => refetch()} />;
+  }
+
   return (
-    <div key={resetKey} className="space-y-4">
+    <div key={resetKey} className="relative space-y-4">
+      <RefreshIndicator active={isFetching && !isLoading} />
 
       <CollapsibleSection title="Summary" description="Secure Score, MFA coverage, and Conditional Access overview" storageKey="security-summary" defaultOpen={true} density="compact" issue={securityIssue} actions={<Button variant="outline" size="sm" onClick={resetSecuritySections}>Reset Sections</Button>}>
       <div className="space-y-4">

@@ -9,17 +9,34 @@ import {
 export async function collectCompliance() {
   const labelsPermissionMetadata = getPermissionMetadataForFeature("compliance-sensitivity-labels");
   const collectionIssues: CollectionIssue[] = [];
+  const collectionNotes: string[] = [];
 
   const [secScoreResult, eDiscoveryResult, dlpResult, labelsResult] = await Promise.all([
-    fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/secureScores?$top=1", "secureScores"),
+    fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/secureScores?$top=1", "secureScores", undefined, ["SecurityEvents.Read.All"]),
     fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases?$top=1", "eDiscoveryCases"),
     fetchAllGraphPages<any>("https://graph.microsoft.com/v1.0/security/informationProtection/policies/dlp/policies?$top=999", "dlpPolicies"),
-    fetchAllGraphPages<any>("https://graph.microsoft.com/beta/security/informationProtection/sensitivityLabels", "sensitivityLabels"),
+    fetchAllGraphPages<any>("https://graph.microsoft.com/beta/security/informationProtection/sensitivityLabels", "sensitivityLabels", ["InformationProtectionPolicy.Read.All"]),
   ]);
 
   if (secScoreResult.issue) collectionIssues.push(secScoreResult.issue);
-  if (eDiscoveryResult.issue) collectionIssues.push(eDiscoveryResult.issue);
-  collectionIssues.push(...dlpResult.issues, ...labelsResult.issues);
+  collectionIssues.push(...labelsResult.issues);
+
+  // eDiscovery and DLP are not fixable by a simple application-permission grant, so
+  // their failures are surfaced as explanatory notes rather than a "Permission required"
+  // banner that would send the operator to grant a permission that won't unblock them.
+  // - eDiscovery (app-only) needs eDiscovery.Read.All AND a Purview eDiscovery role-group
+  //   assignment AND an eDiscovery (Premium) license.
+  // - DLP policy listing is not exposed by a supported Microsoft Graph endpoint.
+  if (eDiscoveryResult.issue) {
+    collectionNotes.push(
+      "eDiscovery case data isn't available. App-only access requires the eDiscovery.Read.All application permission plus a Microsoft Purview eDiscovery role-group assignment and an eDiscovery (Premium) license — a permission grant alone is not sufficient.",
+    );
+  }
+  if (dlpResult.issues.length > 0) {
+    collectionNotes.push(
+      "DLP policy inventory isn't available through a supported Microsoft Graph endpoint; review Data Loss Prevention policies in the Microsoft Purview portal.",
+    );
+  }
 
   const secScore = secScoreResult.data?.value?.[0] ?? null;
   const complianceScore = secScore?.currentScore ?? 0;
@@ -47,6 +64,8 @@ export async function collectCompliance() {
   const retentionResult = await fetchGraphJson<any>(
     "https://graph.microsoft.com/beta/security/labels/retentionLabels?$top=999",
     "retentionLabels",
+    undefined,
+    ["RecordsManagement.Read.All"],
   );
   // Only treat a real 200 + value array as evidence. 404 (endpoint unavailable on
   // tenant) is the expected manual-fallback path and is NOT surfaced as an error.
@@ -70,5 +89,6 @@ export async function collectCompliance() {
     partialData: collectionIssues.length > 0,
     permissionError: collectionIssues.some(isPermissionIssue),
     collectionIssues,
+    collectionNotes,
   };
 }

@@ -1,4 +1,5 @@
 import { ClientSecretCredential } from "@azure/identity";
+import { getPermissionDefinition } from "@workspace/permissions-manifest";
 import { getGraphCredentialValues } from "./graphClient.js";
 
 export type CollectionIssueCategory =
@@ -9,6 +10,11 @@ export type CollectionIssueCategory =
   | "upstream"
   | "unknown";
 
+export interface IssueRequiredPermission {
+  name: string;
+  accessKind: "application" | "external-scope";
+}
+
 export interface CollectionIssue {
   source: string;
   status: number | null;
@@ -16,6 +22,8 @@ export interface CollectionIssue {
   message: string;
   retryable: boolean;
   permissionRequired: boolean;
+  /** Permissions that would unblock this source. Present only when category is "permission". */
+  requiredPermissions?: IssueRequiredPermission[];
 }
 
 interface JsonFetchResult<T> {
@@ -133,10 +141,21 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
+function resolveRequiredPermissions(
+  names?: string[],
+): IssueRequiredPermission[] | undefined {
+  if (!names?.length) return undefined;
+  return names.map((name) => ({
+    name,
+    accessKind: getPermissionDefinition(name)?.accessKind ?? "application",
+  }));
+}
+
 function createIssue(
   source: string,
   status: number | null,
   message: string,
+  requiredPermissionNames?: string[],
 ): CollectionIssue {
   const category = classifyStatus(status);
   return {
@@ -146,6 +165,8 @@ function createIssue(
     message,
     retryable: category === "throttled" || category === "upstream",
     permissionRequired: category === "permission",
+    requiredPermissions:
+      category === "permission" ? resolveRequiredPermissions(requiredPermissionNames) : undefined,
   };
 }
 
@@ -153,8 +174,9 @@ export function createCollectionIssue(
   source: string,
   status: number | null,
   message: string,
+  requiredPermissionNames?: string[],
 ): CollectionIssue {
-  return createIssue(source, status, message);
+  return createIssue(source, status, message, requiredPermissionNames);
 }
 
 /** Extract a human-readable message from a thrown Graph/SDK error. */
@@ -224,6 +246,7 @@ export async function fetchGraphJson<T>(
   url: string,
   source: string,
   extraHeaders?: Record<string, string>,
+  requiredPermissionNames?: string[],
 ): Promise<JsonFetchResult<T>> {
   try {
     const resp = await graphFetchWithRetry(url, extraHeaders);
@@ -232,7 +255,7 @@ export async function fetchGraphJson<T>(
       const message = await readResponseError(resp);
       return {
         data: null,
-        issue: createIssue(source, resp.status, message),
+        issue: createIssue(source, resp.status, message, requiredPermissionNames),
       };
     }
 
@@ -242,7 +265,7 @@ export async function fetchGraphJson<T>(
     const message = isAbortError(error)
       ? `${source} timed out after ${FETCH_TIMEOUT_MS / 1000}s`
       : error instanceof Error ? error.message : "Unexpected Graph request failure";
-    const issue = createIssue(source, null, message);
+    const issue = createIssue(source, null, message, requiredPermissionNames);
     if (isAbortError(error)) {
       issue.category = "upstream";
       issue.retryable = true;
@@ -254,6 +277,7 @@ export async function fetchGraphJson<T>(
 export async function fetchGraphText(
   url: string,
   source: string,
+  requiredPermissionNames?: string[],
 ): Promise<TextFetchResult> {
   try {
     const resp = await graphFetchWithRetry(url);
@@ -262,7 +286,7 @@ export async function fetchGraphText(
       const message = await readResponseError(resp);
       return {
         text: null,
-        issue: createIssue(source, resp.status, message),
+        issue: createIssue(source, resp.status, message, requiredPermissionNames),
       };
     }
 
@@ -272,7 +296,7 @@ export async function fetchGraphText(
     const message = isAbortError(error)
       ? `${source} timed out after ${FETCH_TIMEOUT_MS / 1000}s`
       : error instanceof Error ? error.message : "Unexpected Graph request failure";
-    const issue = createIssue(source, null, message);
+    const issue = createIssue(source, null, message, requiredPermissionNames);
     if (isAbortError(error)) {
       issue.category = "upstream";
       issue.retryable = true;
@@ -284,6 +308,7 @@ export async function fetchGraphText(
 export async function fetchAllGraphPages<T>(
   firstUrl: string,
   source: string,
+  requiredPermissionNames?: string[],
 ): Promise<PagedFetchResult<T>> {
   const items: T[] = [];
   const issues: CollectionIssue[] = [];
@@ -297,6 +322,8 @@ export async function fetchAllGraphPages<T>(
       await fetchGraphJson<{ value?: T[]; "@odata.nextLink"?: string }>(
         url,
         pageSource,
+        undefined,
+        requiredPermissionNames,
       );
 
     if (pageResult.issue) {

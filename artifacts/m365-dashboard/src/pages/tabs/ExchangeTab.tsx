@@ -5,23 +5,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
-import { CSVLink } from "react-csv";
-import { Download } from "lucide-react";
-import { useTheme } from "next-themes";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { EmptyState } from "@/components/EmptyState";
+import { ExportBtn } from "@/components/ExportBtn";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
+import { useChartTheme } from "@/lib/useChartTheme";
 import { formatCompact } from "@/lib/utils";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
 
 import { chartPalette as CHART_COLORS, chartSeries as CHART_COLOR_LIST } from "@/lib/chartPalette";
 
 export function ExchangeTab() {
-  const { data: exchangeWithMetadata, isLoading, isFetching } = useGetM365ExchangeWithMetadata();
+  const { data: exchangeWithMetadata, isLoading, isFetching, isError, error, refetch } = useGetM365ExchangeWithMetadata();
   const { data: dataSources } = useGetM365DataSources({ tab: "exchange" });
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
 
-  const loading = isLoading || isFetching;
+  const loading = isLoading;
   const data = exchangeWithMetadata?.data;
   const fieldMetadata = exchangeWithMetadata?.fieldMetadata ?? {};
+  const issue = summarizeIssues(getCollectionIssues(data));
 
   const registryItems =
     (dataSources as {
@@ -121,8 +123,7 @@ export function ExchangeTab() {
     ]},
   ];
 
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { gridColor, tickColor } = useChartTheme();
 
   const emailActivityData = data ? [
     { name: "Sent", value: data.emailActivityLast30Days.sent },
@@ -130,9 +131,14 @@ export function ExchangeTab() {
     { name: "Read", value: data.emailActivityLast30Days.read },
   ] : [];
 
+  if (isError) {
+    return <ErrorPanel title="Couldn't load Exchange Online data" error={error} onRetry={() => refetch()} />;
+  }
+
   return (
-    <div className="space-y-4">
-      <CollapsibleSection title="Summary" description="Mailbox counts and storage overview" storageKey="exchange-summary" defaultOpen={true} density="compact">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={isFetching && !isLoading} />
+      <CollapsibleSection title="Summary" description="Mailbox counts and storage overview" storageKey="exchange-summary" defaultOpen={true} density="compact" issue={issue}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <KPICard
           title="Total Mailboxes"
@@ -191,10 +197,8 @@ export function ExchangeTab() {
         <Card>
           <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Mailbox Size Distribution</CardTitle>
-            {!loading && data?.mailboxSizeDistribution && data.mailboxSizeDistribution.length > 0 && (
-              <CSVLink data={data.mailboxSizeDistribution} filename="mailbox-size-distribution.csv" className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }} aria-label="Export chart data as CSV">
-                <Download className="w-3.5 h-3.5" />
-              </CSVLink>
+            {!loading && (
+              <ExportBtn data={data?.mailboxSizeDistribution ?? []} filename="mailbox-size-distribution.csv" ariaLabel="Export chart data as CSV" />
             )}
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
@@ -215,10 +219,8 @@ export function ExchangeTab() {
         <Card>
           <CardHeader className="px-3 pt-3 pb-1.5 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Email Activity (Last 30 Days)</CardTitle>
-            {!loading && emailActivityData.length > 0 && (
-              <CSVLink data={emailActivityData} filename="email-activity.csv" className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2", color: isDark ? "#c8c9cc" : "#4b5563" }} aria-label="Export chart data as CSV">
-                <Download className="w-3.5 h-3.5" />
-              </CSVLink>
+            {!loading && (
+              <ExportBtn data={emailActivityData} filename="email-activity.csv" ariaLabel="Export chart data as CSV" />
             )}
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
@@ -280,9 +282,12 @@ export function ExchangeTab() {
         defaultOpen={true}
       >
         {loading ? (
-          <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          <TableSkeleton rows={3} rowClassName="h-10" className="p-0" />
         ) : (data?.domainAuthRecords?.length ?? 0) === 0 ? (
-          <p className="text-sm text-muted-foreground py-3">No verified email domains found, or Domain.Read.All permission not granted.</p>
+          <EmptyState
+            title="No verified email domains found"
+            description="There are no verified email domains, or the Domain.Read.All permission has not been granted."
+          />
         ) : (
           <div className="rounded-md border overflow-x-auto">
             <table className="w-full text-sm">
@@ -320,6 +325,9 @@ export function ExchangeTab() {
           </div>
         )}
         <p className="text-[11px] text-muted-foreground mt-2">SPF, DMARC and MX are validated against live DNS records. DKIM uses Exchange Online signing config where available, otherwise a DNS selector CName lookup (shown as "DNS").</p>
+        {(data?.collectionNotes ?? []).map((note) => (
+          <p key={note} className="text-[11px] text-muted-foreground mt-1">{note}</p>
+        ))}
       </CollapsibleSection>
 
       <CollapsibleSection title="Summary Check List" description="Exchange Online security controls assessment" storageKey="exchange-checklist" defaultOpen={false} density="compact">

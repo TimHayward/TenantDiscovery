@@ -47,6 +47,7 @@ router.get("/m365/adoption/with-metadata", async (req, res): Promise<void> => {
       totalLicensedUsers: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Reports.Read.All — Active + Inactive from Office 365 aggregate" },
       overallAdoptionPercent: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Calculated: Office 365 Active ÷ (Active + Inactive) × 100" },
       valueGapCount: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Count of workloads with <20% adoption in 30-day window" },
+      collectionNotes: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Route diagnostics", notes: ["Non-failure notes about collection scope/limits (e.g. Copilot usage reports unavailable on unlicensed tenants)"] },
     };
 
     res.json(withMetadata(data, fieldMetadata));

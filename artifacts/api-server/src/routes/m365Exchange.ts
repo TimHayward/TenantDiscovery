@@ -35,6 +35,7 @@ router.get("/m365/exchange/with-metadata", async (req, res): Promise<void> => {
       partialData: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Route diagnostics", notes: ["True when one or more upstream collection calls failed"] },
       permissionError: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Route diagnostics", notes: ["True when collection issues include permission-related failures"] },
       collectionIssues: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Route diagnostics", notes: ["Per-source issue details for failed Graph report calls"] },
+      collectionNotes: { evidenceStatus: "apiBacked" as const, confidenceLabel: "high" as const, sourceLabel: "Route diagnostics", notes: ["Non-failure notes about collection scope/limits (e.g. DKIM DNS fallback, domain cap)"] },
     };
 
     res.json(withMetadata(data, fieldMetadata));

@@ -1,4 +1,10 @@
-import { useGetM365TeamsWithMetadata, useGetM365SharePointWithMetadata, useGetM365DataSources } from "@workspace/api-client-react";
+import {
+  useGetM365TeamsWithMetadata,
+  useGetM365SharePointWithMetadata,
+  useGetM365DataSources,
+  useGetM365SharePointPoliciesWithMetadata,
+  useGetM365SharePointSharingSummary,
+} from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,8 +13,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { ExportBtn } from "@/components/ExportBtn";
 import { DataTable } from "@/components/DataTable";
-import { useTheme } from "next-themes";
-import { formatCompact, formatDate } from "@/lib/utils";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
+import { useChartTheme } from "@/lib/useChartTheme";
+import { formatCompact, formatDate, formatNumber } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
@@ -16,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import type { SharePointSiteItem, TeamsTeamActivityItem } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";
-import { useQuery } from "@tanstack/react-query";
 
 import { chartPalette as CHART_COLORS } from "@/lib/chartPalette";
 
@@ -29,27 +37,27 @@ const topTeamsColumns: ColumnDef<TeamsTeamActivityItem>[] = [
   {
     accessorKey: "messages",
     header: "Messages",
-    cell: ({ row }) => <span>{row.original.messages.toLocaleString()}</span>,
+    cell: ({ row }) => <span>{formatNumber(row.original.messages)}</span>,
   },
   {
     accessorKey: "activeUsers",
     header: "Active Users",
-    cell: ({ row }) => <span>{row.original.activeUsers.toLocaleString()}</span>,
+    cell: ({ row }) => <span>{formatNumber(row.original.activeUsers)}</span>,
   },
   {
     accessorKey: "activeChannels",
     header: "Active Channels",
-    cell: ({ row }) => <span>{row.original.activeChannels.toLocaleString()}</span>,
+    cell: ({ row }) => <span>{formatNumber(row.original.activeChannels)}</span>,
   },
   {
     accessorKey: "meetingsOrganized",
     header: "Meetings",
-    cell: ({ row }) => <span>{row.original.meetingsOrganized.toLocaleString()}</span>,
+    cell: ({ row }) => <span>{formatNumber(row.original.meetingsOrganized)}</span>,
   },
   {
     accessorKey: "reactions",
     header: "Reactions",
-    cell: ({ row }) => <span>{row.original.reactions.toLocaleString()}</span>,
+    cell: ({ row }) => <span>{formatNumber(row.original.reactions)}</span>,
   },
   {
     accessorKey: "lastActivityDate",
@@ -77,12 +85,12 @@ const spColumns: ColumnDef<SharePointSiteItem>[] = [
   {
     accessorKey: "filesCount",
     header: "Files",
-    cell: ({ row }) => <span>{row.original.filesCount.toLocaleString()}</span>,
+    cell: ({ row }) => <span>{formatNumber(row.original.filesCount)}</span>,
   },
   {
     accessorKey: "pageViews",
     header: "Page Views",
-    cell: ({ row }) => <span>{row.original.pageViews.toLocaleString()}</span>,
+    cell: ({ row }) => <span>{formatNumber(row.original.pageViews)}</span>,
   },
   {
     accessorKey: "lastActivityDate",
@@ -108,67 +116,47 @@ const spColumns: ColumnDef<SharePointSiteItem>[] = [
 ];
 
 export function TeamsSharePointTab() {
-  const { data: teamsWithMetadata, isLoading: isTeamsLoading, isFetching: isTeamsFetching } = useGetM365TeamsWithMetadata();
-  const { data: spWithMetadata, isLoading: isSpLoading, isFetching: isSpFetching } = useGetM365SharePointWithMetadata();
+  const {
+    data: teamsWithMetadata,
+    isLoading: isTeamsLoading,
+    isFetching: isTeamsFetching,
+    isError: isTeamsError,
+    error: teamsError,
+    refetch: refetchTeams,
+  } = useGetM365TeamsWithMetadata();
+  const {
+    data: spWithMetadata,
+    isLoading: isSpLoading,
+    isFetching: isSpFetching,
+    isError: isSpError,
+    error: spError,
+    refetch: refetchSp,
+  } = useGetM365SharePointWithMetadata();
   const { data: dataSources } = useGetM365DataSources({ tab: "teams-sharepoint" });
-  const { data: sharePointPoliciesWithMetadata, isLoading: isSharePointPoliciesLoading, isFetching: isSharePointPoliciesFetching } = useQuery({
-    queryKey: ["m365-sharepoint-policies-with-metadata"],
-    queryFn: async () => {
-      const response = await fetch("/api/m365/sharepoint/policies/with-metadata");
-      if (!response.ok) {
-        throw new Error("Failed to fetch SharePoint policies");
-      }
-      return response.json() as Promise<{
-        data: {
-          sharingCapability: string | null;
-          oneDriveSharingCapability: string | null;
-          sharingDomainRestrictionMode: string | null;
-          sharingAllowedDomainCount: number;
-          sharingBlockedDomainCount: number;
-          defaultSharingLinkType: string | null;
-          defaultLinkPermission: string | null;
-          anyoneLinkExpirationInDays: number | null;
-          policyPermissionError: boolean;
-        };
-        fieldMetadata?: Record<string, { evidenceStatus?: EvidenceStatus; confidenceLabel?: ConfidenceLabel }>;
-      }>;
-    },
-    staleTime: 60_000,
-  });
+  const {
+    data: sharePointPoliciesWithMetadata,
+    isLoading: isSharePointPoliciesLoading,
+    isFetching: isSharePointPoliciesFetching,
+  } = useGetM365SharePointPoliciesWithMetadata();
 
-  const { data: sharingSummaryData, isLoading: isSharingSummaryLoading, isFetching: isSharingSummaryFetching } = useQuery({
-    queryKey: ["m365-sharepoint-sharing-summary"],
-    queryFn: async () => {
-      const response = await fetch("/api/m365/sharepoint/sharing-summary");
-      if (!response.ok) {
-        throw new Error("Failed to fetch SharePoint sharing summary");
-      }
-      return response.json() as Promise<{
-        data: {
-          totalSharingLinks: number;
-          orgWideLinks: number;
-          anonymousLinks: number;
-          sampledSites: number;
-          totalSitesAvailable: number;
-          partialData: boolean;
-          permissionError: boolean;
-        };
-      }>;
-    },
-    staleTime: 60_000,
-  });
+  const {
+    data: sharingSummaryData,
+    isLoading: isSharingSummaryLoading,
+    isFetching: isSharingSummaryFetching,
+  } = useGetM365SharePointSharingSummary();
 
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-
-  const teamsLoading = isTeamsLoading || isTeamsFetching;
-  const spLoading = isSpLoading || isSpFetching;
-  const spPoliciesLoading = isSharePointPoliciesLoading || isSharePointPoliciesFetching;
-  const sharingSummaryLoading = isSharingSummaryLoading || isSharingSummaryFetching;
+  const teamsLoading = isTeamsLoading;
+  const spLoading = isSpLoading;
+  const spPoliciesLoading = isSharePointPoliciesLoading;
+  const sharingSummaryLoading = isSharingSummaryLoading;
+  const anyFetching = isTeamsFetching || isSpFetching || isSharePointPoliciesFetching || isSharingSummaryFetching;
+  const anyLoading = isTeamsLoading || isSpLoading || isSharePointPoliciesLoading || isSharingSummaryLoading;
   const teamsData = teamsWithMetadata?.data;
   const spData = spWithMetadata?.data;
   const sharePointPolicies = sharePointPoliciesWithMetadata?.data;
   const sharingData = sharingSummaryData?.data;
+  const teamsIssue = summarizeIssues(getCollectionIssues(teamsData));
+  const spIssue = summarizeIssues(getCollectionIssues(spData));
 
   const teamsBySizeBreakdown = useMemo(() => (teamsData?.teamsBySize ?? []).map((item) => {
     const breakdown = item as typeof item & {
@@ -441,8 +429,7 @@ export function TeamsSharePointTab() {
     ]},
   ];
 
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { gridColor, tickColor } = useChartTheme();
 
   const [topTeamsGlobalFilter, setTopTeamsGlobalFilter] = useState("");
   const [spGlobalFilter, setSpGlobalFilter] = useState("");
@@ -459,8 +446,13 @@ export function TeamsSharePointTab() {
   }, [spData?.sites, spActiveFilter, spTeamFilter]);
 
   return (
-    <div className="space-y-4">
-      <CollapsibleSection title="Microsoft Teams" description="Teams usage, activity, and top teams overview" storageKey="teams-ms-teams" defaultOpen={true} density="compact">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={anyFetching && !anyLoading} />
+      <CollapsibleSection title="Microsoft Teams" description="Teams usage, activity, and top teams overview" storageKey="teams-ms-teams" defaultOpen={true} density="compact" issue={teamsIssue}>
+        {isTeamsError ? (
+          <ErrorPanel title="Couldn't load Teams data" error={teamsError} onRetry={() => refetchTeams()} />
+        ) : (
+        <>
         <div className="space-y-4">
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -565,15 +557,12 @@ export function TeamsSharePointTab() {
 
         <CollapsibleSection title="Most Active Teams (Last 30 Days)" storageKey="teams-most-active" className="mt-4">
           {teamsLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-4">
                 <Input
-                  placeholder="Search teams..."
+                  placeholder="Search teams…"
                   value={topTeamsGlobalFilter}
                   onChange={(e) => setTopTeamsGlobalFilter(e.target.value)}
                   className="max-w-sm"
@@ -591,11 +580,16 @@ export function TeamsSharePointTab() {
             </div>
           )}
         </CollapsibleSection>
+        </>
+        )}
       </CollapsibleSection>
 
-      <CollapsibleSection title="SharePoint Online" description="Sites, storage, and sharing policies" storageKey="teams-sharepoint" defaultOpen={true} density="compact">
+      <CollapsibleSection title="SharePoint Online" description="Sites, storage, and sharing policies" storageKey="teams-sharepoint" defaultOpen={true} density="compact" issue={spIssue}>
+        {isSpError ? (
+          <ErrorPanel title="Couldn't load SharePoint data" error={spError} onRetry={() => refetchSp()} />
+        ) : (
         <div className="space-y-4">
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <KPICard
             title="Total Sites"
@@ -658,16 +652,13 @@ export function TeamsSharePointTab() {
 
         <CollapsibleSection title="SharePoint Site Details" storageKey="teams-sharepoint-sites">
             {spLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-              </div>
+              <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
             ) : (
               <div className="space-y-4">
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-4">
                     <Input
-                      placeholder="Search sites..."
+                      placeholder="Search sites…"
                       value={spGlobalFilter}
                       onChange={(e) => setSpGlobalFilter(e.target.value)}
                       className="max-w-sm"
@@ -711,6 +702,7 @@ export function TeamsSharePointTab() {
             )}
         </CollapsibleSection>
         </div>
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection title="Summary Check List" description="Teams and SharePoint security controls assessment" storageKey="teams-checklist" defaultOpen={false} density="compact">

@@ -7,11 +7,18 @@ import type { CollectionIssue } from "@workspace/api-client-react";
  */
 export type IssueKind = "permission" | "license" | "error";
 
+export interface IssuePermissionRef {
+  name: string;
+  accessKind: string;
+}
+
 export interface IssueSummary {
   kind: IssueKind;
   message: string;
   /** Number of underlying issues represented by this summary. */
   count: number;
+  /** Permissions that would unblock the affected sources. Only present when kind is "permission". */
+  permissions?: IssuePermissionRef[];
 }
 
 const ISSUE_LABELS: Record<IssueKind, string> = {
@@ -22,6 +29,15 @@ const ISSUE_LABELS: Record<IssueKind, string> = {
 
 export function issueKindLabel(kind: IssueKind): string {
   return ISSUE_LABELS[kind];
+}
+
+const ACCESS_KIND_LABELS: Record<string, string> = {
+  application: "application permission",
+  "external-scope": "external API scope",
+};
+
+export function accessKindLabel(accessKind: string): string {
+  return ACCESS_KIND_LABELS[accessKind] ?? accessKind;
 }
 
 function kindFromCategory(category: CollectionIssue["category"]): IssueKind {
@@ -55,7 +71,19 @@ export function summarizeIssues(
       best = issue;
     }
   }
-  return { kind: kindFromCategory(best.category), message: best.message, count: relevant.length };
+  const kind = kindFromCategory(best.category);
+  let permissions: IssuePermissionRef[] | undefined;
+  if (kind === "permission") {
+    const seen = new Map<string, IssuePermissionRef>();
+    for (const issue of relevant) {
+      if (issue.category !== "permission") continue;
+      for (const permission of issue.requiredPermissions ?? []) {
+        seen.set(permission.name, permission);
+      }
+    }
+    if (seen.size > 0) permissions = [...seen.values()];
+  }
+  return { kind, message: best.message, count: relevant.length, permissions };
 }
 
 /**

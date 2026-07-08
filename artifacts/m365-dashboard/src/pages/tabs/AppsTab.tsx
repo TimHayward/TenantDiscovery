@@ -6,11 +6,12 @@ import { CollapsibleSection } from "@/components/CollapsibleSection";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer,
 } from "recharts";
-import { useTheme } from "next-themes";
 import {
   AppRegistrationsSection, AppRegistrationsChecklist,
 } from "@/components/EnterpriseAppsSection";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
 import { summarizeIssues, getCollectionIssues, type IssueKind } from "@/lib/collectionStatus";
+import { useChartTheme } from "@/lib/useChartTheme";
 
 import { chartPalette, kpiAccent } from "@/lib/chartPalette";
 
@@ -19,17 +20,22 @@ const EXPIRY_COLORS: Record<string, string> = {
   "≤ 30 days": kpiAccent,
   "31–90 days": chartPalette.yellow,
   "> 90 days": chartPalette.green,
-  "No expiry": "#71717a",
+  "No expiry": chartPalette.gray,
 };
 
 export function AppsTab() {
-  const { data: appsWithMeta, isLoading: appsLoading, isFetching: appsFetching } = useGetM365AppsWithMetadata();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const {
+    data: appsWithMeta,
+    isLoading: appsLoading,
+    isFetching: appsFetching,
+    isError: appsError,
+    error: appsErrorDetail,
+    refetch: refetchApps,
+  } = useGetM365AppsWithMetadata();
 
   const appsData = appsWithMeta?.data;
   const appsMeta = appsWithMeta?.fieldMetadata ?? {};
-  const appsLoadingAny = appsLoading || appsFetching;
+  const appsLoadingAny = appsLoading;
 
   const appsIssue = summarizeIssues(getCollectionIssues(appsData));
   const appsIssueKind: IssueKind | undefined = appsIssue?.kind;
@@ -58,11 +64,15 @@ export function AppsTab() {
     return Object.entries(buckets).map(([bucket, count]) => ({ bucket, count }));
   }, [apps]);
 
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { gridColor, tickColor, tooltipStyle } = useChartTheme();
+
+  if (appsError) {
+    return <ErrorPanel title="Couldn't load app registrations" error={appsErrorDetail} onRetry={() => refetchApps()} />;
+  }
 
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={appsFetching && !appsLoading} />
       {/* Risk summary */}
       <CollapsibleSection
         title="Apps & Permissions Summary"
@@ -109,12 +119,10 @@ export function AppsTab() {
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
             <XAxis dataKey="bucket" tick={{ fill: tickColor, fontSize: 12 }} />
             <YAxis allowDecimals={false} tick={{ fill: tickColor, fontSize: 12 }} />
-            <Tooltip
-              contentStyle={{ background: isDark ? "#1c1c1f" : "#fff", border: `1px solid ${gridColor}`, borderRadius: 8, fontSize: 12 }}
-            />
+            <Tooltip contentStyle={tooltipStyle} />
             <Bar dataKey="count" name="Credentials" radius={[4, 4, 0, 0]}>
               {credentialExpiry.map((entry) => (
-                <Cell key={entry.bucket} fill={EXPIRY_COLORS[entry.bucket] ?? "#1E3D59"} />
+                <Cell key={entry.bucket} fill={EXPIRY_COLORS[entry.bucket] ?? chartPalette.blue} />
               ))}
             </Bar>
           </BarChart>

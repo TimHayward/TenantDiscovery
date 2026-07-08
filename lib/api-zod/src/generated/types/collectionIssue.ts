@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CollectionIssueCategory } from './collectionIssueCategory';
+import type { IssueRequiredPermission } from './issueRequiredPermission';
 
 export interface CollectionIssue {
   source: string;
@@ -14,4 +15,6 @@ export interface CollectionIssue {
   message: string;
   retryable: boolean;
   permissionRequired: boolean;
+  /** Permissions that would unblock this source. Present only when category is "permission". */
+  requiredPermissions?: IssueRequiredPermission[];
 }

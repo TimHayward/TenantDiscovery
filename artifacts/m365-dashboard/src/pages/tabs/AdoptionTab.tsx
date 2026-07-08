@@ -16,20 +16,24 @@ import {
 } from "recharts";
 import { ExportBtn } from "@/components/ExportBtn";
 import { DataTable } from "@/components/DataTable";
-import { useTheme } from "next-themes";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
+import { useChartTheme } from "@/lib/useChartTheme";
+import { formatNumber } from "@/lib/utils";
 import { useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
 import type { WorkloadAdoptionItem, WorkloadDepthMetrics } from "@workspace/api-client-react";
 
 import { chartPalette } from "@/lib/chartPalette";
 
+// Semantic aliases into the shared palette for this tab's period/value-gap colours.
 const CHART_COLORS = {
   d30: chartPalette.blue,
   d90: chartPalette.purple,
   d180: chartPalette.green,
   valueGap: chartPalette.red,
-  warning: "#d97706",
+  warning: chartPalette.warning,
 };
 
 function adoptionColor(pct: number): string {
@@ -44,7 +48,7 @@ function DepthBadge({ label, value }: { label: string; value: number | null }) {
   return (
     <span className="inline-flex items-center gap-1 text-[11px] bg-muted rounded px-1.5 py-0.5">
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-semibold">{value.toLocaleString()}</span>
+      <span className="font-semibold">{formatNumber(value)}</span>
     </span>
   );
 }
@@ -107,7 +111,7 @@ const columns: ColumnDef<WorkloadAdoptionItem>[] = [
     accessorKey: "licensedUsers",
     header: "Licensed Users",
     cell: ({ row }) => (
-      <span>{row.original.licensedUsers.toLocaleString()}</span>
+      <span>{formatNumber(row.original.licensedUsers)}</span>
     ),
   },
   {
@@ -118,7 +122,7 @@ const columns: ColumnDef<WorkloadAdoptionItem>[] = [
         className="font-semibold"
         style={{ color: CHART_COLORS.d30 }}
       >
-        {row.original.activeUsers.toLocaleString()}
+        {formatNumber(row.original.activeUsers)}
       </span>
     ),
   },
@@ -127,7 +131,7 @@ const columns: ColumnDef<WorkloadAdoptionItem>[] = [
     header: "Inactive",
     cell: ({ row }) => (
       <span className="text-muted-foreground">
-        {row.original.inactiveUsers.toLocaleString()}
+        {formatNumber(row.original.inactiveUsers)}
       </span>
     ),
   },
@@ -160,19 +164,17 @@ const columns: ColumnDef<WorkloadAdoptionItem>[] = [
 ];
 
 export function AdoptionTab() {
-  const { data: adoptionWithMetadata, isLoading, isFetching } =
+  const { data: adoptionWithMetadata, isLoading, isFetching, isError, error, refetch } =
     useGetM365AdoptionWithMetadata();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
 
-  const loading = isLoading || isFetching;
+  const loading = isLoading;
   const data = adoptionWithMetadata?.data;
+  const issue = summarizeIssues(getCollectionIssues(data));
 
   const getFieldMeta = (field: string) =>
     adoptionWithMetadata?.fieldMetadata?.[field];
 
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
+  const { gridColor, tickColor } = useChartTheme();
 
   const trendData = useMemo(() => {
     if (!data?.workloads) return [];
@@ -209,14 +211,20 @@ export function AdoptionTab() {
     [data?.workloads],
   );
 
+  if (isError) {
+    return <ErrorPanel title="Couldn't load adoption data" error={error} onRetry={() => refetch()} />;
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      <RefreshIndicator active={isFetching && !isLoading} />
       <CollapsibleSection
         title="Adoption Summary"
         description="Overall M365 workload activation across your tenant"
         storageKey="adoption-summary"
         defaultOpen={true}
         density="compact"
+        issue={issue}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
@@ -238,7 +246,7 @@ export function AdoptionTab() {
             value={
               loading
                 ? undefined
-                : data?.totalActiveUsers.toLocaleString()
+                : formatNumber(data?.totalActiveUsers ?? 0)
             }
             loading={loading}
             valueColor={CHART_COLORS.d30}
@@ -250,7 +258,7 @@ export function AdoptionTab() {
             value={
               loading
                 ? undefined
-                : data?.totalLicensedUsers.toLocaleString()
+                : formatNumber(data?.totalLicensedUsers ?? 0)
             }
             loading={loading}
             evidenceStatus={getFieldMeta("totalLicensedUsers")?.evidenceStatus}
@@ -271,6 +279,9 @@ export function AdoptionTab() {
             confidenceLabel={getFieldMeta("valueGapCount")?.confidenceLabel}
           />
         </div>
+        {(data?.collectionNotes ?? []).map((note) => (
+          <p key={note} className="text-[11px] text-muted-foreground mt-2">{note}</p>
+        ))}
       </CollapsibleSection>
 
       {!loading && valueGapWorkloads.length > 0 && (
@@ -292,8 +303,8 @@ export function AdoptionTab() {
                     <div>
                       <p className="font-semibold text-sm">{w.displayName}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {w.activeUsers.toLocaleString()} active of{" "}
-                        {w.licensedUsers.toLocaleString()} licensed
+                        {formatNumber(w.activeUsers)} active of{" "}
+                        {formatNumber(w.licensedUsers)} licensed
                       </p>
                     </div>
                     <span
@@ -407,12 +418,12 @@ export function AdoptionTab() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <KPICard
                 title="Copilot Enabled"
-                value={data.copilotAdoption.enabledUsers.toLocaleString()}
+                value={formatNumber(data.copilotAdoption.enabledUsers)}
                 loading={false}
               />
               <KPICard
                 title="Active Users (30d)"
-                value={data.copilotAdoption.activeUsers.toLocaleString()}
+                value={formatNumber(data.copilotAdoption.activeUsers)}
                 loading={false}
                 valueColor={CHART_COLORS.d30}
               />
@@ -433,7 +444,7 @@ export function AdoptionTab() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                     <XAxis dataKey="displayName" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
                     <YAxis tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
-                    <Tooltip isAnimationActive={false} cursor={{ fill: "rgba(0,0,0,0.04)" }} formatter={(v: number) => v.toLocaleString()} />
+                    <Tooltip isAnimationActive={false} cursor={{ fill: "rgba(0,0,0,0.04)" }} formatter={(v: number) => formatNumber(v)} />
                     <Legend />
                     <Bar dataKey="enabledUsers" name="Enabled" fill={CHART_COLORS.d90} fillOpacity={0.5} isAnimationActive={false} radius={[2, 2, 0, 0]} />
                     <Bar dataKey="activeUsers" name="Active (30d)" fill={CHART_COLORS.d30} fillOpacity={0.9} isAnimationActive={false} radius={[2, 2, 0, 0]} />
@@ -464,7 +475,7 @@ export function AdoptionTab() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                   <XAxis dataKey="displayName" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} />
                   <YAxis tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} />
-                  <Tooltip isAnimationActive={false} cursor={{ fill: "rgba(0,0,0,0.04)" }} formatter={(v: number) => v.toLocaleString()} />
+                  <Tooltip isAnimationActive={false} cursor={{ fill: "rgba(0,0,0,0.04)" }} formatter={(v: number) => formatNumber(v)} />
                   <Bar dataKey="activeUsers" name="Active Users (30d)" fill={CHART_COLORS.d30} fillOpacity={0.9} isAnimationActive={false} radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -480,12 +491,7 @@ export function AdoptionTab() {
         defaultOpen={false}
       >
         {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-full" />
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
+          <TableSkeleton rows={6} rowClassName="h-12" className="p-0" />
         ) : (
           <DataTable
             columns={columns}

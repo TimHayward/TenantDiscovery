@@ -76,6 +76,26 @@
       ]
     },
     {
+      "name": "Domain.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "required",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read tenant domains and their service configuration records.",
+      "why": "Used for Exchange email-authentication evidence (SPF/DKIM/DMARC/MX) sourced from accepted domains and their expected service-configuration records.",
+      "endpoints": [
+        "/domains",
+        "/domains/{id}/serviceConfigurationRecords"
+      ],
+      "features": [
+        "exchange"
+      ],
+      "notes": [
+        "The serviceConfigurationRecords navigation property requires Domain.Read.All specifically; Directory.Read.All is not sufficient for it."
+      ]
+    },
+    {
       "name": "Reports.Read.All",
       "provider": "microsoft-graph",
       "accessKind": "application",
@@ -198,18 +218,17 @@
       "tier": "optional",
       "adminConsentRequired": true,
       "verificationStatus": "verified-in-code",
-      "summary": "Read audit and compliance-related activity data.",
-      "why": "Enhances compliance and enterprise app evidence without being required for the whole dashboard to load.",
+      "summary": "Read Microsoft Entra sign-in activity logs.",
+      "why": "Used by the security collector to detect legacy-authentication sign-ins; that evidence is empty without it.",
       "endpoints": [
-        "/security/cases/ediscoveryCases",
-        "/security/informationProtection/policies/dlp/policies"
+        "/auditLogs/signIns"
       ],
       "features": [
-        "compliance",
+        "security",
         "service-principals"
       ],
       "notes": [
-        "The Service Principals screen treats this as optional for sign-in and enrichment data."
+        "Previously mis-attributed to the eDiscovery and DLP endpoints, which this permission does not grant."
       ]
     },
     {
@@ -304,6 +323,25 @@
       ],
       "notes": [
         "Validated against Microsoft Graph permissions table for List sensitivityLabels (beta)."
+      ]
+    },
+    {
+      "name": "RecordsManagement.Read.All",
+      "provider": "microsoft-graph",
+      "accessKind": "application",
+      "tier": "optional",
+      "adminConsentRequired": true,
+      "verificationStatus": "verified-in-code",
+      "summary": "Read published retention labels and records-management configuration.",
+      "why": "Provides an API-backed retention label count for the compliance view, replacing the former Intune managed-app-policy proxy. Without it, the retention check falls back to a manual assessment.",
+      "endpoints": [
+        "/security/labels/retentionLabels"
+      ],
+      "features": [
+        "compliance"
+      ],
+      "notes": [
+        "Beta endpoint. When absent, the retention metric is reported as a manual check rather than a fabricated count."
       ]
     },
     {

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,6 +11,35 @@ import {
 } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+
+/**
+ * Header-cell accessibility props for bespoke sortable tables that can't
+ * migrate into DataTable (expandable drill-downs etc.) — same keyboard and
+ * aria-sort treatment as DataTable's own headers.
+ */
+export function sortableHeadA11yProps(
+  sorted: "asc" | "desc" | false,
+  toggle: () => void,
+): {
+  role: "button";
+  tabIndex: number;
+  "aria-sort": "ascending" | "descending" | "none";
+  onClick: () => void;
+  onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
+} {
+  return {
+    role: "button",
+    tabIndex: 0,
+    "aria-sort": sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none",
+    onClick: toggle,
+    onKeyDown: (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    },
+  };
+}
 
 interface DataTableProps<T> {
   columns: ColumnDef<T>[];

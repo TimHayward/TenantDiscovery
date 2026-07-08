@@ -3,8 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2, XCircle, AlertTriangle, HelpCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/TableSkeleton";
 import { getMetricDataSourceEntry, type ConfidenceLabel, type EvidenceStatus, type ManualCheckDefinition, type ManualReasonCode } from "@workspace/permissions-manifest";
-import { CHECK_STATUS_BADGE_CLASS } from "@/lib/statusTokens";
+import { CHECK_STATUS_BADGE_CLASS, EVIDENCE_STATUS_LABEL } from "@/lib/statusTokens";
 
 /**
  * CheckStatus represents the outcome of a control assessment (pass/fail/warning/manual).
@@ -48,7 +49,6 @@ interface Props {
   sectionTitle: string;
   groups: ChecklistGroup[];
   loading?: boolean;
-  notesInSeparateColumn?: boolean;
   density?: "default" | "compact";
 }
 
@@ -68,60 +68,7 @@ function StatusBadge({ status, detail }: { status: CheckStatus; detail?: string 
   );
 }
 
-/**
- * EvidenceBadge renders the evidence status for a checklist item.
- * Provides a secondary badge showing how the evidence was obtained.
- */
-function EvidenceBadge({ evidenceStatus, confidenceLabel, sourceLabel }: { evidenceStatus?: EvidenceStatus; confidenceLabel?: ConfidenceLabel; sourceLabel?: string }) {
-  const EVIDENCE_LABELS: Record<EvidenceStatus, string> = {
-    apiBacked: "API-backed",
-    partial: "Partial",
-    manual: "Manual",
-    automationCandidate: "Automation candidate",
-    notAssessed: "Not assessed",
-  };
-
-  const CONFIDENCE_LABELS: Record<ConfidenceLabel, string> = {
-    high: "High confidence",
-    medium: "Medium confidence",
-    low: "Low confidence",
-    unknown: "Unknown confidence",
-  };
-
-  if (!evidenceStatus && !confidenceLabel && !sourceLabel) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-wrap gap-1 mt-1">
-      {evidenceStatus && (
-        <Badge variant="outline" className="text-[10px] font-normal bg-slate-50 dark:bg-slate-900/30">
-          {EVIDENCE_LABELS[evidenceStatus]}
-        </Badge>
-      )}
-      {confidenceLabel && confidenceLabel !== "high" && (
-        <Badge variant="outline" className="text-[10px] font-normal bg-slate-50 dark:bg-slate-900/30">
-          {CONFIDENCE_LABELS[confidenceLabel]}
-        </Badge>
-      )}
-      {sourceLabel && (
-        <Badge variant="outline" className="text-[10px] font-normal bg-slate-50 dark:bg-slate-900/30">
-          {sourceLabel}
-        </Badge>
-      )}
-    </div>
-  );
-}
-
-const EVIDENCE_LABELS: Record<EvidenceStatus, string> = {
-  apiBacked: "API-backed",
-  partial: "Partial",
-  manual: "Manual",
-  automationCandidate: "Automation candidate",
-  notAssessed: "Not assessed",
-};
-
-export function ChecklistTable({ sectionTitle, groups, loading, notesInSeparateColumn: _notesInSeparateColumn = false, density = "default" }: Props) {
+export function ChecklistTable({ sectionTitle, groups, loading, density = "default" }: Props) {
   const allItems = groups.flatMap(g => g.items);
   const passed   = allItems.filter(i => i.status === "pass").length;
   const failed   = allItems.filter(i => i.status === "fail").length;
@@ -192,9 +139,7 @@ export function ChecklistTable({ sectionTitle, groups, loading, notesInSeparateC
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-4 space-y-2">
-              {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
-            </div>
+            <TableSkeleton rows={8} />
           ) : (
             <Table>
               <TableHeader>
@@ -219,7 +164,7 @@ export function ChecklistTable({ sectionTitle, groups, loading, notesInSeparateC
                   const resolved = resolveManualDetails(row.item);
                   const notesLines = getNotesLines(resolved);
                   const backedByParts: string[] = [];
-                  if (resolved.evidenceStatus) backedByParts.push(EVIDENCE_LABELS[resolved.evidenceStatus]);
+                  if (resolved.evidenceStatus) backedByParts.push(EVIDENCE_STATUS_LABEL[resolved.evidenceStatus]);
                   if (resolved.sourceLabel) backedByParts.push(resolved.sourceLabel);
                   return (
                     <TableRow key={`item-${row.groupId}-${row.idx}`}>

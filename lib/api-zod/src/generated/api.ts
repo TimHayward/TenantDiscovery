@@ -272,7 +272,11 @@ export const GetM365AdminExposureResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 })
 
@@ -303,7 +307,11 @@ export const GetM365LicensesResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 })
 
@@ -335,7 +343,11 @@ export const GetM365LicensesWithMetadataResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
@@ -438,7 +450,11 @@ export const GetM365SecurityResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 })
 
@@ -534,7 +550,11 @@ export const GetM365SecurityWithMetadataResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
@@ -725,8 +745,13 @@ export const GetM365ExchangeResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
-}))
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
+})),
+  "collectionNotes": zod.array(zod.string()).describe('Informational notes about collection scope\/limits that are not failures (e.g. DKIM falling back to DNS, the per-run domain cap).')
 })
 
 
@@ -774,8 +799,13 @@ export const GetM365ExchangeWithMetadataResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
-}))
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
+})),
+  "collectionNotes": zod.array(zod.string()).describe('Informational notes about collection scope\/limits that are not failures (e.g. DKIM falling back to DNS, the per-run domain cap).')
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
   "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
@@ -831,7 +861,11 @@ export const GetM365TeamsResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 })
 
@@ -881,7 +915,11 @@ export const GetM365TeamsWithMetadataResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
@@ -926,7 +964,11 @@ export const GetM365SharePointResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 })
 
@@ -964,7 +1006,11 @@ export const GetM365SharePointWithMetadataResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
@@ -1006,7 +1052,8 @@ export const GetM365ComplianceResponse = zod.object({
   "contentFormats": zod.array(zod.string()),
   "parent": zod.string().nullable()
 })),
-  "sensitivityLabelsPermissionRequired": zod.boolean()
+  "sensitivityLabelsPermissionRequired": zod.boolean(),
+  "collectionNotes": zod.array(zod.string()).optional().describe('Informational notes about collection scope\/limits that are not failures (e.g. eDiscovery\/DLP not obtainable via a simple Graph permission grant).')
 })
 
 
@@ -1040,7 +1087,8 @@ export const GetM365ComplianceWithMetadataResponse = zod.object({
   "contentFormats": zod.array(zod.string()),
   "parent": zod.string().nullable()
 })),
-  "sensitivityLabelsPermissionRequired": zod.boolean()
+  "sensitivityLabelsPermissionRequired": zod.boolean(),
+  "collectionNotes": zod.array(zod.string()).optional().describe('Informational notes about collection scope\/limits that are not failures (e.g. eDiscovery\/DLP not obtainable via a simple Graph permission grant).')
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
   "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
@@ -1077,7 +1125,11 @@ export const GetM365ServiceHealthResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 })
 
@@ -1108,7 +1160,11 @@ export const GetM365ServiceHealthWithMetadataResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
@@ -1453,7 +1509,11 @@ export const GetM365AppsResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 })
 
@@ -1516,7 +1576,11 @@ export const GetM365AppsWithMetadataResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
@@ -1575,7 +1639,11 @@ export const GetM365ServicePrincipalsResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 })
 
@@ -1627,7 +1695,11 @@ export const GetM365ServicePrincipalsWithMetadataResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
@@ -2172,8 +2244,13 @@ export const GetM365AdoptionResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
-}))
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
+})),
+  "collectionNotes": zod.array(zod.string()).describe('Informational notes about collection scope\/limits that are not failures (e.g. Copilot usage reports unavailable on tenants without Copilot licenses).')
 })
 
 
@@ -2243,8 +2320,13 @@ export const GetM365AdoptionWithMetadataResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
-}))
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
+})),
+  "collectionNotes": zod.array(zod.string()).describe('Informational notes about collection scope\/limits that are not failures (e.g. Copilot usage reports unavailable on tenants without Copilot licenses).')
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
   "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
@@ -2296,7 +2378,11 @@ export const GetM365PowerBIResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 })
 
@@ -2342,7 +2428,11 @@ export const GetM365PowerBIWithMetadataResponse = zod.object({
   "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
   "message": zod.string(),
   "retryable": zod.boolean(),
-  "permissionRequired": zod.boolean()
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
 }))
 }),
   "fieldMetadata": zod.record(zod.string(), zod.object({
@@ -2352,6 +2442,156 @@ export const GetM365PowerBIWithMetadataResponse = zod.object({
   "notes": zod.array(zod.string()).optional()
 })),
   "metadataVersion": zod.string()
+})
+
+
+/**
+ * @summary Background collection status for every metric key
+ */
+export const GetM365CollectionStatusResponse = zod.object({
+  "isCollecting": zod.boolean(),
+  "keys": zod.record(zod.string(), zod.object({
+  "status": zod.enum(['ok', 'error', 'collecting', 'pending']),
+  "fetchedAt": zod.string().nullable(),
+  "expiresAt": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary SharePoint tenant sharing policies
+ */
+export const GetM365SharePointPoliciesResponse = zod.object({
+  "sharingCapability": zod.string().nullable(),
+  "oneDriveSharingCapability": zod.string().nullable(),
+  "sharingDomainRestrictionMode": zod.string().nullable(),
+  "sharingAllowedDomainCount": zod.number(),
+  "sharingBlockedDomainCount": zod.number(),
+  "defaultSharingLinkType": zod.string().nullable(),
+  "defaultLinkPermission": zod.string().nullable(),
+  "anyoneLinkExpirationInDays": zod.number().nullable(),
+  "policyPermissionError": zod.boolean(),
+  "partialData": zod.boolean(),
+  "permissionError": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
+}))
+})
+
+
+/**
+ * @summary SharePoint tenant sharing policies with field metadata
+ */
+export const GetM365SharePointPoliciesWithMetadataResponse = zod.object({
+  "data": zod.object({
+  "sharingCapability": zod.string().nullable(),
+  "oneDriveSharingCapability": zod.string().nullable(),
+  "sharingDomainRestrictionMode": zod.string().nullable(),
+  "sharingAllowedDomainCount": zod.number(),
+  "sharingBlockedDomainCount": zod.number(),
+  "defaultSharingLinkType": zod.string().nullable(),
+  "defaultLinkPermission": zod.string().nullable(),
+  "anyoneLinkExpirationInDays": zod.number().nullable(),
+  "policyPermissionError": zod.boolean(),
+  "partialData": zod.boolean(),
+  "permissionError": zod.boolean(),
+  "collectionIssues": zod.array(zod.object({
+  "source": zod.string(),
+  "status": zod.number().nullable(),
+  "category": zod.enum(['permission', 'license', 'notFound', 'throttled', 'upstream', 'unknown']),
+  "message": zod.string(),
+  "retryable": zod.boolean(),
+  "permissionRequired": zod.boolean(),
+  "requiredPermissions": zod.array(zod.object({
+  "name": zod.string(),
+  "accessKind": zod.enum(['application', 'external-scope'])
+})).optional().describe('Permissions that would unblock this source. Present only when category is \"permission\".')
+}))
+}),
+  "fieldMetadata": zod.record(zod.string(), zod.object({
+  "evidenceStatus": zod.enum(['apiBacked', 'partial', 'manual', 'automationCandidate', 'notAssessed']),
+  "confidenceLabel": zod.enum(['high', 'medium', 'low', 'unknown']),
+  "sourceLabel": zod.string().optional(),
+  "notes": zod.array(zod.string()).optional()
+})),
+  "metadataVersion": zod.string()
+})
+
+
+/**
+ * @summary Sampled sharing-link exposure across SharePoint sites
+ */
+export const GetM365SharePointSharingSummaryResponse = zod.object({
+  "data": zod.object({
+  "totalSharingLinks": zod.number(),
+  "orgWideLinks": zod.number(),
+  "anonymousLinks": zod.number(),
+  "sampledSites": zod.number(),
+  "totalSitesAvailable": zod.number(),
+  "partialData": zod.boolean(),
+  "permissionError": zod.boolean()
+})
+})
+
+
+/**
+ * @summary Display names of every device object in a group
+ */
+export const GetM365GroupDeviceMembersParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetM365GroupDeviceMembersResponse = zod.object({
+  "deviceNames": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Findings register as CSV evidence
+ */
+export const GetM365ExportFindingsCsvQueryParams = zod.object({
+  "scanId": zod.coerce.string().optional().describe('Archived scan to export; omit for the live register.')
+})
+
+
+/**
+ * @summary Findings register as an Excel workbook
+ */
+export const GetM365ExportFindingsXlsxQueryParams = zod.object({
+  "scanId": zod.coerce.string().optional().describe('Archived scan to export; omit for the live register.')
+})
+
+
+/**
+ * @summary Evidence pack as an Excel workbook
+ */
+export const GetM365ExportEvidenceXlsxQueryParams = zod.object({
+  "scanId": zod.coerce.string().optional().describe('Archived scan to export; omit for the live register.')
+})
+
+
+/**
+ * @summary Executive posture report as print-ready HTML
+ */
+export const GetM365ExportExecutiveHtmlQueryParams = zod.object({
+  "scanId": zod.coerce.string().optional().describe('Archived scan to export; omit for the live register.')
+})
+
+
+/**
+ * @summary Executive posture report as PDF
+ */
+export const GetM365ExportExecutivePdfQueryParams = zod.object({
+  "scanId": zod.coerce.string().optional().describe('Archived scan to export; omit for the live register.')
 })
 
 

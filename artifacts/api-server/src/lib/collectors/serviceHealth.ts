@@ -30,10 +30,10 @@ export async function collectServiceHealth() {
 
   const collectionIssues: CollectionIssue[] = [];
   if (healthRes.status === "rejected") {
-    collectionIssues.push(createCollectionIssue("serviceHealthOverviews", getErrorStatus(healthRes.reason), getErrorMessage(healthRes.reason)));
+    collectionIssues.push(createCollectionIssue("serviceHealthOverviews", getErrorStatus(healthRes.reason), getErrorMessage(healthRes.reason), ["ServiceHealth.Read.All"]));
   }
   if (issuesRes.status === "rejected") {
-    collectionIssues.push(createCollectionIssue("serviceHealthIssues", getErrorStatus(issuesRes.reason), getErrorMessage(issuesRes.reason)));
+    collectionIssues.push(createCollectionIssue("serviceHealthIssues", getErrorStatus(issuesRes.reason), getErrorMessage(issuesRes.reason), ["ServiceHealth.Read.All"]));
   }
 
   const services = healthRes.status === "fulfilled" ? healthRes.value?.value ?? [] : [];

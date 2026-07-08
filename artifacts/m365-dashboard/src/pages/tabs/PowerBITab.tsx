@@ -16,6 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { ExportBtn } from "@/components/ExportBtn";
 import { DataTable } from "@/components/DataTable";
+import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
+import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
 import { chartPalette } from "@/lib/chartPalette";
 import type { PowerBIWorkspaceItem } from "@workspace/api-client-react";
 
@@ -92,9 +94,10 @@ const workspaceColumns: ColumnDef<PowerBIWorkspaceItem>[] = [
 ];
 
 export function PowerBITab() {
-  const { data: response, isLoading, isFetching } = useGetM365PowerBIWithMetadata();
+  const { data: response, isLoading, isFetching, isError, error, refetch } = useGetM365PowerBIWithMetadata();
   const data = response?.data;
-  const loading = isLoading || isFetching;
+  const loading = isLoading;
+  const issue = summarizeIssues(getCollectionIssues(data));
 
   const [globalFilter, setGlobalFilter] = useState("");
 
@@ -112,8 +115,13 @@ export function PowerBITab() {
     "Capacity ID": w.capacityId ?? "",
   }));
 
+  if (isError) {
+    return <ErrorPanel title="Couldn't load Power BI data" error={error} onRetry={() => refetch()} />;
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+      <RefreshIndicator active={isFetching && !isLoading} />
       {/* Unavailable banner */}
       {!loading && data && !data.available && (
         <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 p-4">
@@ -127,9 +135,9 @@ export function PowerBITab() {
               grant the service principal <strong>Tenant.Read.All</strong> (read-only) in the
               Power BI admin portal under Developer settings.
             </p>
-            {data.collectionIssues?.length > 0 && (
+            {issue && (
               <p className="text-[11px] text-amber-600 dark:text-amber-500 mt-1 font-mono">
-                {data.collectionIssues[0]?.message}
+                {issue.message}
               </p>
             )}
           </div>
@@ -159,7 +167,7 @@ export function PowerBITab() {
           loading={loading}
           density="compact"
           valueColor={
-            (data?.orphanedWorkspaces ?? 0) > 0 ? "#d97706" : undefined
+            (data?.orphanedWorkspaces ?? 0) > 0 ? chartPalette.warning : undefined
           }
         />
         <KPICard

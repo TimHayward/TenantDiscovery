@@ -13,6 +13,8 @@ export const chartPalette = {
   pink: "#ec4899",
   yellow: "#eab308",
   orange: "#f97316",
+  warning: "#d97706",
+  gray: "#9ca3af",
 } as const;
 
 export type ChartColorName = keyof typeof chartPalette;
