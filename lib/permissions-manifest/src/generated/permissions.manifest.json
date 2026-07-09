@@ -335,7 +335,7 @@
       "summary": "Read published retention labels and records-management configuration.",
       "why": "Provides an API-backed retention label count for the compliance view, replacing the former Intune managed-app-policy proxy. Without it, the retention check falls back to a manual assessment.",
       "endpoints": [
-        "/security/labels/retentionLabels"
+        "/beta/security/labels/retentionLabels"
       ],
       "features": [
         "compliance"

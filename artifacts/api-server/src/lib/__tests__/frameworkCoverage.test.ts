@@ -1,6 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { computeFrameworkCoverage } from "../findings/frameworks/coverage";
-import type { Finding } from "../findings/types";
+import { getFrameworkControl } from "../findings/frameworks/catalogue";
+import type { Finding, FrameworkRef } from "../findings/types";
+import { securityRules } from "../findings/rules/security";
+import { complianceRules } from "../findings/rules/compliance";
+import { identityRules } from "../findings/rules/identity";
+import { appsRules } from "../findings/rules/apps";
+import { devicesRules } from "../findings/rules/devices";
+import { emailRules } from "../findings/rules/email";
+import { collaborationRules } from "../findings/rules/collaboration";
+import { licensingRules } from "../findings/rules/licensing";
+
+/** Every registered rule, reduced to the fields this test needs. */
+const allRules: { ruleId: string; frameworks?: FrameworkRef[] }[] = [
+  ...securityRules,
+  ...complianceRules,
+  ...identityRules,
+  ...appsRules,
+  ...devicesRules,
+  ...emailRules,
+  ...collaborationRules,
+  ...licensingRules,
+];
 
 function f(checkStatus: Finding["checkStatus"], controlId: string): Pick<Finding, "checkStatus" | "frameworks"> {
   return { checkStatus, frameworks: [{ framework: "CIS-M365", controlId }] };
@@ -33,5 +54,26 @@ describe("computeFrameworkCoverage", () => {
   it("returns an entry for every framework in the catalogue", () => {
     const coverage = computeFrameworkCoverage([]);
     expect(coverage.map((c) => c.framework).sort()).toEqual(["CIS-M365", "NCSC-CE"]);
+  });
+
+  it("defines all five NCSC Cyber Essentials themes", () => {
+    const coverage = computeFrameworkCoverage([]);
+    const ce = coverage.find((c) => c.framework === "NCSC-CE")!;
+    expect(ce.controls.map((c) => c.controlId).sort()).toEqual(["FW", "MPM", "SC", "SUM", "UAC"]);
+  });
+});
+
+describe("framework reference integrity", () => {
+  it("resolves every cis()/ce() reference declared by a rule to a defined control", () => {
+    const dangling: string[] = [];
+    for (const rule of allRules) {
+      for (const ref of rule.frameworks ?? []) {
+        if (!getFrameworkControl(ref)) {
+          dangling.push(`${rule.ruleId} → ${ref.framework}:${ref.controlId}`);
+        }
+      }
+    }
+    // A dangling reference is silently dropped by coverage rollup, so fail loudly here.
+    expect(dangling).toEqual([]);
   });
 });

@@ -99,4 +99,20 @@ export const devicesRules: RuleDefinition<DevicesData>[] = [
       return [{ checkStatus: n > 0 ? "pass" : "fail", detail: `${n} compliance polic${n === 1 ? "y" : "ies"}` }];
     },
   },
+  {
+    // Cyber Essentials' Firewalls theme covers boundary and host firewall
+    // configuration, which the app-only Graph model cannot evidence today
+    // (no firewall-policy collector exists). Emit an explicit Manual Check so
+    // the NCSC-CE "FW" control shows as a first-class manual item in coverage
+    // rather than silently reading as not-assessed.
+    ruleId: "devices.firewall",
+    category: "devices",
+    title: "Host and boundary firewalls are configured",
+    description: "Devices run a correctly configured firewall exposing only necessary services (Cyber Essentials: Firewalls)",
+    severity: "high",
+    metricId: "devices.finding.firewall",
+    remediation: "Review firewall configuration via Intune endpoint security firewall policies or device baselines; confirm only required inbound services are permitted.",
+    frameworks: [ce("FW")],
+    evaluate: () => [{ checkStatus: "manual" }],
+  },
 ];

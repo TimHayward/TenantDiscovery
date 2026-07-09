@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,23 +18,29 @@ import {
 } from "@workspace/api-client-react";
 import { getOnboardingStatus } from "@/lib/onboardingApi";
 
-import { OverviewTab } from "./tabs/OverviewTab";
-import { UsersTab } from "./tabs/UsersTab";
-import { LicensesTab } from "./tabs/LicensesTab";
-import { SecurityTab } from "./tabs/SecurityTab";
-import { ExchangeTab } from "./tabs/ExchangeTab";
-import { TeamsSharePointTab } from "./tabs/TeamsSharePointTab";
-import { ComplianceTab } from "./tabs/ComplianceTab";
-import { FindingsTab } from "./tabs/FindingsTab";
-import { FrameworkMappingTab } from "./tabs/FrameworkMappingTab";
-import { IntuneTab } from "./tabs/IntuneTab";
-import { ServicePrincipalsTab } from "./tabs/ServicePrincipalsTab";
-import { AppsTab } from "./tabs/AppsTab";
-import { DefenderTab } from "./tabs/DefenderTab";
-import { AdoptionTab } from "./tabs/AdoptionTab";
-import { PowerBITab } from "./tabs/PowerBITab";
-import { SettingsTab } from "./tabs/SettingsTab";
 import { TabErrorBoundary } from "@/components/TabErrorBoundary";
+import { TableSkeleton } from "@/components/TableSkeleton";
+
+// Tab modules are code-split: each becomes its own chunk fetched on first visit,
+// trimming the entry bundle (heavy tabs like Intune/Defender + their Recharts
+// dependency no longer ship up front). The tabs are named exports, so each lazy
+// import maps the named export onto the `default` shape React.lazy expects.
+const OverviewTab = lazy(() => import("./tabs/OverviewTab").then((m) => ({ default: m.OverviewTab })));
+const UsersTab = lazy(() => import("./tabs/UsersTab").then((m) => ({ default: m.UsersTab })));
+const LicensesTab = lazy(() => import("./tabs/LicensesTab").then((m) => ({ default: m.LicensesTab })));
+const SecurityTab = lazy(() => import("./tabs/SecurityTab").then((m) => ({ default: m.SecurityTab })));
+const ExchangeTab = lazy(() => import("./tabs/ExchangeTab").then((m) => ({ default: m.ExchangeTab })));
+const TeamsSharePointTab = lazy(() => import("./tabs/TeamsSharePointTab").then((m) => ({ default: m.TeamsSharePointTab })));
+const ComplianceTab = lazy(() => import("./tabs/ComplianceTab").then((m) => ({ default: m.ComplianceTab })));
+const FindingsTab = lazy(() => import("./tabs/FindingsTab").then((m) => ({ default: m.FindingsTab })));
+const FrameworkMappingTab = lazy(() => import("./tabs/FrameworkMappingTab").then((m) => ({ default: m.FrameworkMappingTab })));
+const IntuneTab = lazy(() => import("./tabs/IntuneTab").then((m) => ({ default: m.IntuneTab })));
+const ServicePrincipalsTab = lazy(() => import("./tabs/ServicePrincipalsTab").then((m) => ({ default: m.ServicePrincipalsTab })));
+const AppsTab = lazy(() => import("./tabs/AppsTab").then((m) => ({ default: m.AppsTab })));
+const DefenderTab = lazy(() => import("./tabs/DefenderTab").then((m) => ({ default: m.DefenderTab })));
+const AdoptionTab = lazy(() => import("./tabs/AdoptionTab").then((m) => ({ default: m.AdoptionTab })));
+const PowerBITab = lazy(() => import("./tabs/PowerBITab").then((m) => ({ default: m.PowerBITab })));
+const SettingsTab = lazy(() => import("./tabs/SettingsTab").then((m) => ({ default: m.SettingsTab })));
 
 const INTERVAL_OPTIONS = [
   { label: "Off", ms: 0 },
@@ -746,23 +752,25 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Tab content — lazy-mounted on first visit, then kept in DOM to preserve React Query cache */}
-            {visitedTabs.has("overview")           && <div className={activeTab === "overview"           ? "" : "hidden"}><TabErrorBoundary><OverviewTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("findings")           && <div className={activeTab === "findings"           ? "" : "hidden"}><TabErrorBoundary><FindingsTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("frameworks")         && <div className={activeTab === "frameworks"         ? "" : "hidden"}><TabErrorBoundary><FrameworkMappingTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("users")              && <div className={activeTab === "users"              ? "" : "hidden"}><TabErrorBoundary><UsersTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("licenses")           && <div className={activeTab === "licenses"           ? "" : "hidden"}><TabErrorBoundary><LicensesTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("security")           && <div className={activeTab === "security"           ? "" : "hidden"}><TabErrorBoundary><SecurityTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("exchange")           && <div className={activeTab === "exchange"           ? "" : "hidden"}><TabErrorBoundary><ExchangeTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("teams-sp")           && <div className={activeTab === "teams-sp"           ? "" : "hidden"}><TabErrorBoundary><TeamsSharePointTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("compliance")         && <div className={activeTab === "compliance"         ? "" : "hidden"}><TabErrorBoundary><ComplianceTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("intune")             && <div className={activeTab === "intune"             ? "" : "hidden"}><TabErrorBoundary><IntuneTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("defender")           && <div className={activeTab === "defender"           ? "" : "hidden"}><TabErrorBoundary><DefenderTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("service-principals") && <div className={activeTab === "service-principals" ? "" : "hidden"}><TabErrorBoundary><ServicePrincipalsTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("apps")               && <div className={activeTab === "apps"               ? "" : "hidden"}><TabErrorBoundary><AppsTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("adoption")           && <div className={activeTab === "adoption"           ? "" : "hidden"}><TabErrorBoundary><AdoptionTab /></TabErrorBoundary></div>}
-            {visitedTabs.has("power-bi")           && <div className={activeTab === "power-bi"           ? "" : "hidden"}><TabErrorBoundary><PowerBITab /></TabErrorBoundary></div>}
-            {visitedTabs.has("settings")           && <div className={activeTab === "settings"           ? "" : "hidden"}><TabErrorBoundary><SettingsTab /></TabErrorBoundary></div>}
+            {/* Tab content — code-split and lazy-mounted on first visit, then kept in DOM to
+                preserve React Query cache. ErrorBoundary wraps Suspense so a chunk-load
+                failure surfaces the boundary rather than crashing the tree. */}
+            {visitedTabs.has("overview")           && <div className={activeTab === "overview"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><OverviewTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("findings")           && <div className={activeTab === "findings"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><FindingsTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("frameworks")         && <div className={activeTab === "frameworks"         ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><FrameworkMappingTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("users")              && <div className={activeTab === "users"              ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><UsersTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("licenses")           && <div className={activeTab === "licenses"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><LicensesTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("security")           && <div className={activeTab === "security"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><SecurityTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("exchange")           && <div className={activeTab === "exchange"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><ExchangeTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("teams-sp")           && <div className={activeTab === "teams-sp"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><TeamsSharePointTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("compliance")         && <div className={activeTab === "compliance"         ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><ComplianceTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("intune")             && <div className={activeTab === "intune"             ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><IntuneTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("defender")           && <div className={activeTab === "defender"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><DefenderTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("service-principals") && <div className={activeTab === "service-principals" ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><ServicePrincipalsTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("apps")               && <div className={activeTab === "apps"               ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><AppsTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("adoption")           && <div className={activeTab === "adoption"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><AdoptionTab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("power-bi")           && <div className={activeTab === "power-bi"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><PowerBITab /></Suspense></TabErrorBoundary></div>}
+            {visitedTabs.has("settings")           && <div className={activeTab === "settings"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><SettingsTab /></Suspense></TabErrorBoundary></div>}
 
           </div>
         </main>

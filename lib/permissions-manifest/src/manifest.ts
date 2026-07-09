@@ -366,7 +366,7 @@ export const permissionsManifest = {
       summary: "Read published retention labels and records-management configuration.",
       why: "Provides an API-backed retention label count for the compliance view, replacing the former Intune managed-app-policy proxy. Without it, the retention check falls back to a manual assessment.",
       endpoints: [
-        "/security/labels/retentionLabels",
+        "/beta/security/labels/retentionLabels",
       ],
       features: ["compliance"],
       notes: [
@@ -3178,6 +3178,16 @@ export const metricDataSourceRegistry = {
     licenseDependencies: ["intune-license-required"],
     confidenceLabel: "high",
     evidenceStatus: "apiBacked",
+  },
+  "devices.finding.firewall": {
+    metricId: "devices.finding.firewall",
+    metricName: "Host and boundary firewall configuration",
+    tab: "intune",
+    dataSources: [{ provider: "microsoft-graph", label: "Intune endpoint security firewall policies", endpoint: "GET /deviceManagement/configurationPolicies (firewall templates)" }],
+    permissionDependencies: [],
+    licenseDependencies: ["intune-license-required"],
+    confidenceLabel: "low",
+    evidenceStatus: "manual",
   },
 
   // ── Findings engine: Email authentication domain ───────────────────────────

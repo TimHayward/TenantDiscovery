@@ -140,6 +140,13 @@ export const frameworkControls: FrameworkControl[] = [
     requirement: "Devices are supported, compliant and kept up to date.",
     severity: "high",
   },
+  {
+    framework: "NCSC-CE",
+    controlId: "FW",
+    title: "Firewalls",
+    requirement: "Boundary and host-based firewalls protect devices and only necessary services are exposed.",
+    severity: "high",
+  },
 ];
 
 const controlByKey = new Map<string, FrameworkControl>(
