@@ -45,6 +45,29 @@ describe("collectAdoption Copilot handling", () => {
     expect(result.copilotAdoption).toBeNull();
   });
 
+  it("demotes a Copilot 400 'Resource not found for the segment' to a note", async () => {
+    fetchGraphTextMock.mockImplementation((_url: string, source: string) => {
+      if (source.startsWith("getMicrosoft365CopilotUserCounts")) {
+        return {
+          text: null,
+          issue: createCollectionIssue(
+            source,
+            400,
+            "Resource not found for the segment 'getMicrosoft365CopilotUserCounts'.",
+          ),
+        };
+      }
+      return okResult();
+    });
+
+    const result = await collectAdoption();
+
+    expect(result.collectionIssues.some((i) => i.source.startsWith("getMicrosoft365CopilotUserCounts"))).toBe(false);
+    expect(result.collectionNotes.some((n) => n.toLowerCase().includes("copilot"))).toBe(true);
+    expect(result.partialData).toBe(false);
+    expect(result.copilotAdoption).toBeNull();
+  });
+
   it("surfaces a Copilot 403 as a genuine permission issue", async () => {
     fetchGraphTextMock.mockImplementation((_url: string, source: string, requiredPermissionNames?: string[]) => {
       if (source.startsWith("getMicrosoft365CopilotUserCounts")) {

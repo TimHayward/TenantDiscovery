@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { ClientSecretCredential } from "@azure/identity";
 import { Client } from "@microsoft/microsoft-graph-client";
 import { TokenCredentialAuthenticationProvider } from "@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials/index.js";
@@ -37,9 +38,15 @@ export async function getGraphCredentialValues(): Promise<GraphCredentialValues>
 let cachedClient: Client | null = null;
 let cachedClientKey: string | null = null;
 
+export function hashCredentials(credentials: GraphCredentialValues): string {
+  return createHash("sha256")
+    .update(`${credentials.tenantId}:${credentials.clientId}:${credentials.clientSecret}`)
+    .digest("hex");
+}
+
 export async function getGraphClient(): Promise<Client> {
   const credentials = await getGraphCredentialValues();
-  const clientKey = `${credentials.tenantId}:${credentials.clientId}:${credentials.clientSecret}`;
+  const clientKey = hashCredentials(credentials);
 
   if (cachedClient && cachedClientKey === clientKey) {
     return cachedClient;

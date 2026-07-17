@@ -142,7 +142,18 @@ export async function collectSharePoint() {
     if (csvSlug) usageBySlug.set(normalizeToken(csvSlug), entry);
   }
 
-  const sites: any[] = [];
+  interface SiteSummary {
+    name: string;
+    url: string;
+    storageUsedGB: number;
+    storageAllocatedGB: number;
+    lastActivityDate: string | null;
+    isActive: boolean;
+    pageViews: number;
+    filesCount: number;
+    assignedTeamName: string | null;
+  }
+  const sites: SiteSummary[] = [];
   const getAllSitesItems = siteDisplayNamesResult.items.filter((s) => !!s.webUrl);
 
   if (getAllSitesItems.length > 0) {

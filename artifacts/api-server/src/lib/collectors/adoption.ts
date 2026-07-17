@@ -4,6 +4,17 @@ import {
   type CollectionIssue,
 } from "../collectionIssues.js";
 
+/**
+ * True when a Graph report endpoint is simply unavailable for this tenant/API
+ * version, rather than a real failure. Covers a plain 404 and the OData
+ * "Resource not found for the segment '...'" error (returned as a 400 when a
+ * function segment isn't recognised).
+ */
+function isReportUnavailable(issue: CollectionIssue): boolean {
+  if (issue.category === "notFound") return true;
+  return /resource not found for the segment/i.test(issue.message);
+}
+
 type ReportPeriod = "D30" | "D90" | "D180";
 const TREND_PERIODS: ReportPeriod[] = ["D30", "D90", "D180"];
 
@@ -44,6 +55,30 @@ function nullableCol(row: Record<string, string> | null, ...names: string[]): nu
   return null;
 }
 
+/**
+ * Run tasks with bounded concurrency, preserving result order. The usage
+ * reports endpoints below throttle hard when hit with many parallel requests
+ * (Graph returns 429 "Please retry later" even though each request retries
+ * individually) — capping fan-out avoids that instead of just retrying into it.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function worker(): Promise<void> {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 const WORKLOAD_DEFS = [
   { key: "Exchange", displayName: "Exchange Online", activeCol: "Exchange Active", inactiveCol: "Exchange Inactive" },
   { key: "Teams", displayName: "Microsoft Teams", activeCol: "Teams Active", inactiveCol: "Teams Inactive" },
@@ -62,19 +97,32 @@ export async function collectAdoption() {
   const collectionIssues: CollectionIssue[] = [];
   const collectionNotes: string[] = [];
 
-  const [periodResults, appsResult, teamsDepthResult, odDepthResult, spDepthResult, emailDepthResult, copilotResult] = await Promise.all([
-    Promise.all(TREND_PERIODS.map(async (period) => {
-      const result = await fetchGraphText(`https://graph.microsoft.com/v1.0/reports/getOffice365ServicesUserCounts(period='${period}')`, `getOffice365ServicesUserCounts(${period})`, ["Reports.Read.All"]);
-      if (result.issue) collectionIssues.push(result.issue);
-      return { period, rows: parseCsv(result.text ?? "") };
-    })),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getM365AppUserCounts(period='D30')", "getM365AppUserCounts(D30)", ["Reports.Read.All"]),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getTeamsUserActivityUserCounts(period='D30')", "getTeamsUserActivityUserCounts(D30)", ["Reports.Read.All"]),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getOneDriveActivityUserCounts(period='D30')", "getOneDriveActivityUserCounts(D30)", ["Reports.Read.All"]),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getSharePointActivityUserCounts(period='D30')", "getSharePointActivityUserCounts(D30)", ["Reports.Read.All"]),
-    fetchGraphText("https://graph.microsoft.com/v1.0/reports/getEmailActivityUserCounts(period='D30')", "getEmailActivityUserCounts(D30)", ["Reports.Read.All"]),
-    fetchGraphText("https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUserCounts(period='D30')", "getMicrosoft365CopilotUserCounts(D30)", ["Reports.Read.All"]),
-  ]);
+  type ReportFetch = () => Promise<Awaited<ReturnType<typeof fetchGraphText>>>;
+
+  const periodFetches: ReportFetch[] = TREND_PERIODS.map((period) => () =>
+    fetchGraphText(`https://graph.microsoft.com/v1.0/reports/getOffice365ServicesUserCounts(period='${period}')`, `getOffice365ServicesUserCounts(${period})`, ["Reports.Read.All"]),
+  );
+  const otherFetches: ReportFetch[] = [
+    () => fetchGraphText("https://graph.microsoft.com/v1.0/reports/getM365AppUserCounts(period='D30')", "getM365AppUserCounts(D30)", ["Reports.Read.All"]),
+    () => fetchGraphText("https://graph.microsoft.com/v1.0/reports/getTeamsUserActivityUserCounts(period='D30')", "getTeamsUserActivityUserCounts(D30)", ["Reports.Read.All"]),
+    () => fetchGraphText("https://graph.microsoft.com/v1.0/reports/getOneDriveActivityUserCounts(period='D30')", "getOneDriveActivityUserCounts(D30)", ["Reports.Read.All"]),
+    () => fetchGraphText("https://graph.microsoft.com/v1.0/reports/getSharePointActivityUserCounts(period='D30')", "getSharePointActivityUserCounts(D30)", ["Reports.Read.All"]),
+    () => fetchGraphText("https://graph.microsoft.com/v1.0/reports/getEmailActivityUserCounts(period='D30')", "getEmailActivityUserCounts(D30)", ["Reports.Read.All"]),
+    () => fetchGraphText("https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUserCounts(period='D30')", "getMicrosoft365CopilotUserCounts(D30)", ["Reports.Read.All"]),
+  ];
+
+  // Cap fan-out at 3 concurrent report requests instead of firing all 9 at
+  // once (see mapWithConcurrency above for why).
+  const allResults = await mapWithConcurrency([...periodFetches, ...otherFetches], 3, (fetchFn) => fetchFn());
+  const periodTextResults = allResults.slice(0, periodFetches.length);
+  const [appsResult, teamsDepthResult, odDepthResult, spDepthResult, emailDepthResult, copilotResult] =
+    allResults.slice(periodFetches.length);
+
+  const periodResults = TREND_PERIODS.map((period, i) => {
+    const result = periodTextResults[i];
+    if (result.issue) collectionIssues.push(result.issue);
+    return { period, rows: parseCsv(result.text ?? "") };
+  });
 
   if (appsResult.issue) collectionIssues.push(appsResult.issue);
   if (teamsDepthResult.issue) collectionIssues.push(teamsDepthResult.issue);
@@ -82,7 +130,11 @@ export async function collectAdoption() {
   if (spDepthResult.issue) collectionIssues.push(spDepthResult.issue);
   if (emailDepthResult.issue) collectionIssues.push(emailDepthResult.issue);
   if (copilotResult.issue) {
-    if (copilotResult.issue.category === "notFound") {
+    // A tenant without Copilot surfaces the report's absence two ways: a plain
+    // 404, or an OData 400 "Resource not found for the segment '...'" when the
+    // beta function isn't provisioned. Both mean "no Copilot reporting here" —
+    // demote to a note rather than a hard collection error.
+    if (isReportUnavailable(copilotResult.issue)) {
       collectionNotes.push(
         "Microsoft 365 Copilot usage reporting is not available for this tenant (report endpoint not found — typically the tenant has no Copilot licenses).",
       );
@@ -110,7 +162,7 @@ export async function collectAdoption() {
       const tLicensed = tActive + tInactive;
       return { period: tp, activeUsers: tActive, licensedUsers: tLicensed, adoptionPercent: adoptionPct(tActive, tLicensed) };
     });
-    let depth = null as any;
+    let depth: Record<string, number | null> | null = null;
     if (def.key === "Teams") {
       depth = { teamChatMessages: nullableCol(teamsDepthRow, "Team Chat Messages", "Team Chat Message Count"), privateChatMessages: nullableCol(teamsDepthRow, "Private Chat Messages", "Private Chat Message Count"), calls: nullableCol(teamsDepthRow, "Calls", "Call Count"), meetings: nullableCol(teamsDepthRow, "Meetings", "Meeting Count", "Meetings Attended Count"), odViewedOrEdited: null, odSynced: null, odSharedInternally: null, odSharedExternally: null, spVisitedPages: null, spViewedOrEdited: null, spSynced: null, spSharedInternally: null, spSharedExternally: null, emailSent: null, emailReceived: null, emailRead: null };
     } else if (def.key === "OneDrive") {
@@ -129,7 +181,12 @@ export async function collectAdoption() {
     return { app: def.key, displayName: def.displayName, activeUsers: appRow ? col(appRow, def.key) : 0 };
   });
 
-  let copilotAdoption = null as any;
+  let copilotAdoption: {
+    enabledUsers: number;
+    activeUsers: number;
+    adoptionPercent: number;
+    appBreakdown: Array<{ app: string; displayName: string; enabledUsers: number; activeUsers: number }>;
+  } | null = null;
   if (!copilotResult.issue && copilotResult.text) {
     const copilotRows = parseCsv(copilotResult.text);
     const copilotRow = latestRow(copilotRows);

@@ -41,7 +41,6 @@
     "@replit/vite-plugin-cartographer": "catalog:",
     "@replit/vite-plugin-dev-banner": "catalog:",
     "@replit/vite-plugin-runtime-error-modal": "catalog:",
-    "@rollup/rollup-win32-x64-msvc": "^4.60.2",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
@@ -83,5 +82,8 @@
     "d3-scale-chromatic": "^3.1.0",
     "papaparse": "^5.5.3",
     "react-csv": "^2.2.2"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.60.2"
   }
 }

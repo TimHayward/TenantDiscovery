@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { permissionsManifest } from "@workspace/permissions-manifest";
+import { PatchOnboardingSetupBody } from "@workspace/api-zod";
 import { fetchGraphJson } from "../lib/collectionIssues.js";
+import { validate } from "../middlewares/validate.js";
+import { triggerAll } from "../lib/backgroundRefresh.js";
 import {
   loadOnboardingSettings,
   patchOnboardingSettings,
@@ -192,9 +195,9 @@ router.get("/onboarding/setup", async (req, res) => {
   }
 });
 
-router.patch("/onboarding/setup", async (req, res) => {
+router.patch("/onboarding/setup", validate({ body: PatchOnboardingSetupBody }), async (req, res) => {
   try {
-    const body = req.body as {
+    const body = req.valid!.body as {
       tenantId?: string | null;
       clientId?: string | null;
       clientSecret?: string | null;
@@ -209,6 +212,20 @@ router.patch("/onboarding/setup", async (req, res) => {
       setupComplete: body.setupComplete,
       acknowledgedMissingPermissions: body.acknowledgedMissingPermissions,
     });
+
+    // Credentials (or the setupComplete gate) may have just gone from
+    // unusable to usable — without this, every metric stays cached under its
+    // pre-setup "credentials not configured" snapshot for up to the 1h TTL.
+    if (
+      body.tenantId !== undefined ||
+      body.clientId !== undefined ||
+      body.clientSecret !== undefined ||
+      body.setupComplete !== undefined
+    ) {
+      triggerAll("onboarding").catch((err) => {
+        req.log.warn({ err }, "Post-onboarding refresh failed");
+      });
+    }
 
     return res.json(redactOnboardingSettings(updated));
   } catch (error) {

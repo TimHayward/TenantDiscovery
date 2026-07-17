@@ -1,11 +1,9 @@
-import { getGraphClient } from "../graphClient.js";
 import {
-  createCollectionIssue,
-  getErrorMessage,
-  getErrorStatus,
+  fetchGraphJson,
   isPermissionIssue,
   type CollectionIssue,
 } from "../collectionIssues.js";
+import type { GraphSubscribedSku } from "./graphTypes.js";
 
 const SKU_FRIENDLY_NAMES: Record<string, string> = {
   "ENTERPRISEPREMIUM": "Microsoft 365 E5",
@@ -39,25 +37,19 @@ function numeric(value: unknown): number {
 
 export async function collectLicenses() {
   const collectionIssues: CollectionIssue[] = [];
-  const graphClient = await getGraphClient();
-  const result = await graphClient.api("/subscribedSkus").get().catch((error: unknown) => {
-    collectionIssues.push(
-      createCollectionIssue(
-        "subscribedSkus",
-        getErrorStatus(error),
-        getErrorMessage(error),
-      ),
-    );
-    return null;
-  });
+  const result = await fetchGraphJson<{ value?: GraphSubscribedSku[] }>(
+    "https://graph.microsoft.com/v1.0/subscribedSkus",
+    "subscribedSkus",
+  );
+  if (result.issue) collectionIssues.push(result.issue);
 
-  const skus = result?.value ?? [];
+  const skus = result.data?.value ?? [];
 
   let totalLicenses = 0;
   let assignedLicenses = 0;
   let availableLicenses = 0;
 
-  const licenses = skus.map((sku: any) => {
+  const licenses = skus.map((sku) => {
     const assigned = numeric(sku.consumedUnits);
     const enabled = numeric(sku.prepaidUnits?.enabled);
     const suspended = numeric(sku.prepaidUnits?.suspended);
@@ -93,7 +85,7 @@ export async function collectLicenses() {
     assignedLicenses,
     availableLicenses,
     utilizationPercent,
-    licenses: licenses.sort((a: any, b: any) => b.total - a.total),
+    licenses: licenses.sort((a, b) => b.total - a.total),
     partialData: collectionIssues.length > 0,
     permissionError: collectionIssues.some(isPermissionIssue),
     collectionIssues,

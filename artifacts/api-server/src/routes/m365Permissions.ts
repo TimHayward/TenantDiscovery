@@ -3,7 +3,12 @@ import {
   permissionsManifest,
   getFeaturePermissionDetails,
 } from "@workspace/permissions-manifest";
+import {
+  GetM365PermissionsFeatureParams,
+  GetM365PermissionsFeatureWithMetadataParams,
+} from "@workspace/api-zod";
 import { withMetadata } from "../lib/metadata.js";
+import { validate } from "../middlewares/validate.js";
 
 const router = Router();
 
@@ -36,23 +41,31 @@ router.get("/m365/permissions/manifest/with-metadata", (_req, res) => {
   );
 });
 
-router.get("/m365/permissions/feature/:featureId", (req, res) => {
-  const feature = getFeaturePermissionDetails(req.params.featureId);
+router.get(
+  "/m365/permissions/feature/:featureId",
+  validate({ params: GetM365PermissionsFeatureParams }),
+  (req, res) => {
+  const { featureId } = req.valid!.params as { featureId: string };
+  const feature = getFeaturePermissionDetails(featureId);
   if (!feature) {
     return res.status(404).json({
       error: "Unknown permission feature",
-      featureId: req.params.featureId,
+      featureId,
     });
   }
   return res.json(feature);
 });
 
-router.get("/m365/permissions/feature/:featureId/with-metadata", (req, res) => {
-  const feature = getFeaturePermissionDetails(req.params.featureId);
+router.get(
+  "/m365/permissions/feature/:featureId/with-metadata",
+  validate({ params: GetM365PermissionsFeatureWithMetadataParams }),
+  (req, res) => {
+  const { featureId } = req.valid!.params as { featureId: string };
+  const feature = getFeaturePermissionDetails(featureId);
   if (!feature) {
     return res.status(404).json({
       error: "Unknown permission feature",
-      featureId: req.params.featureId,
+      featureId,
     });
   }
 

@@ -1,11 +1,29 @@
-import { getGraphCredentialValues } from "../graphClient.js";
 import {
-  createCollectionIssue,
   fetchAllGraphPages,
   fetchGraphJson,
+  fetchResourceWithRetry,
+  getAccessToken,
   isPermissionIssue,
   type CollectionIssue,
 } from "../collectionIssues.js";
+import type {
+  GraphAlertV2,
+  GraphCAPolicy,
+  GraphCAPolicyConditions,
+  GraphCAPolicyGrantControls,
+  GraphControlProfile,
+  GraphDevice,
+  GraphIncident,
+  GraphManagedDevice,
+  GraphOAuthGrant,
+  GraphRegistrationDetail,
+  GraphRiskDetection,
+  GraphRiskyUser,
+  GraphSecureScore,
+  GraphServicePrincipal,
+  GraphUserBasic,
+  MdeMachine,
+} from "./graphTypes.js";
 
 const GRAPH_MAX_PAGE_SIZE = 500;
 
@@ -30,50 +48,61 @@ const MFA_METHOD_META: Record<string, { displayName: string; strength: string; s
   officePhone:                        { displayName: "Office Phone",                    strength: "Weak",               strengthLevel: 1 },
 };
 
-async function fetchDefenderMachinesWithDiagnostics() {
-  const { ClientSecretCredential } = await import("@azure/identity");
-  const { tenantId, clientId, clientSecret } = await getGraphCredentialValues();
-  const cred = new ClientSecretCredential(tenantId, clientId, clientSecret);
+interface DefenderMachinesResult {
+  machines: MdeMachine[];
+  status: number | null;
+  error: string | null;
+  scope: string | null;
+}
+
+async function fetchDefenderMachinesWithDiagnostics(): Promise<DefenderMachinesResult> {
   const defenderScopes = [
     "https://api.securitycenter.microsoft.com/.default",
     "https://api.security.microsoft.com/.default",
   ];
 
-  let token: { token: string } | null = null;
   let usedScope: string | null = null;
   for (const scope of defenderScopes) {
     try {
-      const candidate = await Promise.race([
-        cred.getToken(scope),
+      await Promise.race([
+        getAccessToken(scope),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Defender token acquisition timed out after 8s")), 8_000),
         ),
       ]);
-      if (candidate?.token) { token = { token: candidate.token }; usedScope = scope; break; }
+      usedScope = scope;
+      break;
     } catch { /* Try next scope alias */ }
   }
 
-  if (!token) return { machines: [], status: null, error: "Failed to acquire Defender token for known scopes.", scope: null };
+  if (!usedScope) return { machines: [], status: null, error: "Failed to acquire Defender token for known scopes.", scope: null };
 
-  const machines: any[] = [];
+  const machines: MdeMachine[] = [];
   let url: string | null = "https://api.security.microsoft.com/api/machines?$top=10000";
   let lastStatus: number | null = null;
 
   while (url) {
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token.token}` }, signal: AbortSignal.timeout(25_000) });
-    lastStatus = resp.status;
-    if (!resp.ok) {
-      const body = await resp.text();
-      return { machines: [], status: resp.status, error: body.slice(0, 500), scope: usedScope };
+    try {
+      // Shares the Graph helpers' timeout/retry policy (GRAPH_FETCH_TIMEOUT_MS /
+      // GRAPH_MAX_RETRIES) via the scope-parameterized retry fetch.
+      const resp: Response = await fetchResourceWithRetry(url, usedScope);
+      lastStatus = resp.status;
+      if (!resp.ok) {
+        const body = await resp.text();
+        return { machines: [], status: resp.status, error: body.slice(0, 500), scope: usedScope };
+      }
+      const page = (await resp.json()) as { value?: MdeMachine[]; "@odata.nextLink"?: string; nextLink?: string };
+      if (Array.isArray(page.value)) machines.push(...page.value);
+      url = page["@odata.nextLink"] ?? page.nextLink ?? null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Defender machines request failed";
+      return { machines: [], status: lastStatus, error: message, scope: usedScope };
     }
-    const page: any = await resp.json();
-    if (Array.isArray(page.value)) machines.push(...page.value);
-    url = page["@odata.nextLink"] ?? page.nextLink ?? null;
   }
   return { machines, status: lastStatus, error: null, scope: usedScope };
 }
 
-function summariseUsers(users: any): string {
+function summariseUsers(users: GraphCAPolicyConditions["users"]): string {
   const include: string[] = users?.includeUsers ?? [];
   const roles: string[] = users?.includeRoles ?? [];
   const groups: string[] = users?.includeGroups ?? [];
@@ -86,7 +115,7 @@ function summariseUsers(users: any): string {
   return parts.length > 0 ? parts.join(", ") : "None";
 }
 
-function summariseApps(apps: any): string {
+function summariseApps(apps: GraphCAPolicyConditions["applications"]): string {
   const include: string[] = apps?.includeApplications ?? [];
   const actions: string[] = apps?.includeUserActions ?? [];
   if (include.includes("All")) return "All Applications";
@@ -95,7 +124,7 @@ function summariseApps(apps: any): string {
   return "None";
 }
 
-function summariseAuthStrength(grantControls: any): string {
+function summariseAuthStrength(grantControls: GraphCAPolicyGrantControls | null | undefined): string {
   if (!grantControls) return "None";
   const strength = grantControls.authenticationStrength?.displayName;
   if (strength) return strength;
@@ -106,34 +135,34 @@ function summariseAuthStrength(grantControls: any): string {
     domainJoinedDevice: "Domain Joined Device", approvedApplication: "Approved App",
     passwordChange: "Password Change", block: "Block",
   };
-  return builtIn.map((c: string) => labelMap[c] ?? c).join(" + ");
+  return builtIn.map((c) => labelMap[c] ?? c).join(" + ");
 }
 
 export async function collectSecurity() {
   const [secScoreData, secScoreHistoryData, controlProfilesData, caPoliciesData, mfaDetailData, usersData, riskDetectionsData, riskyUsersData, legacyAuthData] =
     await Promise.all([
-      fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/secureScores?$top=1", "secureScoresLatest"),
-      fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/secureScores?$top=90", "secureScoresHistory"),
-      fetchAllGraphPages<any>(`https://graph.microsoft.com/v1.0/security/secureScoreControlProfiles?$top=${GRAPH_MAX_PAGE_SIZE}`, "secureScoreControlProfiles"),
-      fetchAllGraphPages(`https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies?$top=${GRAPH_MAX_PAGE_SIZE}`, "conditionalAccessPolicies"),
-      fetchAllGraphPages(
+      fetchGraphJson<{ value?: GraphSecureScore[] }>("https://graph.microsoft.com/v1.0/security/secureScores?$top=1", "secureScoresLatest"),
+      fetchGraphJson<{ value?: GraphSecureScore[] }>("https://graph.microsoft.com/v1.0/security/secureScores?$top=90", "secureScoresHistory"),
+      fetchAllGraphPages<GraphControlProfile>(`https://graph.microsoft.com/v1.0/security/secureScoreControlProfiles?$top=${GRAPH_MAX_PAGE_SIZE}`, "secureScoreControlProfiles"),
+      fetchAllGraphPages<GraphCAPolicy>(`https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies?$top=${GRAPH_MAX_PAGE_SIZE}`, "conditionalAccessPolicies"),
+      fetchAllGraphPages<GraphRegistrationDetail>(
         "https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails" +
           `?$select=id,userPrincipalName,userDisplayName,isMfaRegistered,isPasswordlessCapable,isSsprRegistered,methodsRegistered&$top=${GRAPH_MAX_PAGE_SIZE}`,
         "userRegistrationDetails",
       ),
-      fetchAllGraphPages(`https://graph.microsoft.com/v1.0/users?$select=id,accountEnabled,userType&$top=${GRAPH_MAX_PAGE_SIZE}`, "users"),
-      fetchAllGraphPages(
+      fetchAllGraphPages<GraphUserBasic>(`https://graph.microsoft.com/v1.0/users?$select=id,accountEnabled,userType&$top=${GRAPH_MAX_PAGE_SIZE}`, "users"),
+      fetchAllGraphPages<GraphRiskDetection>(
         "https://graph.microsoft.com/v1.0/identityProtection/riskDetections" +
           `?$select=id,activityDateTime,riskLevel,riskDetail,detectionTimingType&$top=${GRAPH_MAX_PAGE_SIZE}&$orderby=activityDateTime desc`,
         "riskDetections",
       ),
-      fetchAllGraphPages(
+      fetchAllGraphPages<GraphRiskyUser>(
         "https://graph.microsoft.com/v1.0/identityProtection/riskyUsers" +
           "?$select=id,userDisplayName,userPrincipalName,riskLevel,riskState,riskLastUpdatedDateTime" +
           `&$filter=riskState eq 'atRisk' or riskState eq 'confirmedCompromised'&$top=${GRAPH_MAX_PAGE_SIZE}`,
         "riskyUsers",
       ),
-      fetchGraphJson<any>(
+      fetchGraphJson<{ "@odata.count"?: number; value?: unknown[] }>(
         "https://graph.microsoft.com/v1.0/auditLogs/signIns?$filter=clientAppUsed eq 'Other clients'&$top=1&$count=true&$select=id",
         "legacyAuthSignIns",
         { "ConsistencyLevel": "eventual" },
@@ -152,16 +181,17 @@ export async function collectSecurity() {
   if (legacyAuthData.issue) collectionIssues.push(legacyAuthData.issue);
 
   const latestScore = secScoreData.data?.value?.[0] ?? null;
-  const scoreHistory: any[] = secScoreHistoryData.data?.value ?? [];
-  const controlProfiles: any[] = controlProfilesData.items;
-  const caps: any[] = caPoliciesData.items;
-  const mfaDetails: any[] = mfaDetailData.items;
-  const rawUsers: any[] = usersData.items;
-  const riskDetections: any[] = riskDetectionsData.items;
-  const riskyUsersRaw: any[] = riskyUsersData.items;
+  const scoreHistory = secScoreHistoryData.data?.value ?? [];
+  const controlProfiles = controlProfilesData.items;
+  const caps = caPoliciesData.items;
+  const mfaDetails = mfaDetailData.items;
+  const rawUsers = usersData.items;
+  const riskDetections = riskDetectionsData.items;
+  const riskyUsersRaw = riskyUsersData.items;
 
   const userMap = new Map<string, { accountEnabled: boolean; userType: string }>();
   for (const u of rawUsers) {
+    if (!u.id) continue;
     userMap.set(u.id, { accountEnabled: u.accountEnabled ?? true, userType: u.userType ?? "Member" });
   }
 
@@ -173,10 +203,10 @@ export async function collectSecurity() {
   const mfaDisabledUsers = mfaDetails.length - mfaEnabledUsers;
   const mfaEnabledPercent = mfaDetails.length > 0 ? Math.round((mfaEnabledUsers / mfaDetails.length) * 100) : 0;
 
-  const mfaUsersList = mfaDetails.map((u: any) => {
-    const extra = userMap.get(u.id) ?? { accountEnabled: true, userType: "Member" };
+  const mfaUsersList = mfaDetails.map((u) => {
+    const extra = (u.id ? userMap.get(u.id) : undefined) ?? { accountEnabled: true, userType: "Member" };
     return {
-      id: u.id,
+      id: u.id ?? "",
       displayName: u.userDisplayName ?? u.userPrincipalName ?? u.id,
       userPrincipalName: u.userPrincipalName ?? "",
       isMfaRegistered: u.isMfaRegistered ?? false,
@@ -222,8 +252,8 @@ export async function collectSecurity() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-90);
 
-  const riskyUsersDetail = riskyUsersRaw.map((u: any) => ({
-    id: u.id,
+  const riskyUsersDetail = riskyUsersRaw.map((u) => ({
+    id: u.id ?? "",
     displayName: u.userDisplayName ?? u.userPrincipalName ?? u.id,
     userPrincipalName: u.userPrincipalName ?? "",
     riskLevel: u.riskLevel ?? "none",
@@ -235,7 +265,7 @@ export async function collectSecurity() {
   const disabledCAPs = caps.filter((c) => c.state === "disabled").length;
   const reportOnlyCAPs = caps.filter((c) => c.state === "enabledForReportingButNotEnforced").length;
 
-  const secureScoreHistory = scoreHistory.slice(0, 90).reverse().map((s: any) => ({
+  const secureScoreHistory = scoreHistory.slice(0, 90).reverse().map((s) => ({
     date: s.createdDateTime?.split("T")[0] ?? "",
     score: s.currentScore ?? 0,
     maxScore: s.maxScore ?? 100,
@@ -248,7 +278,7 @@ export async function collectSecurity() {
 
   const profileTitleById = new Map<string, string>();
   for (const profile of controlProfiles) {
-    if (profile.id && profile.title) profileTitleById.set(profile.id as string, profile.title as string);
+    if (profile.id && profile.title) profileTitleById.set(profile.id, profile.title);
   }
 
   const controlCategories: { category: string; score: number; maxScore: number }[] = [];
@@ -272,8 +302,8 @@ export async function collectSecurity() {
     }
   }
 
-  const caPolicies = caps.map((p: any) => ({
-    id: p.id,
+  const caPolicies = caps.map((p) => ({
+    id: p.id ?? "",
     displayName: p.displayName ?? "Unnamed Policy",
     state: p.state ?? "unknown",
     targetUsers: summariseUsers(p.conditions?.users),
@@ -282,7 +312,7 @@ export async function collectSecurity() {
     modifiedDateTime: p.modifiedDateTime ?? null,
   }));
 
-  const secureScoreControls = (latestScore?.controlScores ?? []).map((ctrl: any) => {
+  const secureScoreControls = (latestScore?.controlScores ?? []).map((ctrl) => {
     const score = parseFiniteNumber(ctrl.score) ?? 0;
     const maxScore = parseFiniteNumber(ctrl.maxScore) ?? parseFiniteNumber(ctrl.controlContributionToScore) ?? 0;
     const pct: number = parseFiniteNumber(ctrl.scoreInPercentage)
@@ -303,12 +333,12 @@ export async function collectSecurity() {
 
   const legacyAuthSignInCount = legacyAuthData.issue
     ? null
-    : ((legacyAuthData.data?.["@odata.count"] as number | undefined) ?? (legacyAuthData.data?.value?.length ?? 0));
+    : (legacyAuthData.data?.["@odata.count"] ?? (legacyAuthData.data?.value?.length ?? 0));
 
-  const legacyAuthBlockedByCA = caps.some((p: any) => {
+  const legacyAuthBlockedByCA = caps.some((p) => {
     if (p.state !== "enabled") return false;
-    const clientTypes: string[] = p.conditions?.clientAppTypes ?? [];
-    const hasLegacyClient = clientTypes.some((t: string) => ["exchangeActiveSync", "other"].includes(t));
+    const clientTypes = p.conditions?.clientAppTypes ?? [];
+    const hasLegacyClient = clientTypes.some((t) => ["exchangeActiveSync", "other"].includes(t));
     const blocksAccess = p.grantControls?.builtInControls?.includes("block") ||
       (p.grantControls === null && p.sessionControls !== null);
     return hasLegacyClient && blocksAccess;
@@ -341,11 +371,11 @@ export async function collectSecurityEstate() {
       "https://graph.microsoft.com/v1.0/security/alerts_v2" +
       `?$filter=serviceSource+eq+'${serviceSource}'&$top=100&$orderby=createdDateTime+desc` +
       "&$select=id,title,severity,status,serviceSource,category,createdDateTime";
-    const result = await fetchGraphJson<{ value?: any[] }>(endpoint, source);
+    const result = await fetchGraphJson<{ value?: GraphAlertV2[] }>(endpoint, source);
     if (result.issue) return { alerts: [], error: result.issue.message };
     const rawAlerts = Array.isArray(result.data?.value) ? result.data.value : [];
     return {
-      alerts: rawAlerts.map((a: any) => ({
+      alerts: rawAlerts.map((a) => ({
         id: a.id ?? "", title: a.title ?? "", severity: a.severity ?? "Unknown",
         status: a.status ?? "Unknown", serviceSource: a.serviceSource ?? "",
         category: a.category ?? "", createdDateTime: a.createdDateTime ?? null,
@@ -362,33 +392,33 @@ export async function collectSecurityEstate() {
   const [devicesRawResult, managedDevicesRawResult, servicePrincipalsRawResult, oauthGrantsRawResult,
     mdeResult, defenderOfficeAlertsResult, defenderEndpointAlertsResult,
     incidentsResult, alertsResult] = await Promise.all([
-    fetchAllGraphPages<any>(
+    fetchAllGraphPages<GraphDevice>(
       "https://graph.microsoft.com/v1.0/devices" +
         `?$select=id,displayName,operatingSystem,operatingSystemVersion,trustType,isManaged,isCompliant,managementType,approximateLastSignInDateTime&$top=${GRAPH_MAX_PAGE_SIZE}`,
       "securityEstateDevices",
     ),
-    fetchAllGraphPages<any>(
+    fetchAllGraphPages<GraphManagedDevice>(
       "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices" +
         `?$select=id,deviceName,azureADDeviceId,operatingSystem,osVersion,lastSyncDateTime,managementAgent,complianceState&$top=${GRAPH_MAX_PAGE_SIZE}`,
       "securityEstateManagedDevices",
     ),
-    fetchAllGraphPages<any>(
+    fetchAllGraphPages<GraphServicePrincipal>(
       "https://graph.microsoft.com/v1.0/servicePrincipals" +
         `?$select=id,displayName,appId,publisherName,servicePrincipalType,appOwnerOrganizationId,createdDateTime,tags&$top=${GRAPH_MAX_PAGE_SIZE}`,
       "securityEstateServicePrincipals",
     ),
-    fetchAllGraphPages<any>(
+    fetchAllGraphPages<GraphOAuthGrant>(
       `https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$select=clientId,consentType,principalId,scope&$top=${GRAPH_MAX_PAGE_SIZE}`,
       "securityEstateOauth2PermissionGrants",
     ),
     fetchDefenderMachinesWithDiagnostics(),
     fetchDefenderAlertsBySource("microsoftDefenderForOffice365", "securityDefenderOfficeAlerts"),
     fetchDefenderAlertsBySource("microsoftDefenderForEndpoint", "securityDefenderEndpointAlerts"),
-    fetchAllGraphPages<any>(
+    fetchAllGraphPages<GraphIncident>(
       `https://graph.microsoft.com/v1.0/security/incidents?$filter=${filter}&$top=50&$select=id,status,createdDateTime`,
       "securityIncidentSummary30dIncidents",
     ),
-    fetchAllGraphPages<any>(
+    fetchAllGraphPages<GraphAlertV2>(
       `https://graph.microsoft.com/v1.0/security/alerts_v2?$filter=${filter}&$top=50&$select=id,status,createdDateTime`,
       "securityIncidentSummary30dAlerts",
     ),
@@ -401,45 +431,59 @@ export async function collectSecurityEstate() {
   const mdeMachinesRaw = mdeResult.machines;
 
   const spNameMap = new Map<string, string>();
-  for (const sp of servicePrincipalsRaw) spNameMap.set(sp.id as string, (sp.displayName as string) ?? sp.id);
+  for (const sp of servicePrincipalsRaw) {
+    if (sp.id) spNameMap.set(sp.id, sp.displayName ?? sp.id);
+  }
 
   const normalizeName = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
 
-  const deviceList = devicesRaw.map((d: any) => ({
-    id: d.id as string,
-    displayName: (d.displayName as string) ?? "Unknown",
-    operatingSystem: (d.operatingSystem as string) ?? "Unknown",
-    operatingSystemVersion: (d.operatingSystemVersion as string | undefined) ?? null,
-    trustType: (d.trustType as string | undefined) ?? null,
-    isManaged: (d.isManaged as boolean) ?? false,
-    isCompliant: d.isCompliant as boolean | null ?? null,
-    managementType: (d.managementType as string | undefined) ?? null,
-    approximateLastSignInDateTime: (d.approximateLastSignInDateTime as string | undefined) ?? null,
+  interface DeviceEstateEntry {
+    id: string;
+    displayName: string;
+    operatingSystem: string;
+    operatingSystemVersion: string | null;
+    trustType: string | null;
+    isManaged: boolean;
+    isCompliant: boolean | null;
+    managementType: string | null;
+    approximateLastSignInDateTime: string | null;
+  }
+
+  const deviceList: DeviceEstateEntry[] = devicesRaw.map((d) => ({
+    id: d.id ?? "",
+    displayName: d.displayName ?? "Unknown",
+    operatingSystem: d.operatingSystem ?? "Unknown",
+    operatingSystemVersion: d.operatingSystemVersion ?? null,
+    trustType: d.trustType ?? null,
+    isManaged: d.isManaged ?? false,
+    isCompliant: d.isCompliant ?? null,
+    managementType: d.managementType ?? null,
+    approximateLastSignInDateTime: d.approximateLastSignInDateTime ?? null,
   }));
 
   const byId = new Map(deviceList.map((d) => [d.id, d]));
   const byName = new Map(deviceList.map((d) => [normalizeName(d.displayName), d] as const).filter(([name]) => name.length > 0));
 
   for (const md of managedDevicesRaw) {
-    const aadDeviceId = (md.azureADDeviceId as string | undefined) ?? null;
-    const deviceName = (md.deviceName as string | undefined) ?? "Unknown";
+    const aadDeviceId = md.azureADDeviceId ?? null;
+    const deviceName = md.deviceName ?? "Unknown";
     const existingByName = byName.get(normalizeName(deviceName));
-    const id = aadDeviceId ?? `intune:${(md.id as string) ?? Math.random().toString(36).slice(2)}`;
+    const id = aadDeviceId ?? `intune:${md.id ?? Math.random().toString(36).slice(2)}`;
     const existing = byId.get(id) ?? (!aadDeviceId ? existingByName : undefined);
-    const complianceState = (md.complianceState as string | undefined)?.toLowerCase() ?? "unknown";
+    const complianceState = md.complianceState?.toLowerCase() ?? "unknown";
     const inferredCompliance = complianceState === "compliant" ? true : complianceState === "noncompliant" ? false : null;
     if (existing) {
       existing.isManaged = true;
       if (!existing.managementType) existing.managementType = "MDM";
       if (existing.isCompliant === null) existing.isCompliant = inferredCompliance;
-      if (!existing.approximateLastSignInDateTime) existing.approximateLastSignInDateTime = (md.lastSyncDateTime as string | undefined) ?? existing.approximateLastSignInDateTime;
+      if (!existing.approximateLastSignInDateTime) existing.approximateLastSignInDateTime = md.lastSyncDateTime ?? existing.approximateLastSignInDateTime;
       continue;
     }
-    const merged = {
-      id, displayName: deviceName, operatingSystem: (md.operatingSystem as string | undefined) ?? "Unknown",
-      operatingSystemVersion: (md.osVersion as string | undefined) ?? null, trustType: null as string | null,
-      isManaged: true, isCompliant: inferredCompliance, managementType: "MDM" as string | null,
-      approximateLastSignInDateTime: (md.lastSyncDateTime as string | undefined) ?? null,
+    const merged: DeviceEstateEntry = {
+      id, displayName: deviceName, operatingSystem: md.operatingSystem ?? "Unknown",
+      operatingSystemVersion: md.osVersion ?? null, trustType: null,
+      isManaged: true, isCompliant: inferredCompliance, managementType: "MDM",
+      approximateLastSignInDateTime: md.lastSyncDateTime ?? null,
     };
     deviceList.push(merged);
     byId.set(merged.id, merged);
@@ -448,23 +492,23 @@ export async function collectSecurityEstate() {
   }
 
   for (const m of mdeMachinesRaw) {
-    const aadDeviceId = (m.aadDeviceId as string | undefined) ?? null;
-    const mdeDisplayName = (m.computerDnsName as string | undefined) ?? (m.deviceName as string | undefined) ?? (m.id as string | undefined) ?? "Unknown";
+    const aadDeviceId = m.aadDeviceId ?? null;
+    const mdeDisplayName = m.computerDnsName ?? m.deviceName ?? m.id ?? "Unknown";
     const existingByName = byName.get(normalizeName(mdeDisplayName));
-    const id = aadDeviceId ?? `mde:${(m.id as string) ?? Math.random().toString(36).slice(2)}`;
+    const id = aadDeviceId ?? `mde:${m.id ?? Math.random().toString(36).slice(2)}`;
     const existing = byId.get(id) ?? (!aadDeviceId ? existingByName : undefined);
     if (existing) {
       existing.managementType = "MicrosoftSense";
       existing.isManaged = true;
-      if (!existing.approximateLastSignInDateTime) existing.approximateLastSignInDateTime = (m.lastSeen as string | undefined) ?? existing.approximateLastSignInDateTime;
+      if (!existing.approximateLastSignInDateTime) existing.approximateLastSignInDateTime = m.lastSeen ?? existing.approximateLastSignInDateTime;
       continue;
     }
-    const merged = {
+    const merged: DeviceEstateEntry = {
       id, displayName: mdeDisplayName,
-      operatingSystem: (m.osPlatform as string | undefined) ?? (m.osProcessor as string | undefined) ?? "Unknown",
-      operatingSystemVersion: (m.osVersion as string | undefined) ?? null, trustType: null as string | null,
-      isManaged: true, isCompliant: null as boolean | null, managementType: "MicrosoftSense" as string | null,
-      approximateLastSignInDateTime: (m.lastSeen as string | undefined) ?? null,
+      operatingSystem: m.osPlatform ?? m.osProcessor ?? "Unknown",
+      operatingSystemVersion: m.osVersion ?? null, trustType: null,
+      isManaged: true, isCompliant: null, managementType: "MicrosoftSense",
+      approximateLastSignInDateTime: m.lastSeen ?? null,
     };
     deviceList.push(merged);
     byId.set(merged.id, merged);
@@ -484,37 +528,37 @@ export async function collectSecurityEstate() {
   const deviceSummary = { total: deviceList.length, managed, unmanaged: deviceList.length - managed, mde, azureAdJoined, hybridJoined, registered, unknown: unknownTrust, byOs: osCounts };
 
   const saasApps = servicePrincipalsRaw
-    .filter((sp: any) => sp.servicePrincipalType === "Application")
-    .map((sp: any) => ({
-      id: sp.id as string, displayName: (sp.displayName as string) ?? "Unknown",
-      publisherName: (sp.publisherName as string) ?? null,
-      appOwnerOrganizationId: (sp.appOwnerOrganizationId as string) ?? null,
-      isFirstParty: (sp.appOwnerOrganizationId as string) === MICROSOFT_TENANT_ID,
-      createdDateTime: (sp.createdDateTime as string) ?? null, tags: (sp.tags as string[]) ?? [],
+    .filter((sp) => sp.servicePrincipalType === "Application")
+    .map((sp) => ({
+      id: sp.id ?? "", displayName: sp.displayName ?? "Unknown",
+      publisherName: sp.publisherName ?? null,
+      appOwnerOrganizationId: sp.appOwnerOrganizationId ?? null,
+      isFirstParty: sp.appOwnerOrganizationId === MICROSOFT_TENANT_ID,
+      createdDateTime: sp.createdDateTime ?? null, tags: sp.tags ?? [],
     }))
-    .sort((a: any, b: any) => (a.isFirstParty === b.isFirstParty ? 0 : a.isFirstParty ? 1 : -1));
+    .sort((a, b) => (a.isFirstParty === b.isFirstParty ? 0 : a.isFirstParty ? 1 : -1));
 
   const oauthMap = new Map<string, { clientId: string; displayName: string; consentType: string; scopes: string[]; isOrgWide: boolean }>();
   for (const grant of oauthGrantsRaw) {
-    const clientId = grant.clientId as string;
-    const scopeWords = ((grant.scope as string) ?? "").split(/\s+/).filter(Boolean);
+    const clientId = grant.clientId ?? "";
+    const scopeWords = (grant.scope ?? "").split(/\s+/).filter(Boolean);
     const existing = oauthMap.get(clientId);
     if (existing) {
       for (const s of scopeWords) if (!existing.scopes.includes(s)) existing.scopes.push(s);
       if (grant.consentType === "AllPrincipals") { existing.consentType = "AllPrincipals"; existing.isOrgWide = true; }
     } else {
-      oauthMap.set(clientId, { clientId, displayName: spNameMap.get(clientId) ?? clientId, consentType: (grant.consentType as string) ?? "Unknown", scopes: scopeWords, isOrgWide: grant.consentType === "AllPrincipals" });
+      oauthMap.set(clientId, { clientId, displayName: spNameMap.get(clientId) ?? clientId, consentType: grant.consentType ?? "Unknown", scopes: scopeWords, isOrgWide: grant.consentType === "AllPrincipals" });
     }
   }
   const oauthApps = Array.from(oauthMap.values()).sort((a, b) => (a.isOrgWide === b.isOrgWide ? 0 : a.isOrgWide ? -1 : 1));
 
-  const mdeDeviceInventory = mdeMachinesRaw.map((m: any) => ({
-    id: (m.aadDeviceId as string | undefined) ?? `mde:${(m.id as string | undefined) ?? Math.random().toString(36).slice(2)}`,
-    displayName: (m.computerDnsName as string | undefined) ?? (m.deviceName as string | undefined) ?? (m.id as string | undefined) ?? "Unknown",
-    operatingSystem: (m.osPlatform as string | undefined) ?? (m.osProcessor as string | undefined) ?? "Unknown",
-    operatingSystemVersion: (m.osVersion as string | undefined) ?? null, trustType: null as string | null,
-    isManaged: true, isCompliant: null as boolean | null, managementType: "MicrosoftSense" as string | null,
-    approximateLastSignInDateTime: (m.lastSeen as string | undefined) ?? null,
+  const mdeDeviceInventory: DeviceEstateEntry[] = mdeMachinesRaw.map((m) => ({
+    id: m.aadDeviceId ?? `mde:${m.id ?? Math.random().toString(36).slice(2)}`,
+    displayName: m.computerDnsName ?? m.deviceName ?? m.id ?? "Unknown",
+    operatingSystem: m.osPlatform ?? m.osProcessor ?? "Unknown",
+    operatingSystemVersion: m.osVersion ?? null, trustType: null,
+    isManaged: true, isCompliant: null, managementType: "MicrosoftSense",
+    approximateLastSignInDateTime: m.lastSeen ?? null,
   }));
 
   const mdeStatus = { ok: !mdeResult.error, status: mdeResult.status, count: mdeMachinesRaw.length, scope: mdeResult.scope, error: mdeResult.error };
@@ -537,8 +581,8 @@ export async function collectSecurityEstate() {
   };
   const defenderEndpointStatus = { ok: !defenderEndpointAlertsResult.error, error: defenderEndpointAlertsResult.error, totalAlerts: defenderEndpointAlerts.length, ...defenderEndpointAlertsBySeverity };
 
-  const resolvedIncidents = incidentsResult.items.filter((i: any) => resolvedLikeStatuses.has(((i.status as string | undefined) ?? "").toLowerCase())).length;
-  const resolvedAlerts = alertsResult.items.filter((a: any) => resolvedLikeStatuses.has(((a.status as string | undefined) ?? "").toLowerCase())).length;
+  const resolvedIncidents = incidentsResult.items.filter((i) => resolvedLikeStatuses.has((i.status ?? "").toLowerCase())).length;
+  const resolvedAlerts = alertsResult.items.filter((a) => resolvedLikeStatuses.has((a.status ?? "").toLowerCase())).length;
   const incidentAlert30dSummary = {
     unresolvedIncidents: incidentsResult.items.length - resolvedIncidents, resolvedIncidents,
     unresolvedAlerts: alertsResult.items.length - resolvedAlerts, resolvedAlerts,

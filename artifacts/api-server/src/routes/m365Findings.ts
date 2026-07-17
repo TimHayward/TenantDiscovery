@@ -1,5 +1,10 @@
 import { Router } from "express";
 import {
+  GetM365FindingsQueryParams,
+  PatchM365FindingBody,
+  PatchM365FindingParams,
+} from "@workspace/api-zod";
+import {
   ensureFindingsCurrent,
   getFindings,
   updateFindingState,
@@ -7,7 +12,8 @@ import {
 } from "../lib/findings/store.js";
 import { evaluateFindings } from "../lib/findings/engine.js";
 import { computeFrameworkCoverage } from "../lib/findings/frameworks/coverage.js";
-import { FINDING_STATUSES, type FindingStatus } from "../lib/findings/types.js";
+import type { FindingStatus } from "../lib/findings/types.js";
+import { validate } from "../middlewares/validate.js";
 
 const router = Router();
 
@@ -24,15 +30,23 @@ router.get("/m365/findings/frameworks", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/m365/findings", async (req, res): Promise<void> => {
+router.get(
+  "/m365/findings",
+  validate({ query: GetM365FindingsQueryParams }),
+  async (req, res): Promise<void> => {
   try {
     // Keep the register current with the latest collected snapshots on read,
     // regenerating only when new data has been collected since the last run.
     await ensureFindingsCurrent();
+    const query = req.valid!.query as {
+      severity?: string;
+      status?: string;
+      category?: string;
+    };
     const findings = await getFindings({
-      severity: typeof req.query.severity === "string" ? req.query.severity : undefined,
-      status: typeof req.query.status === "string" ? req.query.status : undefined,
-      category: typeof req.query.category === "string" ? req.query.category : undefined,
+      severity: query.severity,
+      status: query.status,
+      category: query.category,
     });
 
     const summary = findings.reduce(
@@ -51,13 +65,18 @@ router.get("/m365/findings", async (req, res): Promise<void> => {
   }
 });
 
-router.patch("/m365/findings/:fingerprint", async (req, res): Promise<void> => {
+router.patch(
+  "/m365/findings/:fingerprint",
+  validate({ params: PatchM365FindingParams, body: PatchM365FindingBody }),
+  async (req, res): Promise<void> => {
   try {
-    const body = (req.body ?? {}) as Record<string, unknown>;
-    if (body.status !== undefined && !FINDING_STATUSES.includes(body.status as FindingStatus)) {
-      res.status(400).json({ error: `status must be one of: ${FINDING_STATUSES.join(", ")}` });
-      return;
-    }
+    const params = req.valid!.params as { fingerprint: string };
+    const body = req.valid!.body as {
+      status?: FindingStatus;
+      owner?: string | null;
+      notes?: string | null;
+      dueDate?: string | null;
+    };
     // Reject unparseable dates so we never persist NaN as due_date.
     if (typeof body.dueDate === "string" && Number.isNaN(Date.parse(body.dueDate))) {
       res.status(400).json({ error: "dueDate must be a valid ISO date string or null" });
@@ -65,19 +84,19 @@ router.patch("/m365/findings/:fingerprint", async (req, res): Promise<void> => {
     }
 
     const update: FindingStateUpdate = {
-      status: body.status as FindingStatus | undefined,
-      owner: body.owner === undefined ? undefined : (body.owner as string | null),
-      notes: body.notes === undefined ? undefined : (body.notes as string | null),
-      dueDate: body.dueDate === undefined ? undefined : (body.dueDate as string | null),
+      status: body.status,
+      owner: body.owner === undefined ? undefined : body.owner,
+      notes: body.notes === undefined ? undefined : body.notes,
+      dueDate: body.dueDate === undefined ? undefined : body.dueDate,
     };
 
-    const ok = await updateFindingState(req.params.fingerprint, update);
+    const ok = await updateFindingState(params.fingerprint, update);
     if (!ok) {
       res.status(404).json({ error: "Finding not found" });
       return;
     }
 
-    const updated = (await getFindings()).find((f) => f.fingerprint === req.params.fingerprint);
+    const updated = (await getFindings()).find((f) => f.fingerprint === params.fingerprint);
     res.json(updated);
   } catch (err) {
     req.log.error({ err }, "Failed to update finding state");

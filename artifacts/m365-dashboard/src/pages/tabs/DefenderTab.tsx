@@ -4,6 +4,7 @@ import type {
   DeviceEstateItem,
   SaasAppItem,
   OAuthAppItem,
+  DefenderOfficeAlert,
 } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,9 +27,6 @@ import {
   Monitor, Smartphone, Apple, ShieldCheck, ShieldAlert, Globe, Lock, AlertTriangle, Building2, ChevronDown,
 } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer } from "recharts";
 import { formatDate } from "@/lib/utils";
 
@@ -293,6 +291,44 @@ const oauthColumns: ColumnDef<OAuthAppItem>[] = [
         </div>
       );
     },
+  },
+];
+
+// Shared by the Defender for Endpoint and Defender for Office alert tables —
+// the endpoint alert payload is structurally identical to DefenderOfficeAlert.
+const alertColumns: ColumnDef<DefenderOfficeAlert>[] = [
+  {
+    accessorKey: "title",
+    header: "Title",
+    cell: ({ row }) => <span className="block text-sm max-w-[300px] truncate font-medium">{row.original.title}</span>,
+  },
+  {
+    accessorKey: "severity",
+    header: "Severity",
+    cell: ({ row }) => (
+      <Badge className={`${alertSeverityBadgeClass(row.original.severity)} text-[10px] font-normal border-0`}>
+        {row.original.severity}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: "category",
+    header: "Category",
+    cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.category || "—"}</span>,
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => <span className="text-xs">{row.original.status}</span>,
+  },
+  {
+    accessorKey: "createdDateTime",
+    header: "Created",
+    cell: ({ row }) => (
+      <span className="text-xs text-muted-foreground">
+        {row.original.createdDateTime ? formatDate(row.original.createdDateTime) : "—"}
+      </span>
+    ),
   },
 ];
 
@@ -990,41 +1026,11 @@ export function DefenderTab() {
               <KPICard title="Medium Severity" value={estateData?.defenderEndpointStatus?.medium} loading={false} valueColor={(estateData?.defenderEndpointStatus?.medium ?? 0) > 0 ? C.warning : C.green} density="compact" />
               <KPICard title="Low + Info" value={(estateData?.defenderEndpointStatus?.low ?? 0) + (estateData?.defenderEndpointStatus?.informational ?? 0)} loading={false} density="compact" />
             </div>
-            {(estateData?.defenderEndpointAlerts?.length ?? 0) > 0 && (
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(estateData?.defenderEndpointAlerts ?? []).slice(0, 25).map((alert) => (
-                      <TableRow key={alert.id}>
-                        <TableCell className="text-sm max-w-[300px] truncate font-medium">{alert.title}</TableCell>
-                        <TableCell>
-                          <Badge className={`${alertSeverityBadgeClass(alert.severity)} text-[10px] font-normal border-0`}>
-                            {alert.severity}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{alert.category || "—"}</TableCell>
-                        <TableCell className="text-xs">{alert.status}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {alert.createdDateTime ? formatDate(alert.createdDateTime) : "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-            {(estateData?.defenderEndpointAlerts?.length ?? 0) === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">No Defender for Endpoint alerts found.</p>
-            )}
+            <DataTable
+              columns={alertColumns}
+              data={(estateData?.defenderEndpointAlerts ?? []).slice(0, 25)}
+              emptyMessage="No Defender for Endpoint alerts found."
+            />
           </div>
         )}
       </CollapsibleSection>
@@ -1195,41 +1201,11 @@ export function DefenderTab() {
               <KPICard title="Medium Severity" value={data?.defenderOfficeStatus?.medium} loading={false} valueColor={(data?.defenderOfficeStatus?.medium ?? 0) > 0 ? C.warning : C.green} density="compact" />
               <KPICard title="Low + Info" value={(data?.defenderOfficeStatus?.low ?? 0) + (data?.defenderOfficeStatus?.informational ?? 0)} loading={false} density="compact" />
             </div>
-            {(data?.defenderOfficeAlerts?.length ?? 0) > 0 && (
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(data?.defenderOfficeAlerts ?? []).slice(0, 25).map((alert) => (
-                      <TableRow key={alert.id}>
-                        <TableCell className="text-sm max-w-[300px] truncate font-medium">{alert.title}</TableCell>
-                        <TableCell>
-                          <Badge className={`${alertSeverityBadgeClass(alert.severity)} text-[10px] font-normal border-0`}>
-                            {alert.severity}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{alert.category || "—"}</TableCell>
-                        <TableCell className="text-xs">{alert.status}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {alert.createdDateTime ? formatDate(alert.createdDateTime) : "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-            {(data?.defenderOfficeAlerts?.length ?? 0) === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">No Defender for Office 365 alerts found.</p>
-            )}
+            <DataTable
+              columns={alertColumns}
+              data={(data?.defenderOfficeAlerts ?? []).slice(0, 25)}
+              emptyMessage="No Defender for Office 365 alerts found."
+            />
           </div>
         )}
       </CollapsibleSection>

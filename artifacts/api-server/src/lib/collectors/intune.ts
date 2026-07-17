@@ -1,28 +1,39 @@
-import { getGraphCredentialValues } from "../graphClient.js";
 import { getPermissionMetadataForFeature, getPermissionMetadataForFeatures } from "../permissionMetadata.js";
-import { createCollectionIssue, isPermissionIssue, type CollectionIssue } from "../collectionIssues.js";
+import {
+  createCollectionIssue,
+  fetchResourceWithRetry,
+  getAccessToken,
+  isPermissionIssue,
+  type CollectionIssue,
+} from "../collectionIssues.js";
+import type {
+  GraphComplianceDeviceStateSummary,
+  GraphCompliancePolicy,
+  GraphDetectedApp,
+  GraphEnrollmentConfiguration,
+  GraphManagedDevice,
+} from "./graphTypes.js";
 
 const PERMISSION_ERROR_CODES = new Set([403, 401]);
+const GRAPH_SCOPE = "https://graph.microsoft.com/.default";
 
-async function getToken(): Promise<string> {
-  const { ClientSecretCredential } = await import("@azure/identity");
-  const { tenantId, clientId, clientSecret } = await getGraphCredentialValues();
-  const cred = new ClientSecretCredential(tenantId, clientId, clientSecret, { tokenCachePersistenceOptions: { enabled: false } });
-  const token = await cred.getToken("https://graph.microsoft.com/.default");
-  return token!.token;
-}
-
-async function fetchWithToken(url: string, bearerToken: string): Promise<{ data: any; status: number }> {
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${bearerToken}` } });
+async function fetchWithToken<T>(url: string): Promise<{ data: T | null; status: number }> {
+  const resp = await fetchResourceWithRetry(url, GRAPH_SCOPE);
   if (!resp.ok) return { data: null, status: resp.status };
-  return { data: await resp.json(), status: resp.status };
+  return { data: (await resp.json()) as T, status: resp.status };
 }
 
-async function fetchAllPages(firstUrl: string, bearerToken: string): Promise<{ items: any[]; permissionDenied: boolean; status: number | null }> {
-  const items: any[] = [];
+interface GraphPage<T> {
+  value?: T[];
+  "@odata.nextLink"?: string;
+}
+
+async function fetchAllPages<T>(firstUrl: string): Promise<{ items: T[]; permissionDenied: boolean; status: number | null }> {
+  const items: T[] = [];
   let url: string | null = firstUrl;
   while (url) {
-    const { data, status } = await fetchWithToken(url, bearerToken);
+    const { data, status }: { data: GraphPage<T> | null; status: number } =
+      await fetchWithToken<GraphPage<T>>(url);
     if (PERMISSION_ERROR_CODES.has(status)) return { items: [], permissionDenied: true, status };
     if (!data || !data.value) break;
     items.push(...data.value);
@@ -31,16 +42,16 @@ async function fetchAllPages(firstUrl: string, bearerToken: string): Promise<{ i
   return { items, permissionDenied: false, status: null };
 }
 
-function isWindowsDevice(device: any): boolean {
+function isWindowsDevice(device: GraphManagedDevice): boolean {
   return (device.operatingSystem ?? "").toLowerCase().includes("windows");
 }
 
-function getTamperProtectionEnabled(device: any): boolean | null {
+function getTamperProtectionEnabled(device: GraphManagedDevice): boolean | null {
   const value = device.windowsProtectionState?.tamperProtectionEnabled;
   return typeof value === "boolean" ? value : null;
 }
 
-function getTamperProtectionSummary(devices: any[]) {
+function getTamperProtectionSummary(devices: GraphManagedDevice[]) {
   const windowsDevices = devices.filter(isWindowsDevice);
   const windowsDevicesWithState = windowsDevices.filter((device) => getTamperProtectionEnabled(device) !== null);
   const enabledDevices = windowsDevicesWithState.filter((device) => getTamperProtectionEnabled(device) === true).length;
@@ -61,7 +72,7 @@ function buildManagedDevicesUrl(): string {
   );
 }
 
-function getPlatform(oDataType: string): string {
+function getPlatform(oDataType: string | undefined): string {
   const t = (oDataType || "").toLowerCase();
   if (t.includes("windows")) return "Windows";
   if (t.includes("ios")) return "iOS";
@@ -70,14 +81,14 @@ function getPlatform(oDataType: string): string {
   return "Unknown";
 }
 
-async function computeIntuneData(token: string) {
+async function computeIntuneData() {
   const [devicesResult, compliancePoliciesResult, configProfilesResult, enrollmentConfigsResult, complianceSummaryResult, appProtectionPoliciesResult] = await Promise.all([
-    fetchAllPages(buildManagedDevicesUrl(), token),
-    fetchAllPages("https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies?$select=id,displayName,description,createdDateTime,lastModifiedDateTime&$expand=assignments($select=id,target)", token),
-    fetchAllPages("https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations?$select=id,displayName,description,createdDateTime,lastModifiedDateTime&$expand=assignments($select=id,target)", token),
-    fetchAllPages("https://graph.microsoft.com/v1.0/deviceManagement/deviceEnrollmentConfigurations?$select=id,displayName,description,enrollmentConfigurationType,createdDateTime,lastModifiedDateTime,priority", token),
-    fetchWithToken("https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicyDeviceStateSummary", token),
-    fetchAllPages("https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies?$select=id,displayName,description,createdDateTime,lastModifiedDateTime,@odata.type", token),
+    fetchAllPages<GraphManagedDevice>(buildManagedDevicesUrl()),
+    fetchAllPages<GraphCompliancePolicy>("https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies?$select=id,displayName,description,createdDateTime,lastModifiedDateTime&$expand=assignments($select=id,target)"),
+    fetchAllPages<GraphCompliancePolicy>("https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations?$select=id,displayName,description,createdDateTime,lastModifiedDateTime&$expand=assignments($select=id,target)"),
+    fetchAllPages<GraphEnrollmentConfiguration>("https://graph.microsoft.com/v1.0/deviceManagement/deviceEnrollmentConfigurations?$select=id,displayName,description,enrollmentConfigurationType,createdDateTime,lastModifiedDateTime,priority"),
+    fetchWithToken<GraphComplianceDeviceStateSummary>("https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicyDeviceStateSummary"),
+    fetchAllPages<GraphCompliancePolicy>("https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies?$select=id,displayName,description,createdDateTime,lastModifiedDateTime,@odata.type"),
   ]);
 
   const devices = devicesResult.items;
@@ -106,7 +117,7 @@ async function computeIntuneData(token: string) {
   const hasDeviceList = devices.length > 0;
   const totalDevices = hasDeviceList ? devices.length
     : overallCompliance ? (overallCompliance.compliantDeviceCount + overallCompliance.noncompliantDeviceCount + overallCompliance.remediatedDeviceCount + overallCompliance.notApplicableDeviceCount + overallCompliance.gracePeriodCount) : 0;
-  const compliantCount = hasDeviceList ? devices.filter((d: any) => d.complianceState === "compliant").length : (overallCompliance?.compliantDeviceCount ?? 0);
+  const compliantCount = hasDeviceList ? devices.filter((d) => d.complianceState === "compliant").length : (overallCompliance?.compliantDeviceCount ?? 0);
   const nonCompliantFromSummary = overallCompliance?.noncompliantDeviceCount ?? 0;
   const overallCompliancePercent = totalDevices > 0 ? Math.round((compliantCount / totalDevices) * 100) : 0;
 
@@ -142,8 +153,8 @@ async function computeIntuneData(token: string) {
   }
   const complianceByOS = Object.entries(osCompMap).map(([os, { compliant, total }]) => ({ os, compliant, nonCompliant: total - compliant, total, compliancePercent: Math.round((compliant / total) * 100) })).sort((a, b) => b.total - a.total);
 
-  const deviceList = devices.map((d: any) => ({
-    id: d.id, deviceName: d.deviceName || "Unknown", operatingSystem: d.operatingSystem || "Unknown",
+  const deviceList = devices.map((d) => ({
+    id: d.id ?? "", deviceName: d.deviceName || "Unknown", operatingSystem: d.operatingSystem || "Unknown",
     osVersion: d.osVersion || "Unknown", complianceState: d.complianceState || "unknown",
     enrolledDateTime: d.enrolledDateTime ?? null, lastSyncDateTime: d.lastSyncDateTime ?? null,
     userDisplayName: d.userDisplayName || "Unknown", userPrincipalName: d.userPrincipalName || "",
@@ -154,10 +165,10 @@ async function computeIntuneData(token: string) {
     tamperProtectionEnabled: getTamperProtectionEnabled(d),
   }));
 
-  const compliancePoliciesList = compliancePolicies.map((p: any) => ({ id: p.id, displayName: p.displayName || "Unnamed", description: p.description || "", platform: getPlatform(p["@odata.type"]), assignedGroups: (p.assignments || []).length, createdDateTime: p.createdDateTime ?? null, lastModifiedDateTime: p.lastModifiedDateTime ?? null }));
-  const configProfilesList = configProfiles.map((p: any) => ({ id: p.id, displayName: p.displayName || "Unnamed", description: p.description || "", platform: getPlatform(p["@odata.type"]), assignedGroups: (p.assignments || []).length, createdDateTime: p.createdDateTime ?? null, lastModifiedDateTime: p.lastModifiedDateTime ?? null }));
-  const enrollmentConfigsList = enrollmentConfigs.map((e: any) => ({ id: e.id, displayName: e.displayName || "Unnamed", type: e.enrollmentConfigurationType || "unknown", priority: e.priority ?? 0, createdDateTime: e.createdDateTime ?? null, lastModifiedDateTime: e.lastModifiedDateTime ?? null }));
-  const appProtectionList = appProtectionPolicies.map((p: any) => ({ id: p.id, displayName: p.displayName || "Unnamed", description: p.description || "", platform: getPlatform(p["@odata.type"]), assignedGroups: 0, createdDateTime: p.createdDateTime ?? null, lastModifiedDateTime: p.lastModifiedDateTime ?? null }));
+  const compliancePoliciesList = compliancePolicies.map((p) => ({ id: p.id ?? "", displayName: p.displayName || "Unnamed", description: p.description || "", platform: getPlatform(p["@odata.type"]), assignedGroups: (p.assignments || []).length, createdDateTime: p.createdDateTime ?? null, lastModifiedDateTime: p.lastModifiedDateTime ?? null }));
+  const configProfilesList = configProfiles.map((p) => ({ id: p.id ?? "", displayName: p.displayName || "Unnamed", description: p.description || "", platform: getPlatform(p["@odata.type"]), assignedGroups: (p.assignments || []).length, createdDateTime: p.createdDateTime ?? null, lastModifiedDateTime: p.lastModifiedDateTime ?? null }));
+  const enrollmentConfigsList = enrollmentConfigs.map((e) => ({ id: e.id ?? "", displayName: e.displayName || "Unnamed", type: e.enrollmentConfigurationType || "unknown", priority: e.priority ?? 0, createdDateTime: e.createdDateTime ?? null, lastModifiedDateTime: e.lastModifiedDateTime ?? null }));
+  const appProtectionList = appProtectionPolicies.map((p) => ({ id: p.id ?? "", displayName: p.displayName || "Unnamed", description: p.description || "", platform: getPlatform(p["@odata.type"]), assignedGroups: 0, createdDateTime: p.createdDateTime ?? null, lastModifiedDateTime: p.lastModifiedDateTime ?? null }));
 
   const policyByOS: Record<string, { totalPolicies: number; policyNames: string[] }> = {};
   for (const p of compliancePolicies) {
@@ -168,9 +179,9 @@ async function computeIntuneData(token: string) {
   }
   const policySummaryByOS = Object.entries(policyByOS).map(([os, info]) => ({ os, ...info }));
 
-  const encryptedCount = devices.filter((d: any) => d.isEncrypted === true).length;
+  const encryptedCount = devices.filter((d) => d.isEncrypted === true).length;
   const encryptionPercent = hasDeviceList ? Math.round((encryptedCount / totalDevices) * 100) : 0;
-  const jailbrokenCount = devices.filter((d: any) => typeof d.jailBroken === "string" && d.jailBroken.toLowerCase() === "true").length;
+  const jailbrokenCount = devices.filter((d) => typeof d.jailBroken === "string" && d.jailBroken.toLowerCase() === "true").length;
   const effectiveNonCompliant = hasDeviceList ? (compMap["noncompliant"] || 0) : nonCompliantFromSummary;
 
   const assessmentItems = [
@@ -207,18 +218,17 @@ async function computeIntuneData(token: string) {
 
 export async function collectIntune() {
   const intunePermissionMetadata = getPermissionMetadataForFeature("intune-devices");
-  const token = await getToken();
-  const data = await computeIntuneData(token);
+  const data = await computeIntuneData();
   return { ...data, permissionMetadata: intunePermissionMetadata };
 }
 
 export async function collectIntuneApps() {
   const intuneAppsPermissionMetadata = getPermissionMetadataForFeatures(["intune-app-installations", "intune-discovered-apps"]);
-  const token = await getToken();
+  const token = await getAccessToken(GRAPH_SCOPE);
 
   const [installReportRaw, detectedAppsResult] = await Promise.all([
     (async () => {
-      const allRows: any[][] = [];
+      const allRows: unknown[][] = [];
       let skip = 0; const top = 200; let totalRowCount = 0; let schema: { Column: string }[] = []; let permissionDenied = false;
       do {
         const resp = await fetch("https://graph.microsoft.com/beta/deviceManagement/reports/getAppsInstallSummaryReport", {
@@ -228,7 +238,7 @@ export async function collectIntuneApps() {
         });
         if (PERMISSION_ERROR_CODES.has(resp.status)) { permissionDenied = true; break; }
         if (!resp.ok) break;
-        const d = await resp.json() as any;
+        const d = (await resp.json()) as { Schema?: { Column: string }[]; TotalRowCount?: number; Values?: unknown[][] };
         if (schema.length === 0) schema = d.Schema || [];
         totalRowCount = d.TotalRowCount ?? 0;
         allRows.push(...(d.Values || []));
@@ -236,7 +246,7 @@ export async function collectIntuneApps() {
       } while (allRows.length < totalRowCount);
       return { rows: allRows, schema, permissionDenied };
     })(),
-    fetchAllPages("https://graph.microsoft.com/beta/deviceManagement/detectedApps?$select=id,displayName,version,sizeInByte,deviceCount,platform", token),
+    fetchAllPages<GraphDetectedApp>("https://graph.microsoft.com/beta/deviceManagement/detectedApps?$select=id,displayName,version,sizeInByte,deviceCount,platform"),
   ]);
 
   const installPermissionRequired = installReportRaw.permissionDenied;
@@ -250,12 +260,12 @@ export async function collectIntuneApps() {
   }
 
   const colIdx: Record<string, number> = {};
-  installReportRaw.schema.forEach((s: { Column: string }, i: number) => { colIdx[s.Column] = i; });
+  installReportRaw.schema.forEach((s, i) => { colIdx[s.Column] = i; });
 
   let totalInstalled = 0, totalFailed = 0, totalPending = 0, totalNotApplicable = 0, totalNotInstalled = 0;
   const installMap: Record<string, { installed: number; failed: number; pending: number; notApplicable: number; notInstalled: number }> = {};
 
-  const appInstallList = installReportRaw.rows.map((row: any[]) => {
+  const appInstallList = installReportRaw.rows.map((row) => {
     const id = String(row[colIdx["ApplicationId"]] ?? ""); const displayName = String(row[colIdx["DisplayName"]] ?? "Unknown"); const publisher = row[colIdx["Publisher"]] != null ? String(row[colIdx["Publisher"]]) : null; const platform = String(row[colIdx["AppPlatform"]] ?? "Other");
     const installed = Number(row[colIdx["InstalledDeviceCount"]]) || 0; const failed = Number(row[colIdx["FailedDeviceCount"]]) || 0; const pending = Number(row[colIdx["PendingInstallDeviceCount"]]) || 0; const notApplicable = Number(row[colIdx["NotApplicableDeviceCount"]]) || 0; const notInstalled = Number(row[colIdx["NotInstalledDeviceCount"]]) || 0;
     totalInstalled += installed; totalFailed += failed; totalPending += pending; totalNotApplicable += notApplicable; totalNotInstalled += notInstalled;
@@ -277,12 +287,12 @@ export async function collectIntuneApps() {
   let managedDiscoveredApps = 0, unmanagedDiscoveredApps = 0;
   const discoveredMap: Record<string, { managed: number; unmanaged: number }> = {};
 
-  const discoveredAppList = detectedApps.map((app: any) => {
+  const discoveredAppList = detectedApps.map((app) => {
     const platform = platformFromDetected(app.platform || "");
     const managed = managedNames.has((app.displayName || "").toLowerCase().trim());
     if (!discoveredMap[platform]) discoveredMap[platform] = { managed: 0, unmanaged: 0 };
     if (managed) { managedDiscoveredApps++; discoveredMap[platform].managed++; } else { unmanagedDiscoveredApps++; discoveredMap[platform].unmanaged++; }
-    return { id: app.id, displayName: app.displayName || "Unknown", version: app.version ?? null, deviceCount: app.deviceCount ?? 0, platform, managed };
+    return { id: app.id ?? "", displayName: app.displayName || "Unknown", version: app.version ?? null, deviceCount: app.deviceCount ?? 0, platform, managed };
   });
 
   const discoveredByPlatform = Object.entries(discoveredMap).map(([platform, counts]) => ({ platform, ...counts })).sort((a, b) => (b.managed + b.unmanaged) - (a.managed + a.unmanaged));

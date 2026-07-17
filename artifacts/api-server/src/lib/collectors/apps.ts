@@ -4,6 +4,12 @@ import {
   isPermissionIssue,
   type CollectionIssue,
 } from "../collectionIssues.js";
+import type {
+  GraphApplication,
+  GraphAuthorizationPolicy,
+  GraphOAuthGrant,
+  GraphPermissionDefiningSP,
+} from "./graphTypes.js";
 
 const HIGH_RISK_SCOPES = new Set([
   "Directory.ReadWrite.All", "Directory.Read.All", "User.ReadWrite.All", "User.ManageIdentities.All",
@@ -27,15 +33,15 @@ export async function collectApps() {
   const collectionIssues: CollectionIssue[] = [];
 
   const [appsResult, grantsResult, authPolicyResp, graphSPResp] = await Promise.all([
-    fetchAllGraphPages<any>(
+    fetchAllGraphPages<GraphApplication>(
       "https://graph.microsoft.com/v1.0/applications" +
         "?$expand=owners($select=id,displayName,accountEnabled)" +
         "&$select=id,appId,displayName,createdDateTime,signInAudience,requiredResourceAccess,passwordCredentials,keyCredentials,web,spa,publicClient&$top=999",
       "applications",
     ),
-    fetchAllGraphPages<any>("https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$select=clientId,consentType,principalId,resourceId,scope&$top=999", "oauth2PermissionGrants"),
-    fetchGraphJson<any>("https://graph.microsoft.com/v1.0/policies/authorizationPolicy", "authorizationPolicy"),
-    fetchGraphJson<any>("https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'&$select=id,appId,appRoles,oauth2PermissionScopes", "graphServicePrincipal"),
+    fetchAllGraphPages<GraphOAuthGrant>("https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$select=clientId,consentType,principalId,resourceId,scope&$top=999", "oauth2PermissionGrants"),
+    fetchGraphJson<GraphAuthorizationPolicy>("https://graph.microsoft.com/v1.0/policies/authorizationPolicy", "authorizationPolicy"),
+    fetchGraphJson<{ value?: GraphPermissionDefiningSP[] }>("https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'&$select=id,appId,appRoles,oauth2PermissionScopes", "graphServicePrincipal"),
   ]);
 
   collectionIssues.push(...appsResult.issues, ...grantsResult.issues);
@@ -52,55 +58,62 @@ export async function collectApps() {
   }
 
   const permIdToName = new Map<string, string>();
-  const graphSP = (graphSPResp.data?.value?.[0] as any) ?? null;
+  const graphSP = graphSPResp.data?.value?.[0] ?? null;
   if (graphSP) {
-    for (const role of (graphSP.appRoles ?? []) as any[]) permIdToName.set(role.id as string, role.value as string);
-    for (const scope of (graphSP.oauth2PermissionScopes ?? []) as any[]) permIdToName.set(scope.id as string, scope.value as string);
+    for (const role of graphSP.appRoles ?? []) {
+      if (role.id && role.value) permIdToName.set(role.id, role.value);
+    }
+    for (const scope of graphSP.oauth2PermissionScopes ?? []) {
+      if (scope.id && scope.value) permIdToName.set(scope.id, scope.value);
+    }
   }
 
-  const authPolicy = (authPolicyResp.data as any) ?? null;
+  const authPolicy = authPolicyResp.data ?? null;
   const usersCanRegisterApps = authPolicy?.defaultUserRolePermissions?.allowedToCreateApps !== false;
   const now = Date.now();
   const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
-  const apps = (appsResult.items as any[]).map((app: any) => {
-    const owners: Array<{ id: string; displayName: string; accountEnabled?: boolean }> = (app.owners ?? []).map((o: any) => ({ id: o.id as string, displayName: o.displayName as string, accountEnabled: o.accountEnabled as boolean | undefined }));
+  const apps = appsResult.items.map((app) => {
+    const owners: Array<{ id: string; displayName: string; accountEnabled?: boolean }> =
+      (app.owners ?? []).map((o) => ({ id: o.id ?? "", displayName: o.displayName ?? "", accountEnabled: o.accountEnabled }));
     const credentials: Array<{ keyId: string; displayName: string | null; startDateTime: string | null; endDateTime: string | null; type: "secret" | "certificate"; hint: string | null }> = [];
     let hasExpiredCredentials = false, hasLongLivedSecrets = false;
 
-    for (const secret of (app.passwordCredentials ?? []) as any[]) {
-      const endDate = secret.endDateTime ? new Date(secret.endDateTime as string).getTime() : null;
-      const startDate = secret.startDateTime ? new Date(secret.startDateTime as string).getTime() : null;
+    for (const secret of app.passwordCredentials ?? []) {
+      const endDate = secret.endDateTime ? new Date(secret.endDateTime).getTime() : null;
+      const startDate = secret.startDateTime ? new Date(secret.startDateTime).getTime() : null;
       if (endDate !== null && endDate < now) hasExpiredCredentials = true;
       const lifeMs = startDate && endDate ? endDate - startDate : null;
       if (lifeMs !== null && lifeMs > ONE_YEAR_MS) hasLongLivedSecrets = true;
-      credentials.push({ keyId: secret.keyId as string, displayName: (secret.displayName as string) ?? null, startDateTime: (secret.startDateTime as string) ?? null, endDateTime: (secret.endDateTime as string) ?? null, type: "secret", hint: (secret.hint as string) ?? null });
+      credentials.push({ keyId: secret.keyId ?? "", displayName: secret.displayName ?? null, startDateTime: secret.startDateTime ?? null, endDateTime: secret.endDateTime ?? null, type: "secret", hint: secret.hint ?? null });
     }
-    for (const cert of (app.keyCredentials ?? []) as any[]) {
-      const endDate = cert.endDateTime ? new Date(cert.endDateTime as string).getTime() : null;
+    for (const cert of app.keyCredentials ?? []) {
+      const endDate = cert.endDateTime ? new Date(cert.endDateTime).getTime() : null;
       if (endDate !== null && endDate < now) hasExpiredCredentials = true;
-      credentials.push({ keyId: cert.keyId as string, displayName: (cert.displayName as string) ?? null, startDateTime: (cert.startDateTime as string) ?? null, endDateTime: (cert.endDateTime as string) ?? null, type: "certificate", hint: null });
+      credentials.push({ keyId: cert.keyId ?? "", displayName: cert.displayName ?? null, startDateTime: cert.startDateTime ?? null, endDateTime: cert.endDateTime ?? null, type: "certificate", hint: null });
     }
 
     const permissions: Array<{ resourceAppId: string; resourceName: string; scopes: string[]; type: "Scope" | "Role"; isHighRisk: boolean }> = [];
     const highRiskScopesFound: string[] = [];
-    for (const resource of (app.requiredResourceAccess ?? []) as any[]) {
-      const resourceName = RESOURCE_NAMES[resource.resourceAppId as string] ?? resource.resourceAppId as string;
+    for (const resource of app.requiredResourceAccess ?? []) {
+      const resourceAppId = resource.resourceAppId ?? "";
+      const resourceName = RESOURCE_NAMES[resourceAppId] ?? resourceAppId;
       const byType: Record<string, string[]> = {};
-      for (const access of (resource.resourceAccess ?? []) as any[]) {
-        const scopeName = permIdToName.get(access.id as string) ?? (access.id as string);
-        const t = access.type as string; byType[t] = byType[t] ?? []; byType[t].push(scopeName);
+      for (const access of resource.resourceAccess ?? []) {
+        const accessId = access.id ?? "";
+        const scopeName = permIdToName.get(accessId) ?? accessId;
+        const t = access.type ?? ""; byType[t] = byType[t] ?? []; byType[t].push(scopeName);
         if (HIGH_RISK_SCOPES.has(scopeName)) highRiskScopesFound.push(scopeName);
       }
       for (const t of ["Scope", "Role"] as const) {
-        if (byType[t]?.length) permissions.push({ resourceAppId: resource.resourceAppId as string, resourceName, scopes: byType[t], type: t, isHighRisk: byType[t].some((s) => HIGH_RISK_SCOPES.has(s)) });
+        if (byType[t]?.length) permissions.push({ resourceAppId, resourceName, scopes: byType[t], type: t, isHighRisk: byType[t].some((s) => HIGH_RISK_SCOPES.has(s)) });
       }
     }
 
     const hasHighRiskPermissions = highRiskScopesFound.length > 0;
-    const redirectUris: string[] = [...((app.web?.redirectUris ?? []) as string[]), ...((app.spa?.redirectUris ?? []) as string[]), ...((app.publicClient?.redirectUris ?? []) as string[])];
+    const redirectUris: string[] = [...(app.web?.redirectUris ?? []), ...(app.spa?.redirectUris ?? []), ...(app.publicClient?.redirectUris ?? [])];
     const hasWildcardRedirectUris = redirectUris.some((uri) => uri.includes("*") || (uri.startsWith("http://") && !uri.includes("localhost") && !uri.includes("127.0.0.1")));
-    const isMultiTenant = (app.signInAudience as string) !== "AzureADMyOrg";
+    const isMultiTenant = app.signInAudience !== "AzureADMyOrg";
     const hasDisabledOwner = owners.some((o) => o.accountEnabled === false);
 
     const riskFactors: string[] = [];
@@ -118,8 +131,8 @@ export async function collectApps() {
     const riskLevel: "high" | "medium" | "low" = riskScore >= 4 ? "high" : riskScore >= 2 ? "medium" : "low";
 
     return {
-      id: app.id as string, appId: app.appId as string, displayName: app.displayName as string,
-      createdDateTime: (app.createdDateTime as string) ?? null, signInAudience: app.signInAudience as string,
+      id: app.id ?? "", appId: app.appId ?? "", displayName: app.displayName ?? "",
+      createdDateTime: app.createdDateTime ?? null, signInAudience: app.signInAudience ?? "",
       owners, credentials, hasExpiredCredentials, hasLongLivedSecrets, permissions, hasHighRiskPermissions,
       highRiskScopes: [...new Set(highRiskScopesFound)], redirectUris, hasWildcardRedirectUris,
       hasTenantWideAdminConsent: false, grantedScopes: [], riskScore, riskLevel, riskFactors,

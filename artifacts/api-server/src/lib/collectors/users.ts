@@ -6,6 +6,12 @@ import {
   type CollectionIssue,
 } from "../collectionIssues.js";
 import { parseCsv } from "../csv.js";
+import type {
+  GraphCAPolicy,
+  GraphRegistrationDetail,
+  GraphSecurityDefaultsPolicy,
+  GraphUserDetailed,
+} from "./graphTypes.js";
 
 const SKU_COST_MAP: Record<string, number> = {
   "06ebc4ee-1bb5-47dd-8120-11324bc54e06": 57,
@@ -70,12 +76,12 @@ export function resolveLastSignIn(
 export function deriveMfaEnforcementSignalFromPolicies(input: {
   securityDefaultsEnabled: boolean;
   securityDefaultsFailed: boolean;
-  caPolicies: any[];
+  caPolicies: GraphCAPolicy[];
   caFailed: boolean;
 }): MfaEnforcementSignal {
   if (input.securityDefaultsEnabled) return "securityDefaults";
 
-  const caMfaEnforced = input.caPolicies.some((p: any) => {
+  const caMfaEnforced = input.caPolicies.some((p) => {
     if (p.state !== "enabled") return false;
     const builtIn: string[] = p.grantControls?.builtInControls ?? [];
     if (!builtIn.includes("mfa")) return false;
@@ -101,11 +107,11 @@ export function deriveMfaEnforcementSignalFromPolicies(input: {
  */
 async function deriveMfaEnforcementSignal(): Promise<MfaEnforcementSignal> {
   const [secDefaultsResult, caPoliciesResult] = await Promise.all([
-    fetchGraphJson<any>(
+    fetchGraphJson<GraphSecurityDefaultsPolicy>(
       "https://graph.microsoft.com/v1.0/policies/identitySecurityDefaultsEnforcementPolicy",
       "identitySecurityDefaults",
     ),
-    fetchAllGraphPages<any>(
+    fetchAllGraphPages<GraphCAPolicy>(
       "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies?$top=999",
       "conditionalAccessPolicies",
     ),
@@ -121,13 +127,13 @@ async function deriveMfaEnforcementSignal(): Promise<MfaEnforcementSignal> {
 
 export async function collectUsers() {
   const [rawUsersResult, mfaUsersResult, activityCsvResult] = await Promise.all([
-    fetchAllGraphPages<any>(
+    fetchAllGraphPages<GraphUserDetailed>(
       "https://graph.microsoft.com/v1.0/users" +
         "?$select=id,displayName,userPrincipalName,accountEnabled,userType,signInActivity,assignedLicenses,department,jobTitle" +
         "&$top=999",
       "users",
     ),
-    fetchAllGraphPages<any>(
+    fetchAllGraphPages<GraphRegistrationDetail>(
       "https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails" +
         "?$select=id,isMfaRegistered&$top=999",
       "userRegistrationDetails",
@@ -158,7 +164,7 @@ export async function collectUsers() {
 
   const mfaMap = new Map<string, boolean>();
   for (const m of mfaUsers) {
-    mfaMap.set(m.id, m.isMfaRegistered ?? false);
+    if (m.id) mfaMap.set(m.id, m.isMfaRegistered ?? false);
   }
 
   // Build the last-activity fallback lookup keyed by lowercased UPN. Tenants
@@ -187,11 +193,20 @@ export async function collectUsers() {
 
   const nowMs = Date.now();
   const ghostThresholdMs = GHOST_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
-  const ghostUsers: any[] = [];
+  interface GhostUser {
+    id: string;
+    displayName: string;
+    userPrincipalName: string;
+    lastSignIn: string | null;
+    daysInactive: number | null;
+    assignedLicenseCount: number;
+    estimatedMonthlyCost: number;
+  }
+  const ghostUsers: GhostUser[] = [];
   let estimatedMonthlyWaste = 0;
 
-  const users = rawUsers.map((u: any) => {
-    const isMfa = mfaUnavailable ? null : (mfaMap.get(u.id) ?? false);
+  const users = rawUsers.map((u) => {
+    const isMfa = mfaUnavailable ? null : ((u.id ? mfaMap.get(u.id) : undefined) ?? false);
     if (u.accountEnabled) activeUsers++;
     else disabledUsers++;
     if (u.userType === "Guest") guestUsers++;
@@ -223,11 +238,11 @@ export async function collectUsers() {
           : null;
         let monthlyCost = 0;
         for (const lic of u.assignedLicenses ?? []) {
-          monthlyCost += SKU_COST_MAP[lic.skuId] ?? 0;
+          monthlyCost += SKU_COST_MAP[lic.skuId ?? ""] ?? 0;
         }
         estimatedMonthlyWaste += monthlyCost;
         ghostUsers.push({
-          id: u.id,
+          id: u.id ?? "",
           displayName: u.displayName ?? "",
           userPrincipalName: u.userPrincipalName ?? "",
           lastSignIn,
@@ -239,7 +254,7 @@ export async function collectUsers() {
     }
 
     return {
-      id: u.id,
+      id: u.id ?? "",
       displayName: u.displayName ?? "",
       userPrincipalName: u.userPrincipalName ?? "",
       accountEnabled: u.accountEnabled ?? false,

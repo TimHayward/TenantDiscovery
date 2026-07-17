@@ -5,6 +5,7 @@ import {
   isPermissionIssue,
   type CollectionIssue,
 } from "../collectionIssues.js";
+import type { GraphDlpPolicy, GraphSecureScore, GraphSensitivityLabel } from "./graphTypes.js";
 
 export async function collectCompliance() {
   const labelsPermissionMetadata = getPermissionMetadataForFeature("compliance-sensitivity-labels");
@@ -12,10 +13,10 @@ export async function collectCompliance() {
   const collectionNotes: string[] = [];
 
   const [secScoreResult, eDiscoveryResult, dlpResult, labelsResult] = await Promise.all([
-    fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/secureScores?$top=1", "secureScores", undefined, ["SecurityEvents.Read.All"]),
-    fetchGraphJson<any>("https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases?$top=1", "eDiscoveryCases"),
-    fetchAllGraphPages<any>("https://graph.microsoft.com/v1.0/security/informationProtection/policies/dlp/policies?$top=999", "dlpPolicies"),
-    fetchAllGraphPages<any>("https://graph.microsoft.com/beta/security/informationProtection/sensitivityLabels", "sensitivityLabels", ["InformationProtectionPolicy.Read.All"]),
+    fetchGraphJson<{ value?: GraphSecureScore[] }>("https://graph.microsoft.com/v1.0/security/secureScores?$top=1", "secureScores", undefined, ["SecurityEvents.Read.All"]),
+    fetchGraphJson<{ value?: unknown[] }>("https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases?$top=1", "eDiscoveryCases"),
+    fetchAllGraphPages<GraphDlpPolicy>("https://graph.microsoft.com/v1.0/security/informationProtection/policies/dlp/policies?$top=999", "dlpPolicies"),
+    fetchAllGraphPages<GraphSensitivityLabel>("https://graph.microsoft.com/beta/security/informationProtection/sensitivityLabels", "sensitivityLabels", ["InformationProtectionPolicy.Read.All"]),
   ]);
 
   if (secScoreResult.issue) collectionIssues.push(secScoreResult.issue);
@@ -45,11 +46,11 @@ export async function collectCompliance() {
 
   const dlpList = dlpResult.items;
   const dlpPolicies = dlpList.length;
-  const activeDlpPolicies = dlpList.filter((p: any) => p.mode === "Enable" || p.mode === "enable").length;
+  const activeDlpPolicies = dlpList.filter((p) => p.mode === "Enable" || p.mode === "enable").length;
 
   const sensitivityLabelsPermissionRequired = labelsResult.permissionError;
-  const sensitivityLabelsList = labelsResult.items.map((l: any) => ({
-    id: l.id, name: l.name ?? "Unknown", description: l.description ?? "",
+  const sensitivityLabelsList = labelsResult.items.map((l) => ({
+    id: l.id ?? "", name: l.name ?? "Unknown", description: l.description ?? "",
     tooltip: l.tooltip ?? "", color: l.color ?? "", sensitivity: l.sensitivity ?? 0,
     isActive: l.isActive ?? true, isAppliable: l.isAppliable ?? true,
     hasProtection: l.hasProtection ?? false, contentFormats: l.contentFormats ?? [],
@@ -61,7 +62,7 @@ export async function collectCompliance() {
   // When the endpoint is unavailable or unpermitted we surface a manual check rather than a fabricated count.
   let retentionLabelCount: number | null = null;
   let retentionEvidence: "apiBacked" | "manual" = "manual";
-  const retentionResult = await fetchGraphJson<any>(
+  const retentionResult = await fetchGraphJson<{ value?: unknown[] }>(
     "https://graph.microsoft.com/beta/security/labels/retentionLabels?$top=999",
     "retentionLabels",
     undefined,

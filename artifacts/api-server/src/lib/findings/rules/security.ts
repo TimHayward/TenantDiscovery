@@ -3,7 +3,7 @@ import { cis, ce } from "../frameworks/catalogue.js";
 import type { Severity } from "../types.js";
 
 /** Minimal shape of the m365-security snapshot consumed by these rules. */
-interface SecurityData {
+export interface SecurityData {
   secureScorePercent?: number;
   mfaEnabledPercent?: number;
   enabledCAPs?: number;

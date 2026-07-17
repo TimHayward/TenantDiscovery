@@ -1,37 +1,37 @@
 import { Router } from "express";
+import { GetM365IntuneDeviceComplianceParams } from "@workspace/api-zod";
 import { withMetadata } from "../lib/metadata.js";
 import { getOrFetch } from "../lib/metricStore.js";
 import { collectIntune, collectIntuneApps } from "../lib/collectors/intune.js";
-import { getGraphCredentialValues } from "../lib/graphClient.js";
+import { fetchResourceWithRetry, getErrorMessage } from "../lib/collectionIssues.js";
+import type {
+  GraphCompliancePolicyState,
+  GraphDeviceComplianceSettingState,
+} from "../lib/collectors/graphTypes.js";
 import {
   getPermissionMetadataForFeature,
 } from "../lib/permissionMetadata.js";
+import { validate } from "../middlewares/validate.js";
 
 const router = Router();
 
 const PERMISSION_ERROR_CODES = new Set([403, 401]);
+const GRAPH_SCOPE = "https://graph.microsoft.com/.default";
 
-async function getToken(): Promise<string> {
-  const { ClientSecretCredential } = await import("@azure/identity");
-  const { tenantId, clientId, clientSecret } = await getGraphCredentialValues();
-  const cred = new ClientSecretCredential(tenantId, clientId, clientSecret, { tokenCachePersistenceOptions: { enabled: false } });
-  const token = await cred.getToken("https://graph.microsoft.com/.default");
-  return token!.token;
+interface GraphPage<T> {
+  value?: T[];
+  "@odata.nextLink"?: string;
 }
 
-async function fetchWithToken(url: string, bearerToken: string): Promise<{ data: any; status: number }> {
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${bearerToken}` } });
-  if (!resp.ok) return { data: null, status: resp.status };
-  return { data: await resp.json(), status: resp.status };
-}
-
-async function fetchAllPages(firstUrl: string, bearerToken: string): Promise<{ items: any[]; permissionDenied: boolean }> {
-  const items: any[] = [];
+async function fetchAllPages<T>(firstUrl: string): Promise<{ items: T[]; permissionDenied: boolean }> {
+  const items: T[] = [];
   let url: string | null = firstUrl;
   while (url) {
-    const { data, status } = await fetchWithToken(url, bearerToken);
-    if (PERMISSION_ERROR_CODES.has(status)) return { items: [], permissionDenied: true };
-    if (!data || !data.value) break;
+    const resp: Response = await fetchResourceWithRetry(url, GRAPH_SCOPE);
+    if (PERMISSION_ERROR_CODES.has(resp.status)) return { items: [], permissionDenied: true };
+    if (!resp.ok) break;
+    const data = (await resp.json()) as GraphPage<T>;
+    if (!data.value) break;
     items.push(...data.value);
     url = data["@odata.nextLink"] ?? null;
   }
@@ -42,9 +42,9 @@ router.get("/m365/intune", async (req, res) => {
   try {
     const data = await getOrFetch("m365-intune", collectIntune);
     res.json(data);
-  } catch (err: any) {
+  } catch (err) {
     req.log.error({ err }, "Intune route error");
-    res.status(500).json({ error: String(err.message) });
+    res.status(500).json({ error: getErrorMessage(err) });
   }
 });
 
@@ -72,22 +72,23 @@ router.get("/m365/intune/with-metadata", async (req, res) => {
     };
 
     res.json(withMetadata(data, fieldMetadata));
-  } catch (err: any) {
+  } catch (err) {
     req.log.error({ err }, "Intune route with metadata error");
-    res.status(500).json({ error: String(err.message) });
+    res.status(500).json({ error: getErrorMessage(err) });
   }
 });
 
 // Per-device compliance drill-down — not cached (per-device, dynamic)
-router.get("/m365/intune/device/:deviceId/compliance", async (req, res) => {
-  const { deviceId } = req.params;
+router.get(
+  "/m365/intune/device/:deviceId/compliance",
+  validate({ params: GetM365IntuneDeviceComplianceParams }),
+  async (req, res) => {
+  const { deviceId } = req.valid!.params as { deviceId: string };
   try {
-    const token = await getToken();
     const encodedId = encodeURIComponent(deviceId);
 
-    const policyStatesResult = await fetchAllPages(
+    const policyStatesResult = await fetchAllPages<GraphCompliancePolicyState>(
       `https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/${encodedId}/deviceCompliancePolicyStates`,
-      token,
     );
 
     if (policyStatesResult.permissionDenied) {
@@ -97,25 +98,24 @@ router.get("/m365/intune/device/:deviceId/compliance", async (req, res) => {
     const policyStates = policyStatesResult.items;
     const NON_COMPLIANT = new Set(["noncompliant", "nonCompliant", "error"]);
 
-    const policies = await Promise.all(policyStates.map(async (policy: any) => {
-      const isNonCompliant = NON_COMPLIANT.has(policy.state);
+    const policies = await Promise.all(policyStates.map(async (policy) => {
+      const isNonCompliant = NON_COMPLIANT.has(policy.state ?? "");
       let failingRules: Array<{ settingName: string; state: string; errorDescription: string }> = [];
       if (isNonCompliant) {
         try {
-          const settingResult = await fetchAllPages(
-            `https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/${encodedId}/deviceCompliancePolicyStates/${encodeURIComponent(policy.id)}/settingStates`,
-            token,
+          const settingResult = await fetchAllPages<GraphDeviceComplianceSettingState>(
+            `https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/${encodedId}/deviceCompliancePolicyStates/${encodeURIComponent(policy.id ?? "")}/settingStates`,
           );
-          failingRules = settingResult.items.filter((s: any) => NON_COMPLIANT.has(s.state)).map((s: any) => ({ settingName: s.settingName || "", state: s.state || "unknown", errorDescription: s.errorDescription || "" }));
+          failingRules = settingResult.items.filter((s) => NON_COMPLIANT.has(s.state ?? "")).map((s) => ({ settingName: s.settingName || "", state: s.state || "unknown", errorDescription: s.errorDescription || "" }));
         } catch { /* skip gracefully */ }
       }
-      return { policyId: policy.id as string, policyName: (policy.displayName || "Unknown Policy") as string, platformType: (policy.platformType || "unknown") as string, state: (policy.state || "unknown") as string, lastReportedDateTime: (policy.lastReportedDateTime || null) as string | null, failingRules };
+      return { policyId: policy.id ?? "", policyName: policy.displayName || "Unknown Policy", platformType: policy.platformType || "unknown", state: policy.state || "unknown", lastReportedDateTime: policy.lastReportedDateTime || null, failingRules };
     }));
 
     return res.json({ deviceId, totalPolicies: policies.length, nonCompliantPolicies: policies.filter((p) => NON_COMPLIANT.has(p.state)).length, policies });
-  } catch (err: any) {
+  } catch (err) {
     req.log.error({ err }, "Device compliance detail error");
-    return res.status(500).json({ error: String(err.message) });
+    return res.status(500).json({ error: getErrorMessage(err) });
   }
 });
 
@@ -123,9 +123,9 @@ router.get("/m365/intune/apps", async (req, res) => {
   try {
     const data = await getOrFetch("m365-intune-apps", collectIntuneApps);
     res.json(data);
-  } catch (err: any) {
+  } catch (err) {
     req.log.error({ err }, "Intune apps error");
-    res.status(500).json({ error: String(err.message) });
+    res.status(500).json({ error: getErrorMessage(err) });
   }
 });
 

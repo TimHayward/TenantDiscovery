@@ -84,19 +84,25 @@ function backoffDelayMs(attempt: number): number {
 }
 
 /**
- * Fetch a Graph resource with bounded retries. Retries throttling (429) and
- * transient upstream (5xx) responses honoring `Retry-After`, and transient
+ * Fetch a bearer-authenticated resource with bounded retries, acquiring an
+ * app-only token for the given scope. Retries throttling (429) and transient
+ * upstream (5xx) responses honoring `Retry-After`, and transient
  * network/timeout errors with jittered backoff. Returns the final Response
  * (which may still be non-ok) or throws the last transport error.
+ *
+ * Exported so non-Graph collectors (e.g. Defender for Endpoint on
+ * api.security.microsoft.com) share the same timeout/retry policy
+ * (`GRAPH_FETCH_TIMEOUT_MS` / `GRAPH_MAX_RETRIES`).
  */
-async function graphFetchWithRetry(
+export async function fetchResourceWithRetry(
   url: string,
+  scope: string,
   extraHeaders?: Record<string, string>,
 ): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 0; ; attempt++) {
     try {
-      const token = await getGraphAccessToken();
+      const token = await getAccessToken(scope);
       const resp = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -120,9 +126,16 @@ async function graphFetchWithRetry(
         await sleep(backoffDelayMs(attempt));
         continue;
       }
-      throw error;
+      throw lastError;
     }
   }
+}
+
+function graphFetchWithRetry(
+  url: string,
+  extraHeaders?: Record<string, string>,
+): Promise<Response> {
+  return fetchResourceWithRetry(url, GRAPH_SCOPE, extraHeaders);
 }
 
 function classifyStatus(status: number | null): CollectionIssueCategory {
@@ -216,10 +229,6 @@ export async function getAccessToken(scope: string): Promise<string> {
   });
 
   return token.token;
-}
-
-function getGraphAccessToken(): Promise<string> {
-  return getAccessToken(GRAPH_SCOPE);
 }
 
 async function readResponseError(resp: Response): Promise<string> {

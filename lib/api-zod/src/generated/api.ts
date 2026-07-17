@@ -1879,7 +1879,8 @@ export const PatchOnboardingSetupBody = zod.object({
   "tenantId": zod.string().nullish(),
   "clientId": zod.string().nullish(),
   "clientSecret": zod.string().nullish(),
-  "setupComplete": zod.boolean().optional()
+  "setupComplete": zod.boolean().optional(),
+  "acknowledgedMissingPermissions": zod.array(zod.string()).nullish()
 })
 
 export const PatchOnboardingSetupResponse = zod.object({

@@ -8,12 +8,13 @@ import {
 import { lookupDomainEmailAuth } from "../dns/emailAuthDns.js";
 import { fetchDkimSigningConfigs, isExchangeCertAuthConfigured } from "../exchangeOnline.js";
 import { parseCsv } from "../csv.js";
+import type { GraphDomain, GraphServiceConfigurationRecord } from "./graphTypes.js";
 
 export async function collectExchange() {
   const [mailboxCsvResult, activityCsvResult, domainsResult] = await Promise.all([
     fetchGraphText("https://graph.microsoft.com/v1.0/reports/getMailboxUsageDetail(period='D30')", "mailboxUsageDetailReport", ["Reports.Read.All"]),
     fetchGraphText("https://graph.microsoft.com/v1.0/reports/getEmailActivityCounts(period='D30')", "emailActivityCountsReport", ["Reports.Read.All"]),
-    fetchAllGraphPages<any>("https://graph.microsoft.com/v1.0/domains?$select=id,isVerified,supportedServices", "domains", ["Domain.Read.All"]),
+    fetchAllGraphPages<GraphDomain>("https://graph.microsoft.com/v1.0/domains?$select=id,isVerified,supportedServices", "domains", ["Domain.Read.All"]),
   ]);
 
   const collectionIssues: CollectionIssue[] = [];
@@ -65,7 +66,7 @@ export async function collectExchange() {
   }
 
   const emailDomains = domainsResult.items.filter(
-    (d: any) => d.isVerified && (d.supportedServices as string[] ?? []).includes("Email"),
+    (d) => d.isVerified && (d.supportedServices ?? []).includes("Email"),
   );
 
   const domainsToCheck = emailDomains.slice(0, 20);
@@ -89,26 +90,26 @@ export async function collectExchange() {
   }
 
   const domainAuthRecords = await Promise.all(
-    domainsToCheck.map(async (domain: any) => {
-      const domainId: string = domain.id;
+    domainsToCheck.map(async (domain) => {
+      const domainId = domain.id ?? "";
 
       // Primary signal: live DNS resolution of the published records.
       const dns = await lookupDomainEmailAuth(domainId);
       collectionIssues.push(...dns.issues);
 
       // Secondary signal: Microsoft's recommended/expected service-configuration records.
-      const expected = await fetchGraphJson<any>(
+      const expected = await fetchGraphJson<{ value?: GraphServiceConfigurationRecord[] }>(
         `https://graph.microsoft.com/v1.0/domains/${encodeURIComponent(domainId)}/serviceConfigurationRecords`,
         `domainConfigRecords:${domainId}`,
         undefined,
         ["Domain.Read.All"],
       );
       if (expected.issue) collectionIssues.push(expected.issue);
-      const expectedRecords: any[] = expected.data?.value ?? [];
+      const expectedRecords = expected.data?.value ?? [];
       const expectedSpf = expectedRecords.some(
-        (r: any) => r.recordType === "Txt" && typeof r.text === "string" && r.text.toLowerCase().includes("v=spf1"),
+        (r) => r.recordType === "Txt" && typeof r.text === "string" && r.text.toLowerCase().includes("v=spf1"),
       );
-      const expectedMx = expectedRecords.some((r: any) => r.recordType === "Mx");
+      const expectedMx = expectedRecords.some((r) => r.recordType === "Mx");
 
       // DKIM: prefer authoritative Exchange Online status, fall back to DNS selector CNAMEs.
       const exoDkim = dkimResult.byDomain?.get(domainId.toLowerCase());

@@ -210,7 +210,7 @@ export function PowerBITab() {
 
       {/* Capacities section */}
       {data?.available && (data.capacities?.length ?? 0) > 0 && (
-        <CollapsibleSection title="Premium Capacities" storageKey="powerbi-capacities" defaultOpen>
+        <CollapsibleSection title="Premium Capacities" storageKey="powerbi-capacities" defaultOpen issue={issue}>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

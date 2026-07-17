@@ -1,11 +1,17 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
 const app: Express = express();
+
+// The API serves JSON only (no browser-rendered HTML), so the CSP/COEP
+// defaults have nothing to protect and only risk breaking future routes;
+// the remaining default headers (X-Content-Type-Options, HSTS, etc.) still apply.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
 app.use(
   pinoHttp({

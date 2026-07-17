@@ -4,6 +4,14 @@ import {
   isPermissionIssue,
   type CollectionIssue,
 } from "../collectionIssues.js";
+import type {
+  GraphHealthOverview,
+  GraphOrganization,
+  GraphRegistrationDetail,
+  GraphSecureScore,
+  GraphSubscribedSku,
+  GraphUserBasic,
+} from "./graphTypes.js";
 
 const GRAPH_MAX_PAGE_SIZE = 500;
 
@@ -15,27 +23,27 @@ function numeric(value: unknown): number {
 export async function collectOverview() {
   const [orgData, usersData, subsData, secScoreData, mfaData, healthData] =
     await Promise.all([
-      fetchGraphJson<any>(
+      fetchGraphJson<{ value?: GraphOrganization[] }>(
         "https://graph.microsoft.com/v1.0/organization?$select=displayName,id",
         "organization",
       ),
-      fetchAllGraphPages<any>(
+      fetchAllGraphPages<GraphUserBasic>(
         `https://graph.microsoft.com/v1.0/users?$select=id,accountEnabled,userType&$top=${GRAPH_MAX_PAGE_SIZE}`,
         "users",
       ),
-      fetchGraphJson<any>(
+      fetchGraphJson<{ value?: GraphSubscribedSku[] }>(
         "https://graph.microsoft.com/v1.0/subscribedSkus",
         "subscribedSkus",
       ),
-      fetchGraphJson<any>(
+      fetchGraphJson<{ value?: GraphSecureScore[] }>(
         "https://graph.microsoft.com/v1.0/security/secureScores?$top=1",
         "secureScores",
       ),
-      fetchAllGraphPages<any>(
+      fetchAllGraphPages<GraphRegistrationDetail>(
         `https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails?$select=id,isMfaRegistered&$top=${GRAPH_MAX_PAGE_SIZE}`,
         "userRegistrationDetails",
       ),
-      fetchGraphJson<any>(
+      fetchGraphJson<{ value?: GraphHealthOverview[] }>(
         "https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/healthOverviews",
         "serviceHealthOverviews",
       ),
@@ -50,11 +58,11 @@ export async function collectOverview() {
   if (healthData.issue) collectionIssues.push(healthData.issue);
 
   const org = orgData.data?.value?.[0] ?? null;
-  const rawUsers: any[] = usersData.items;
-  const subs: any[] = subsData.data?.value ?? [];
+  const rawUsers = usersData.items;
+  const subs = subsData.data?.value ?? [];
   const secScore = secScoreData.data?.value?.[0] ?? null;
-  const mfaUsers: any[] = mfaData.items;
-  const services: any[] = healthData.data?.value ?? [];
+  const mfaUsers = mfaData.items;
+  const services = healthData.data?.value ?? [];
 
   const totalUsers = rawUsers.length;
   let activeUsers = 0;
@@ -79,13 +87,13 @@ export async function collectOverview() {
   const secureScore = secScore?.currentScore ?? 0;
   const secureScoreMax = secScore?.maxScore ?? 100;
 
-  const mfaEnabledCount = mfaUsers.filter((u: any) => u.isMfaRegistered).length;
+  const mfaEnabledCount = mfaUsers.filter((u) => u.isMfaRegistered).length;
   const mfaEnabledPercent =
     mfaUsers.length > 0 ? Math.round((mfaEnabledCount / mfaUsers.length) * 100) : 0;
 
   const totalServices = services.length;
   const activeServices = services.filter(
-    (s: any) => s.status === "serviceOperational",
+    (s) => s.status === "serviceOperational",
   ).length;
 
   return {

@@ -19,9 +19,6 @@ import { useChartTheme } from "@/lib/useChartTheme";
 import { formatDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +27,7 @@ import type {
   MfaUserItem,
   MfaMethodStrengthItem,
   SecureScoreControl,
+  M365SecurityDataRiskyUsersDetailItem,
 } from "@workspace/api-client-react";
 import { getMetricDataSourceEntry } from "@workspace/permissions-manifest";
 import { chartPalette } from "@/lib/chartPalette";
@@ -266,6 +264,38 @@ const methodColumns: ColumnDef<MfaMethodStrengthItem>[] = [
         </div>
         <span className="text-sm text-muted-foreground">{row.original.percentOfUsers}%</span>
       </div>
+    ),
+  },
+];
+
+const riskyUserColumns: ColumnDef<M365SecurityDataRiskyUsersDetailItem>[] = [
+  {
+    accessorKey: "displayName",
+    header: "User",
+    cell: ({ row }) => (
+      <div>
+        <p className="font-medium text-sm">{row.original.displayName}</p>
+        <p className="text-xs text-muted-foreground">{row.original.userPrincipalName}</p>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "riskLevel",
+    header: "Risk Level",
+    cell: ({ row }) => <RiskBadge level={row.original.riskLevel} />,
+  },
+  {
+    accessorKey: "riskState",
+    header: "Risk State",
+    cell: ({ row }) => <span className="text-sm capitalize">{row.original.riskState}</span>,
+  },
+  {
+    accessorKey: "riskLastUpdatedDateTime",
+    header: "Last Updated",
+    cell: ({ row }) => (
+      <span className="text-xs text-muted-foreground">
+        {row.original.riskLastUpdatedDateTime ? formatDate(row.original.riskLastUpdatedDateTime) : "—"}
+      </span>
     ),
   },
 ];
@@ -697,33 +727,11 @@ export function SecurityTab() {
           actions={<ExportBtn filename="risky-users.csv" data={data?.riskyUsersDetail ?? []} />}
         >
           {loading ? <Skeleton className="w-full h-32" /> : (
-            <div className="space-y-3">
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Risk Level</TableHead>
-                      <TableHead>Risk State</TableHead>
-                      <TableHead>Last Updated</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(data?.riskyUsersDetail ?? []).map((u) => (
-                      <TableRow key={u.id}>
-                        <TableCell>
-                          <p className="font-medium text-sm">{u.displayName}</p>
-                          <p className="text-xs text-muted-foreground">{u.userPrincipalName}</p>
-                        </TableCell>
-                        <TableCell><RiskBadge level={u.riskLevel} /></TableCell>
-                        <TableCell><span className="text-sm capitalize">{u.riskState}</span></TableCell>
-                        <TableCell><span className="text-xs text-muted-foreground">{u.riskLastUpdatedDateTime ? formatDate(u.riskLastUpdatedDateTime) : "—"}</span></TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+            <DataTable
+              columns={riskyUserColumns}
+              data={data?.riskyUsersDetail ?? []}
+              emptyMessage="No risky users found."
+            />
           )}
         </CollapsibleSection>
       )}

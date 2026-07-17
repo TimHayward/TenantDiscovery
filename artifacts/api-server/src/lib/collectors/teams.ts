@@ -4,6 +4,7 @@ import {
   isPermissionIssue,
   type CollectionIssue,
 } from "../collectionIssues.js";
+import type { GraphTeam } from "./graphTypes.js";
 
 function parseCsv(csv: string): Record<string, string>[] {
   const lines = csv.trim().split("\n").filter(Boolean);
@@ -43,7 +44,7 @@ type TeamUserRef = { id?: string; userType?: string };
 
 export async function collectTeams() {
   const [teamsResult, activityCsvResult, deviceCsvResult, teamActivityDetailCsvResult] = await Promise.all([
-    fetchAllGraphPages<any>("https://graph.microsoft.com/v1.0/teams?$select=id,displayName,visibility,isArchived&$top=999", "teams"),
+    fetchAllGraphPages<GraphTeam>("https://graph.microsoft.com/v1.0/teams?$select=id,displayName,visibility,isArchived&$top=999", "teams"),
     fetchGraphText("https://graph.microsoft.com/v1.0/reports/getTeamsUserActivityCounts(period='D30')", "teamsUserActivityReport"),
     fetchGraphText("https://graph.microsoft.com/v1.0/reports/getTeamsDeviceUsageUserCounts(period='D30')", "teamsDeviceUsageReport"),
     fetchGraphText("https://graph.microsoft.com/v1.0/reports/getTeamsTeamActivityDetail(period='D30')", "teamsTeamActivityDetailReport"),
@@ -79,9 +80,9 @@ export async function collectTeams() {
   }
 
   const memberCountTasks = teams
-    .filter((t: any) => typeof t.id === "string" && t.id.length > 0)
-    .map((t: any) => async () => {
-      const teamId = t.id as string;
+    .filter((t): t is GraphTeam & { id: string } => typeof t.id === "string" && t.id.length > 0)
+    .map((t) => async () => {
+      const teamId = t.id;
       const [membersResult, ownersResult] = await Promise.all([
         fetchAllGraphPages<TeamUserRef>(`https://graph.microsoft.com/v1.0/groups/${teamId}/transitiveMembers/microsoft.graph.user?$select=id,userType&$top=999`, `teamMembers:${teamId}`),
         fetchAllGraphPages<TeamUserRef>(`https://graph.microsoft.com/v1.0/groups/${teamId}/owners/microsoft.graph.user?$select=id,userType&$top=999`, `teamOwners:${teamId}`),

@@ -1,28 +1,31 @@
 import { Router } from "express";
-import { getGraphCredentialValues } from "../lib/graphClient.js";
+import {
+  GetM365GroupDeviceMembersParams,
+  GetM365GroupsQueryParams,
+  GetM365GroupsWithMetadataQueryParams,
+} from "@workspace/api-zod";
+import { fetchResourceWithRetry } from "../lib/collectionIssues.js";
 import { withMetadata } from "../lib/metadata.js";
+import { validate } from "../middlewares/validate.js";
 
 const router = Router();
 
-async function getToken(): Promise<string> {
-  const { ClientSecretCredential } = await import("@azure/identity");
-  const { tenantId, clientId, clientSecret } = await getGraphCredentialValues();
-  const cred = new ClientSecretCredential(
-    tenantId,
-    clientId,
-    clientSecret,
-    { tokenCachePersistenceOptions: { enabled: false } }
-  );
-  const token = await cred.getToken("https://graph.microsoft.com/.default");
-  return token!.token;
+const GRAPH_SCOPE = "https://graph.microsoft.com/.default";
+
+interface GroupItem {
+  id: string;
+  displayName: string;
+  description?: string;
+  groupTypes: string[];
+  securityEnabled: boolean;
 }
 
 // GET /api/m365/groups?q=searchterm
 // Returns all Entra ID groups, optionally filtered by display name / description
-router.get("/m365/groups", async (req, res) => {
+router.get("/m365/groups", validate({ query: GetM365GroupsQueryParams }), async (req, res) => {
   try {
-    const token = await getToken();
-    const q = ((req.query.q as string) ?? "").toLowerCase().trim();
+    const query = req.valid!.query as { q?: string };
+    const q = (query.q ?? "").toLowerCase().trim();
 
     const url =
       "https://graph.microsoft.com/v1.0/groups" +
@@ -30,26 +33,15 @@ router.get("/m365/groups", async (req, res) => {
       "&$top=999" +
       "&$count=true";
 
-    const resp = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ConsistencyLevel: "eventual",
-      },
-    });
+    const resp = await fetchResourceWithRetry(url, GRAPH_SCOPE, { ConsistencyLevel: "eventual" });
 
     if (!resp.ok) {
       req.log.warn({ status: resp.status }, "Graph API groups error");
       return res.json({ groups: [] });
     }
 
-    const data = await resp.json() as any;
-    let groups: Array<{
-      id: string;
-      displayName: string;
-      description?: string;
-      groupTypes: string[];
-      securityEnabled: boolean;
-    }> = data.value ?? [];
+    const data = (await resp.json()) as { value?: GroupItem[] };
+    let groups: GroupItem[] = data.value ?? [];
 
     if (q) {
       groups = groups.filter(
@@ -68,10 +60,13 @@ router.get("/m365/groups", async (req, res) => {
   }
 });
 
-router.get("/m365/groups/with-metadata", async (req, res): Promise<void> => {
+router.get(
+  "/m365/groups/with-metadata",
+  validate({ query: GetM365GroupsWithMetadataQueryParams }),
+  async (req, res): Promise<void> => {
   try {
-    const token = await getToken();
-    const q = ((req.query.q as string) ?? "").toLowerCase().trim();
+    const query = req.valid!.query as { q?: string };
+    const q = (query.q ?? "").toLowerCase().trim();
 
     const url =
       "https://graph.microsoft.com/v1.0/groups" +
@@ -79,12 +74,7 @@ router.get("/m365/groups/with-metadata", async (req, res): Promise<void> => {
       "&$top=999" +
       "&$count=true";
 
-    const resp = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ConsistencyLevel: "eventual",
-      },
-    });
+    const resp = await fetchResourceWithRetry(url, GRAPH_SCOPE, { ConsistencyLevel: "eventual" });
 
     if (!resp.ok) {
       req.log.warn({ status: resp.status }, "Graph API groups error");
@@ -104,14 +94,8 @@ router.get("/m365/groups/with-metadata", async (req, res): Promise<void> => {
       return;
     }
 
-    const data = await resp.json() as any;
-    let groups: Array<{
-      id: string;
-      displayName: string;
-      description?: string;
-      groupTypes: string[];
-      securityEnabled: boolean;
-    }> = data.value ?? [];
+    const data = (await resp.json()) as { value?: GroupItem[] };
+    let groups: GroupItem[] = data.value ?? [];
 
     if (q) {
       groups = groups.filter(
@@ -146,10 +130,13 @@ router.get("/m365/groups/with-metadata", async (req, res): Promise<void> => {
 
 // GET /api/m365/groups/:id/device-members
 // Returns the displayName (computer name) of every device object in the group
-router.get("/m365/groups/:id/device-members", async (req, res) => {
+router.get(
+  "/m365/groups/:id/device-members",
+  validate({ params: GetM365GroupDeviceMembersParams }),
+  async (req, res) => {
   try {
-    const token = await getToken();
-    const groupId = req.params.id;
+    const params = req.valid!.params as { id: string };
+    const groupId = params.id;
     const deviceNames: string[] = [];
 
     let url: string | null =
@@ -157,20 +144,18 @@ router.get("/m365/groups/:id/device-members", async (req, res) => {
       `/members/microsoft.graph.device?$select=id,displayName,deviceId`;
 
     while (url) {
-      const resp = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const resp: Response = await fetchResourceWithRetry(url, GRAPH_SCOPE);
 
       if (!resp.ok) {
         req.log.warn({ status: resp.status }, "Graph API device-members error");
         return res.json({ deviceNames: [] });
       }
 
-      const data = await resp.json() as any;
+      const data = (await resp.json()) as { value?: Array<{ displayName?: string }>; "@odata.nextLink"?: string };
       for (const device of data.value ?? []) {
-        if (device.displayName) deviceNames.push(device.displayName as string);
+        if (device.displayName) deviceNames.push(device.displayName);
       }
-      url = (data["@odata.nextLink"] as string) ?? null;
+      url = data["@odata.nextLink"] ?? null;
     }
 
     return res.json({ deviceNames });

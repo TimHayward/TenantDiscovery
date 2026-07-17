@@ -17,6 +17,7 @@ import {
   postM365Refresh,
 } from "@workspace/api-client-react";
 import { getOnboardingStatus } from "@/lib/onboardingApi";
+import { useToast } from "@/hooks/use-toast";
 
 import { TabErrorBoundary } from "@/components/TabErrorBoundary";
 import { TableSkeleton } from "@/components/TableSkeleton";
@@ -198,6 +199,7 @@ export default function Dashboard() {
   const isDark = theme === "dark";
 
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: overviewData, isLoading, isFetching } = useGetM365Overview();
   const { data: dataSourcesData } = useGetM365DataSources();
 
@@ -339,8 +341,13 @@ export default function Dashboard() {
       // clears the spinner instead of hanging until the safety timeout.
       await postM365Refresh();
       queryClient.invalidateQueries({ queryKey: getGetM365CollectionStatusQueryKey() });
-    } catch {
+    } catch (err) {
       setIsRefreshing(false);
+      toast({
+        variant: "destructive",
+        title: "Refresh failed",
+        description: err instanceof Error ? err.message : "Could not trigger data collection.",
+      });
     }
   };
 

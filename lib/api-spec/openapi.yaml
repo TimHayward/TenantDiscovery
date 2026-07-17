@@ -1033,6 +1033,11 @@ components:
           nullable: true
         setupComplete:
           type: boolean
+        acknowledgedMissingPermissions:
+          type: array
+          items:
+            type: string
+          nullable: true
 
     OnboardingStatus:
       type: object

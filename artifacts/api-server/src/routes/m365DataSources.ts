@@ -4,22 +4,20 @@ import {
   type EvidenceStatus,
   metricDataSources,
 } from "@workspace/permissions-manifest";
+import { GetM365DataSourcesQueryParams } from "@workspace/api-zod";
+import { validate } from "../middlewares/validate.js";
 
 const router = Router();
 
-router.get("/m365/data-sources", (req, res) => {
-  const metricId =
-    typeof req.query.metricId === "string" && req.query.metricId.length > 0
-      ? req.query.metricId
-      : undefined;
-  const tab =
-    typeof req.query.tab === "string" && req.query.tab.length > 0
-      ? req.query.tab
-      : undefined;
-  const evidenceStatus =
-    typeof req.query.evidenceStatus === "string" && req.query.evidenceStatus.length > 0
-      ? (req.query.evidenceStatus as EvidenceStatus)
-      : undefined;
+router.get("/m365/data-sources", validate({ query: GetM365DataSourcesQueryParams }), (req, res) => {
+  const query = req.valid!.query as {
+    metricId?: string;
+    tab?: string;
+    evidenceStatus?: EvidenceStatus;
+  };
+  const metricId = query.metricId;
+  const tab = query.tab;
+  const evidenceStatus = query.evidenceStatus;
 
   const filtered = metricDataSources
     .filter((entry) => (metricId ? entry.metricId === metricId : true))

@@ -1,7 +1,7 @@
 import type { RuleDefinition } from "./helpers.js";
 
 /** Minimal shape of the m365-compliance snapshot consumed by these rules. */
-interface ComplianceData {
+export interface ComplianceData {
   auditLogEnabled?: boolean;
   unifiedAuditLogEnabled?: boolean;
   sensitivityLabels?: number;

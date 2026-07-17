@@ -122,7 +122,7 @@ function SpDetailPanel({ sp }: { sp: ServicePrincipalItem }) {
                 {sp.lastSignInDateTime
                   ? `${formatDate(sp.lastSignInDateTime)} (${d}d ago)`
                   : "Never / unknown"}
-                {stale && " ⚠ >90 days"}
+                {stale && <span> <span aria-hidden="true">⚠</span> &gt;90 days</span>}
               </dd>
               <dt className="text-muted-foreground">Assigned Users</dt>
               <dd>{sp.assignedUserCount > 0 ? `${sp.assignedUserCount} user(s)` : "None"}</dd>
@@ -386,7 +386,9 @@ export function ServicePrincipalsTab() {
             <p className={`text-xs ${stale ? "text-yellow-600 dark:text-yellow-400 font-medium" : ""}`}>
               {formatDate(row.original.lastSignInDateTime)}
             </p>
-            <p className="text-[10px] text-muted-foreground">{d}d ago{stale ? " ⚠" : ""}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {d}d ago{stale && <span role="img" aria-label="No sign-in in over 90 days"> ⚠</span>}
+            </p>
           </div>
         );
       },

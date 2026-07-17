@@ -1,5 +1,7 @@
 import { Router } from "express";
+import { GetM365DriftQueryParams, GetM365ScanParams } from "@workspace/api-zod";
 import { listScans, getScan, computeDrift } from "../lib/scanStore.js";
+import { validate } from "../middlewares/validate.js";
 
 const router = Router();
 
@@ -12,10 +14,12 @@ router.get("/m365/scans", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/m365/drift", async (req, res): Promise<void> => {
+router.get(
+  "/m365/drift",
+  validate({ query: GetM365DriftQueryParams }),
+  async (req, res): Promise<void> => {
   try {
-    const from = typeof req.query.from === "string" ? req.query.from : undefined;
-    const to = typeof req.query.to === "string" ? req.query.to : undefined;
+    const { from, to } = req.valid!.query as { from?: string; to?: string };
     res.json(await computeDrift(from, to));
   } catch (err) {
     req.log.error({ err }, "Failed to compute drift");
@@ -23,9 +27,13 @@ router.get("/m365/drift", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/m365/scans/:id", async (req, res): Promise<void> => {
+router.get(
+  "/m365/scans/:id",
+  validate({ params: GetM365ScanParams }),
+  async (req, res): Promise<void> => {
   try {
-    const scan = await getScan(req.params.id);
+    const { id } = req.valid!.params as { id: string };
+    const scan = await getScan(id);
     if (!scan) {
       res.status(404).json({ error: "Scan not found" });
       return;

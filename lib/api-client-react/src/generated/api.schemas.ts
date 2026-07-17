@@ -25,6 +25,7 @@ export interface OnboardingSetupPatch {
   clientId?: string | null;
   clientSecret?: string | null;
   setupComplete?: boolean;
+  acknowledgedMissingPermissions?: string[] | null;
 }
 
 export interface OnboardingStatus {

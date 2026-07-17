@@ -1,5 +1,6 @@
 import { CSVLink } from "react-csv";
 import { Download } from "lucide-react";
+import { sanitizeCsvRow } from "../lib/csvSanitize";
 
 /**
  * Shared CSV export button. Replaces the per-tab copies (SecurityTab,
@@ -22,10 +23,11 @@ export function ExportBtn({
   variant?: "icon" | "button";
 }) {
   if (!data.length) return null;
+  const sanitizedData = data.map(sanitizeCsvRow);
   if (variant === "button") {
     return (
       <CSVLink
-        data={data}
+        data={sanitizedData}
         filename={filename}
         aria-label={ariaLabel}
         className="print:hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] rounded border border-border hover:bg-accent transition-colors"
@@ -37,7 +39,7 @@ export function ExportBtn({
   }
   return (
     <CSVLink
-      data={data}
+      data={sanitizedData}
       filename={filename}
       aria-label={ariaLabel}
       className="print:hidden flex items-center justify-center w-[26px] h-[26px] rounded-[6px] transition-colors hover:opacity-80 bg-muted text-muted-foreground"

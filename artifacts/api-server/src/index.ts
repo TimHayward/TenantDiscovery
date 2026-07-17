@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { start as startBackgroundRefresh } from "./lib/backgroundRefresh.js";
+import { assertSafeBinding, isLoopbackHost } from "./lib/assertSafeBinding.js";
 
 const rawPort = process.env["PORT"] ?? "5100";
 
@@ -12,8 +13,22 @@ if (Number.isNaN(port) || port <= 0) {
 
 // Bind to loopback by default: the API is unauthenticated and holds Graph
 // credentials, so it must not be reachable from the network unless explicitly
-// opted in via HOST (e.g. HOST=0.0.0.0).
+// opted in via HOST (e.g. HOST=0.0.0.0) AND ALLOW_REMOTE=true.
 const host = process.env["HOST"]?.trim() || "127.0.0.1";
+
+try {
+  assertSafeBinding(host, process.env);
+} catch (err) {
+  logger.error({ err }, "Refusing to start with an unsafe network binding");
+  process.exit(1);
+}
+
+if (!isLoopbackHost(host)) {
+  logger.warn(
+    { host },
+    "API is bound to a non-loopback address with ALLOW_REMOTE=true — ensure the network path to this host is restricted",
+  );
+}
 
 process.on("unhandledRejection", (reason: unknown) => {
   logger.error({ reason }, "Unhandled promise rejection – process will exit");

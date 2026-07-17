@@ -1,43 +1,30 @@
-import { getGraphClient } from "../graphClient.js";
 import {
-  createCollectionIssue,
+  fetchAllGraphPages,
   isPermissionIssue,
   type CollectionIssue,
 } from "../collectionIssues.js";
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return "Unexpected Graph client error";
-}
-
-function getErrorStatus(error: unknown): number | null {
-  if (typeof error === "object" && error !== null && "statusCode" in error) {
-    const statusCode = (error as { statusCode?: unknown }).statusCode;
-    if (typeof statusCode === "number") return statusCode;
-  }
-  return null;
-}
+import type { GraphHealthOverview, GraphServiceIssue } from "./graphTypes.js";
 
 export async function collectServiceHealth() {
-  const graphClient = await getGraphClient();
-  const [healthRes, issuesRes] = await Promise.allSettled([
-    graphClient.api("/admin/serviceAnnouncement/healthOverviews").get(),
-    graphClient.api("/admin/serviceAnnouncement/issues")
-      .filter("isResolved eq false")
-      .select("id,title,service,status,classification,startDateTime,isResolved")
-      .get(),
+  const [healthRes, issuesRes] = await Promise.all([
+    fetchAllGraphPages<GraphHealthOverview>(
+      "https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/healthOverviews",
+      "serviceHealthOverviews",
+      ["ServiceHealth.Read.All"],
+    ),
+    fetchAllGraphPages<GraphServiceIssue>(
+      "https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/issues" +
+        "?$filter=isResolved eq false" +
+        "&$select=id,title,service,status,classification,startDateTime,isResolved",
+      "serviceHealthIssues",
+      ["ServiceHealth.Read.All"],
+    ),
   ]);
 
-  const collectionIssues: CollectionIssue[] = [];
-  if (healthRes.status === "rejected") {
-    collectionIssues.push(createCollectionIssue("serviceHealthOverviews", getErrorStatus(healthRes.reason), getErrorMessage(healthRes.reason), ["ServiceHealth.Read.All"]));
-  }
-  if (issuesRes.status === "rejected") {
-    collectionIssues.push(createCollectionIssue("serviceHealthIssues", getErrorStatus(issuesRes.reason), getErrorMessage(issuesRes.reason), ["ServiceHealth.Read.All"]));
-  }
+  const collectionIssues: CollectionIssue[] = [...healthRes.issues, ...issuesRes.issues];
 
-  const services = healthRes.status === "fulfilled" ? healthRes.value?.value ?? [] : [];
-  const issues = issuesRes.status === "fulfilled" ? issuesRes.value?.value ?? [] : [];
+  const services = healthRes.items;
+  const issues = issuesRes.items;
 
   const issuesByService = new Map<string, number>();
   for (const issue of issues) {
@@ -47,7 +34,7 @@ export async function collectServiceHealth() {
 
   let servicesHealthy = 0, servicesWithIssues = 0, activeIncidents = 0, activeAdvisories = 0;
 
-  const serviceList = services.map((s: any) => {
+  const serviceList = services.map((s) => {
     const hasIssues = s.status !== "serviceOperational";
     const issueCount = issuesByService.get(s.service ?? "") ?? 0;
     if (hasIssues || issueCount > 0) servicesWithIssues++; else servicesHealthy++;
