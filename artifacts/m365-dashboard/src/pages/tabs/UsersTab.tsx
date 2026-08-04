@@ -12,13 +12,13 @@ import {
 } from "recharts";
 import {
   AlertTriangle, Clock, UserX, ShieldOff,
-  ClipboardList, ChevronDown, ChevronUp,
+  ClipboardList,
 } from "lucide-react";
 import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
 import { useChartTheme } from "@/lib/useChartTheme";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,15 @@ const MFA_SIGNAL_LABEL: Record<string, string> = {
   conditionalAccess: "Enforced · CA policy",
   none: "Not enforced",
   unknown: "Unknown",
+};
+
+const CHECKLIST_FIELD_MAP: Record<string, string> = {
+  "users.checklist.1.1.mfaAllUsers": "mfaEnabled",
+  "users.checklist.1.2.mfaAdmins": "mfaEnabled",
+  "users.checklist.1.12.staleAccounts": "neverSignedIn",
+  "users.checklist.2.1.globalAdminCount": "memberUsers",
+  "users.checklist.2.2.globalAdminCloudOnly": "memberUsers",
+  "users.checklist.1.4.breakGlassUsers": "users",
 };
 
 // ── staleness helpers ─────────────────────────────────────────────────────────
@@ -332,19 +341,13 @@ export function UsersTab() {
     ? { evidenceStatus: "notAssessed" as const, confidenceLabel: "unknown" as const }
     : {};
 
-  const CHECKLIST_FIELD_MAP: Record<string, string> = {
-    "users.checklist.1.1.mfaAllUsers": "mfaEnabled",
-    "users.checklist.1.2.mfaAdmins": "mfaEnabled",
-    "users.checklist.1.12.staleAccounts": "neverSignedIn",
-    "users.checklist.2.1.globalAdminCount": "memberUsers",
-    "users.checklist.2.2.globalAdminCloudOnly": "memberUsers",
-    "users.checklist.1.4.breakGlassUsers": "users",
-  };
-
-  const getChecklistMeta = (metricId: string) => {
-    const field = CHECKLIST_FIELD_MAP[metricId];
-    return field ? getFieldMeta(field) : undefined;
-  };
+  const getChecklistMeta = useCallback(
+    (metricId: string) => {
+      const field = CHECKLIST_FIELD_MAP[metricId];
+      return field ? fieldMetadata[field] : undefined;
+    },
+    [fieldMetadata],
+  );
 
   const { gridColor, tickColor } = useChartTheme();
 
@@ -628,7 +631,7 @@ export function UsersTab() {
         },
       ]},
     ];
-  }, [sec, data, fieldMetadata]);
+  }, [sec, data, getChecklistMeta]);
 
   if (isError) {
     return <ErrorPanel title="Couldn't load user data" error={error} onRetry={() => refetch()} />;
