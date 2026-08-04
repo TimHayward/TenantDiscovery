@@ -16,6 +16,24 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    // Root-level and per-package Node build scripts (e.g. artifacts/*/build.mjs)
+    // run directly under Node, outside any bundler, so they need Node's globals.
+    files: ["*.mjs", "**/build.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        Buffer: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
+        module: "writable",
+        exports: "writable",
+        require: "readonly",
+        global: "readonly",
+      },
+    },
+  },
+  {
     files: ["artifacts/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
     rules: {
       // Pre-existing collectors/routes lean on `any` at the Graph API boundary
