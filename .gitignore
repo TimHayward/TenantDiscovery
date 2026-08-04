@@ -63,3 +63,9 @@ Thumbs.db
 
 # User onboarding settings (contains Azure tenant/client credentials)
 onboarding-settings.json
+
+# Local metrics databases (contain tenant personal data) — METRIC_DB_PATH defaults
+# inside the tree on some paths, so these must never be committable.
+*.db
+*.db-journal
+*.db-wal
