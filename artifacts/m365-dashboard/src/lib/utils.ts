@@ -31,7 +31,7 @@ export function formatDate(dateStr: string | null | undefined, fmt = "MMM d, yyy
   if (!dateStr) return "N/A";
   try {
     return format(parseLocalDate(dateStr), fmt);
-  } catch (e) {
+  } catch {
     return dateStr;
   }
 }

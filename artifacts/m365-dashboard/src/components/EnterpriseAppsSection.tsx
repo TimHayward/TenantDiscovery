@@ -5,7 +5,6 @@ import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-man
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

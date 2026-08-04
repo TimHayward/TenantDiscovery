@@ -20,7 +20,7 @@ import {
 import {
   ShieldCheck, ShieldAlert, Monitor, Smartphone,
   Apple, AlertTriangle, CheckCircle2, XCircle, Clock, Info, Search, X, ChevronDown, ClipboardList,
-  Package, PackageCheck, PackageX, Layers,
+  PackageCheck, PackageX,
 } from "lucide-react";
 import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
 import { TableSkeleton } from "@/components/TableSkeleton";
@@ -828,7 +828,7 @@ export function IntuneTab() {
     return { adjustedTotal: eligible.length, adjustedEncrypted: encCount, adjustedPercent: pct };
   }, [data, excludedDeviceNames]);
 
-  const { isDark, gridColor, tickColor } = useChartTheme();
+  const { gridColor, tickColor } = useChartTheme();
 
   // ── Section 4: Intune security checklist ────────────────────────────────────
   const intuneChecklist: ChecklistGroup[] = [

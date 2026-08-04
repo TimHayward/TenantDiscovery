@@ -224,7 +224,6 @@ export function TeamsSharePointTab() {
   };
 
   const externalAccessEnabled = teamsData?.externalAccessEnabled ?? null;
-  const guestAccessEnabled = teamsData?.guestAccessEnabled ?? null;
 
   const sharingCapability = sharePointPolicies?.sharingCapability ?? null;
   const oneDriveSharingCapability = sharePointPolicies?.oneDriveSharingCapability ?? null;

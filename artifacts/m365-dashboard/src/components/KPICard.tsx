@@ -43,7 +43,6 @@ export function KPICard({
   issueMessage,
 }: KPICardProps) {
   const isPositive = trend === "up";
-  const isNegative = trend === "down";
   const isCompact = density === "compact";
   const IssueIcon = issueKind ? ISSUE_ICONS[issueKind] : null;
 
