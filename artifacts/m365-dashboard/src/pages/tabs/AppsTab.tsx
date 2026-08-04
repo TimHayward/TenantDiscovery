@@ -40,7 +40,7 @@ export function AppsTab() {
   const appsIssue = summarizeIssues(getCollectionIssues(appsData));
   const appsIssueKind: IssueKind | undefined = appsIssue?.kind;
 
-  const apps: AppRegistration[] = appsData?.apps ?? [];
+  const apps: AppRegistration[] = useMemo(() => appsData?.apps ?? [], [appsData]);
 
   // ── Credential expiry timeline ───────────────────────────────────────────────
   const credentialExpiry = useMemo(() => {
