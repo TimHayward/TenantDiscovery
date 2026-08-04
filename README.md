@@ -3,8 +3,8 @@ Discovery tool for Microsoft 365 tenant
 
 ## Prerequisites
 
-- Node.js 18+
-- pnpm (required for this monorepo)
+- Node.js 22+
+- pnpm 10+ (required for this monorepo)
 
 ## Environment Configuration
 
