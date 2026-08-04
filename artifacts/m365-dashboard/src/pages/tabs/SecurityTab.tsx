@@ -8,11 +8,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  type TooltipProps, type PieLabelRenderProps,
 } from "recharts";
 import {
-  ChevronDown, ChevronUp,
-  CheckCircle2, XCircle, ShieldCheck, ShieldAlert, AlertTriangle,
-  Settings2,
+  CheckCircle2, XCircle, ShieldCheck,
 } from "lucide-react";
 import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
 import { useChartTheme } from "@/lib/useChartTheme";
@@ -230,12 +229,14 @@ const secureScoreControlColumns: ColumnDef<SecureScoreControl>[] = [
   },
 ];
 
-function RiskTooltip({ active, payload, label }: any) {
+type TooltipPayloadEntry = NonNullable<TooltipProps<number, string>["payload"]>[number];
+
+function RiskTooltip({ active, payload, label }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border bg-popover p-3 shadow-md text-sm space-y-1">
       <p className="font-medium mb-1">{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <div key={p.name} className="flex items-center gap-2">
           <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: p.color }} />
           <span className="text-muted-foreground capitalize">{p.name}:</span>
@@ -329,7 +330,7 @@ export function SecurityTab() {
   const [settingsCategoryFilter, setSettingsCategoryFilter] = useState("All");
   const [settingsStatusFilter, setSettingsStatusFilter] = useState("All");
 
-  const controls = data?.secureScoreControls ?? [];
+  const controls = useMemo(() => data?.secureScoreControls ?? [], [data]);
   const categories = useMemo(() => ["All", ...Array.from(new Set(controls.map((c) => c.controlCategory))).sort()], [controls]);
 
   const filteredControls = useMemo(() => {
@@ -483,7 +484,12 @@ export function SecurityTab() {
 
   const resetSecuritySections = () => {
     ["security-score-breakdown", "security-mfa", "security-mfa-strength", "security-ca-policies", "security-settings", "security-mfa-users", "security-risky-users", "security-risk-timeline"].forEach((key) => {
-      try { localStorage.removeItem(`m365-section:${key}`); } catch {}
+      try {
+        localStorage.removeItem(`m365-section:${key}`);
+      } catch {
+        // localStorage can throw (private browsing, disabled storage) — the section
+        // will just keep its current open/closed state, which is harmless.
+      }
     });
     setResetKey((k) => k + 1);
   };
@@ -611,7 +617,7 @@ export function SecurityTab() {
                     outerRadius={82}
                     dataKey="value"
                     isAnimationActive={false}
-                    label={({ cx, cy, midAngle, outerRadius, pct }: any) => {
+                    label={({ cx, cy, midAngle, outerRadius, pct }: PieLabelRenderProps) => {
                       const RADIAN = Math.PI / 180;
                       const r = (outerRadius as number) + 20;
                       const x = (cx as number) + r * Math.cos(-midAngle * RADIAN);
@@ -634,7 +640,7 @@ export function SecurityTab() {
                   />
                   <Tooltip
                     isAnimationActive={false}
-                    formatter={(_v: number, _k: string, entry: any) => [
+                    formatter={(_v: number, _k: string, entry: TooltipPayloadEntry) => [
                       `${(entry.payload?.pct as number)?.toFixed(1)}%`,
                       entry.payload?.name ?? "",
                     ]}
