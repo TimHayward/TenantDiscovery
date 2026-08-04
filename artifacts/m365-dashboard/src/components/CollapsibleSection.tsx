@@ -25,7 +25,10 @@ function usePersistedToggle(storageKey: string | undefined, defaultOpen: boolean
     try {
       const stored = localStorage.getItem(`m365-section:${storageKey}`);
       if (stored !== null) return stored === "true";
-    } catch {}
+    } catch {
+      // localStorage can throw (private browsing, disabled storage, quota) — falling
+      // back to defaultOpen is fine since this is only a remembered UI preference.
+    }
     return defaultOpen;
   });
 
@@ -35,7 +38,9 @@ function usePersistedToggle(storageKey: string | undefined, defaultOpen: boolean
       if (storageKey) {
         try {
           localStorage.setItem(`m365-section:${storageKey}`, String(next));
-        } catch {}
+        } catch {
+          // Same as above: persisting the toggle state is best-effort only.
+        }
       }
       return next;
     });
@@ -67,7 +72,11 @@ export function CollapsibleSection({
       if (ce.detail?.id === elementId) {
         setOpen(true);
         if (storageKey) {
-          try { localStorage.setItem(`m365-section:${storageKey}`, "true"); } catch {}
+          try {
+            localStorage.setItem(`m365-section:${storageKey}`, "true");
+          } catch {
+            // Same as above: persisting the toggle state is best-effort only.
+          }
         }
       }
     }
