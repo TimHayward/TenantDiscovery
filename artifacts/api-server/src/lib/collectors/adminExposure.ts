@@ -1,4 +1,3 @@
-import { logger } from "../logger.js";
 import {
   fetchAllGraphPages,
   isPermissionIssue,
@@ -298,7 +297,7 @@ export async function collectAdminExposure() {
     for (const roleDef of roleDefinitionsResult.items) {
       if (!roleDef.id || !referencedRoleDefinitionIds.has(roleDef.id)) continue;
       let templateId = roleDef.templateId ?? roleDef.roleTemplateId;
-      let displayName = roleDef.displayName ?? "";
+      const displayName = roleDef.displayName ?? "";
       if (!templateId && displayName) {
         templateId = displayNameToTemplateId.get(displayName.toLowerCase());
       }

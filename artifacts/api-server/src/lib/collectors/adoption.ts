@@ -19,7 +19,7 @@ type ReportPeriod = "D30" | "D90" | "D180";
 const TREND_PERIODS: ReportPeriod[] = ["D30", "D90", "D180"];
 
 function parseCsv(csv: string): Record<string, string>[] {
-  const cleaned = csv.replace(/^﻿/, "").trim();
+  const cleaned = csv.replace(/^\uFEFF/, "").trim();
   const lines = cleaned.split("\n").filter(Boolean);
   if (lines.length < 2) return [];
   const headers = lines[0].split(",").map((h) => h.trim().replace(/\r/g, ""));

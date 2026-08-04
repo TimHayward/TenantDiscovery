@@ -27,8 +27,8 @@ export async function collectExchange() {
 
   let totalMailboxes = 0;
   let activeMailboxes = 0;
-  let sharedMailboxes = 0;
-  let roomMailboxes = 0;
+  const sharedMailboxes = 0;
+  const roomMailboxes = 0;
   let totalStorageUsedBytes = 0;
   let totalStorageAllocatedBytes = 0;
 

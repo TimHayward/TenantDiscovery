@@ -16,7 +16,7 @@ router.get("/m365/adoption/debug", async (req, res): Promise<void> => {
     if (result.issue) { res.json({ error: result.issue }); return; }
     const raw = result.text ?? "";
     const hasBom = raw.charCodeAt(0) === 0xfeff;
-    const cleaned = raw.replace(/^﻿/, "").trim();
+    const cleaned = raw.replace(/^\uFEFF/, "").trim();
     const lines = cleaned.split("\n").filter(Boolean);
     const headers = lines.length > 0 ? lines[0].split(",").map((h) => h.trim().replace(/\r/g, "")) : [];
     const firstDataRow = lines.length > 1 ? lines[1].split(",").map((v) => v.trim().replace(/\r/g, "")) : [];
