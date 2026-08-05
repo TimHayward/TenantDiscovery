@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -5,10 +6,24 @@ import { hardenFile } from "./fileHardening.js";
 
 export const SECRET_REDACTED = "***REDACTED***";
 
+/**
+ * Shown alongside the token the one time it is returned in full. The token is
+ * never read back out of the settings file over the API, so an operator who
+ * loses it must clear `apiToken` from the settings file and re-save onboarding.
+ */
+export const API_TOKEN_NOTICE =
+  "Copy this token now. It is stored only on the server and will not be shown again.";
+
 export interface OnboardingSettings {
   tenantId: string | null;
   clientId: string | null;
   clientSecret: string | null;
+  /**
+   * Bearer token for the API, generated on the first onboarding save. Only
+   * enforced when the server is bound to a non-loopback address; see
+   * `middlewares/apiAuth`.
+   */
+  apiToken: string | null;
   setupComplete: boolean;
   setupCompletedAt: string | null;
   /**
@@ -21,10 +36,24 @@ export interface OnboardingSettings {
   updatedAt: string;
 }
 
+/**
+ * The result of a patch, carrying the plaintext API token on the one call that
+ * generated it. Deliberately not part of `OnboardingSettings`: it is never
+ * written to disk and never survives a reload, so the token can be surfaced
+ * exactly once without a later read being able to return it.
+ */
+export interface PatchedOnboardingSettings extends OnboardingSettings {
+  issuedApiToken?: string;
+}
+
 export interface RedactedOnboardingSettings
-  extends Omit<OnboardingSettings, "clientSecret"> {
+  extends Omit<OnboardingSettings, "clientSecret" | "apiToken"> {
   clientSecret: string | null;
   hasClientSecret: boolean;
+  hasApiToken: boolean;
+  /** Set only on the response that issued the token. */
+  apiToken?: string;
+  apiTokenNotice?: string;
 }
 
 export interface OnboardingSettingsPatch {
@@ -41,6 +70,7 @@ function getDefaultSettings(): OnboardingSettings {
     tenantId: null,
     clientId: null,
     clientSecret: null,
+    apiToken: null,
     setupComplete: false,
     setupCompletedAt: null,
     acknowledgedMissingPermissions: [],
@@ -96,6 +126,7 @@ export async function loadOnboardingSettings(): Promise<OnboardingSettings> {
       tenantId: normalizeString(parsed.tenantId) ?? defaults.tenantId,
       clientId: normalizeString(parsed.clientId) ?? defaults.clientId,
       clientSecret: normalizeString(parsed.clientSecret) ?? defaults.clientSecret,
+      apiToken: normalizeString(parsed.apiToken) ?? defaults.apiToken,
       setupComplete: Boolean(parsed.setupComplete),
       setupCompletedAt: normalizeString(parsed.setupCompletedAt) ?? null,
       acknowledgedMissingPermissions: normalizeStringArray(parsed.acknowledgedMissingPermissions),
@@ -122,10 +153,10 @@ async function writeSecureSettingsFile(settings: OnboardingSettings): Promise<vo
   const dir = path.dirname(settingsPath);
   await fs.mkdir(dir, { recursive: true });
 
-  // The temp file holds the client secret in cleartext, so it is created
-  // owner-only rather than hardened after the fact: on POSIX the mode applies
-  // at creation and rename carries it across, leaving no window in which the
-  // secret sits on disk world-readable.
+  // The temp file holds the client secret and the API token in cleartext, so it
+  // is created owner-only rather than hardened after the fact: on POSIX the
+  // mode applies at creation and rename carries it across, leaving no window in
+  // which the secret sits on disk world-readable.
   const tempPath = `${settingsPath}.tmp`;
   await fs.writeFile(tempPath, `${JSON.stringify(settings, null, 2)}\n`, {
     encoding: "utf-8",
@@ -138,11 +169,20 @@ async function writeSecureSettingsFile(settings: OnboardingSettings): Promise<vo
   await hardenFile(settingsPath);
 }
 
+function generateApiToken(): string {
+  return randomBytes(32).toString("base64url");
+}
+
 export async function patchOnboardingSettings(
   patch: OnboardingSettingsPatch,
-): Promise<OnboardingSettings> {
+): Promise<PatchedOnboardingSettings> {
   const current = await loadOnboardingSettings();
   const now = new Date().toISOString();
+
+  // Issued on the first save so that an operator who later switches the server
+  // to a non-loopback bind already has a token, rather than having to reach an
+  // endpoint that has just started demanding one.
+  const issuedApiToken = current.apiToken ? undefined : generateApiToken();
 
   const setupComplete =
     patch.setupComplete === undefined ? current.setupComplete : Boolean(patch.setupComplete);
@@ -166,6 +206,7 @@ export async function patchOnboardingSettings(
       patch.tenantId === undefined ? current.tenantId : normalizeString(patch.tenantId),
     clientId: nextClientId,
     clientSecret: mergeSecret(current.clientSecret, patch.clientSecret),
+    apiToken: current.apiToken ?? issuedApiToken ?? null,
     setupComplete,
     setupCompletedAt: setupComplete
       ? current.setupCompletedAt ?? now
@@ -175,15 +216,37 @@ export async function patchOnboardingSettings(
   };
 
   await writeSecureSettingsFile(next);
-  return next;
+  return issuedApiToken ? { ...next, issuedApiToken } : next;
 }
 
+/**
+ * The token the API expects on a non-loopback binding. `API_AUTH_TOKEN` wins so
+ * a container can be given one without a settings file having been seeded
+ * first; otherwise it is the token generated during onboarding.
+ */
+export async function getApiAuthToken(): Promise<string | null> {
+  const fromEnv = normalizeString(process.env.API_AUTH_TOKEN);
+  if (fromEnv) return fromEnv;
+
+  const settings = await loadOnboardingSettings();
+  return settings.apiToken;
+}
+
+/**
+ * Strip both secrets from a settings object before it leaves the API. The
+ * stored token is reported only as a boolean; the plaintext appears solely on
+ * the patch result that generated it.
+ */
 export function redactOnboardingSettings(
-  settings: OnboardingSettings,
+  settings: PatchedOnboardingSettings,
 ): RedactedOnboardingSettings {
+  const { clientSecret, apiToken, issuedApiToken, ...rest } = settings;
+
   return {
-    ...settings,
-    clientSecret: settings.clientSecret ? SECRET_REDACTED : null,
-    hasClientSecret: Boolean(settings.clientSecret),
+    ...rest,
+    clientSecret: clientSecret ? SECRET_REDACTED : null,
+    hasClientSecret: Boolean(clientSecret),
+    hasApiToken: Boolean(apiToken),
+    ...(issuedApiToken ? { apiToken: issuedApiToken, apiTokenNotice: API_TOKEN_NOTICE } : {}),
   };
 }
