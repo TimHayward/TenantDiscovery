@@ -104,7 +104,9 @@ describe("getOrFetch", () => {
   });
 
   it("records the failure and rethrows when the collector throws", async () => {
-    const collect = vi.fn(async () => {
+    // Annotated so the always-throwing body does not infer Promise<never> and
+    // reject the successful retry staged below.
+    const collect = vi.fn(async (): Promise<{ total: number }> => {
       throw new Error("Graph returned 403");
     });
 
