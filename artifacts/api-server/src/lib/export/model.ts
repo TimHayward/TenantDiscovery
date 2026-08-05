@@ -24,7 +24,12 @@ export interface FindingExportRow extends Record<string, unknown> {
   lastSeen: string;
 }
 
-const SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+/**
+ * Sort order for severities, most severe first. Defined here and imported by the
+ * workbook builder so the two exports cannot drift apart. Unknown severities
+ * sort last, via the `?? 9` at each call site.
+ */
+export const SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
 function sourceLabel(metricId?: string): string {
   if (!metricId) return "";
@@ -129,8 +134,18 @@ export interface ExecutiveModel {
   frameworks: FrameworkCoverageSummaryRow[];
 }
 
-/** Build the executive summary model (KPIs, severity breakdown, top findings, drift). */
-export async function getExecutiveModel(scanId?: string): Promise<ExecutiveModel> {
+/**
+ * Build the executive summary model (KPIs, severity breakdown, top findings, drift).
+ *
+ * `coverage` is optional so a request that needs both the model and the coverage
+ * table computes it once and passes it in. Computing it is not cheap: it re-runs
+ * the whole rule set against the latest snapshots. When omitted it is computed
+ * here, which keeps the single-argument callers working unchanged.
+ */
+export async function getExecutiveModel(
+  scanId?: string,
+  coverage?: FrameworkCoverage[],
+): Promise<ExecutiveModel> {
   const rows = await getFindingRows(scanId);
   const bySeverity: Record<string, number> = {};
   const byStatus: Record<string, number> = {};
@@ -144,7 +159,7 @@ export async function getExecutiveModel(scanId?: string): Promise<ExecutiveModel
     .slice(0, 15);
 
   const drift = await computeDrift(undefined, scanId);
-  const coverage = await getFrameworkCoverage();
+  const resolvedCoverage = coverage ?? (await getFrameworkCoverage());
 
   return {
     generatedAt: new Date().toISOString(),
@@ -154,6 +169,6 @@ export async function getExecutiveModel(scanId?: string): Promise<ExecutiveModel
     byStatus,
     topFindings,
     drift,
-    frameworks: coverage.map((c) => ({ framework: c.framework, name: c.name, ...c.summary })),
+    frameworks: resolvedCoverage.map((c) => ({ framework: c.framework, name: c.name, ...c.summary })),
   };
 }

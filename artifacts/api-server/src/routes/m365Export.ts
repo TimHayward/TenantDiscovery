@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import {
   GetM365ExportEvidenceXlsxQueryParams,
   GetM365ExportExecutiveHtmlQueryParams,
@@ -39,38 +39,46 @@ router.get(
   }
 });
 
+/**
+ * The architect workbook, served under two stable URLs.
+ *
+ * `findings.xlsx` and `evidence.xlsx` were byte-identical handlers. They were
+ * not differentiated because there is nothing yet to differentiate them with:
+ * the evidence-bearing columns the workbook could add (Evidence, Confidence,
+ * Source) are already in `FINDING_EXPORT_COLUMNS` and therefore in both, and
+ * the one field that would genuinely distinguish an evidence pack, the raw
+ * `evidence` payload on a finding, is dropped by `toRow` and is not carried by
+ * the archived-scan path at all. Adding it is a change to the export model and
+ * the CSV contract, not to this router. Until then a single handler with two
+ * routes keeps the two URLs working without two copies of the same code, and
+ * `download` names the file so an existing client sees no change.
+ */
+function workbookHandler(download: "findings" | "evidence"): RequestHandler {
+  return async (req, res): Promise<void> => {
+    try {
+      const rows = await getFindingRows(scanIdQuery(req));
+      const buf = await buildFindingsWorkbook(rows, await getFrameworkCoverage());
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="${download}-${stamp()}.xlsx"`);
+      res.send(buf);
+    } catch (err) {
+      req.log.error({ err }, `Failed to export ${download} workbook`);
+      res.status(500).json({ error: `Failed to export ${download} workbook` });
+    }
+  };
+}
+
 router.get(
   "/m365/export/findings.xlsx",
   validate({ query: GetM365ExportFindingsXlsxQueryParams }),
-  async (req, res): Promise<void> => {
-  try {
-    const rows = await getFindingRows(scanIdQuery(req));
-    const buf = await buildFindingsWorkbook(rows, await getFrameworkCoverage());
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="findings-${stamp()}.xlsx"`);
-    res.send(buf);
-  } catch (err) {
-    req.log.error({ err }, "Failed to export findings workbook");
-    res.status(500).json({ error: "Failed to export findings workbook" });
-  }
-});
+  workbookHandler("findings"),
+);
 
-// Evidence pack is the same architect workbook; kept as a distinct, stable URL.
 router.get(
   "/m365/export/evidence.xlsx",
   validate({ query: GetM365ExportEvidenceXlsxQueryParams }),
-  async (req, res): Promise<void> => {
-  try {
-    const rows = await getFindingRows(scanIdQuery(req));
-    const buf = await buildFindingsWorkbook(rows, await getFrameworkCoverage());
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="evidence-${stamp()}.xlsx"`);
-    res.send(buf);
-  } catch (err) {
-    req.log.error({ err }, "Failed to export evidence workbook");
-    res.status(500).json({ error: "Failed to export evidence workbook" });
-  }
-});
+  workbookHandler("evidence"),
+);
 
 router.get(
   "/m365/export/executive.html",

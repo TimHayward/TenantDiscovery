@@ -1,8 +1,6 @@
 import ExcelJS from "exceljs";
-import { FINDING_EXPORT_COLUMNS, type FindingExportRow } from "./model.js";
+import { FINDING_EXPORT_COLUMNS, SEVERITY_RANK, type FindingExportRow } from "./model.js";
 import type { FrameworkCoverage } from "../findings/frameworks/coverage.js";
-
-const SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
 function addSheet(wb: ExcelJS.Workbook, name: string, rows: FindingExportRow[]): void {
   // Excel sheet names cannot exceed 31 chars or contain certain characters.
