@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { hardenFile } from "./fileHardening.js";
 
 export const SECRET_REDACTED = "***REDACTED***";
 
@@ -121,14 +122,20 @@ async function writeSecureSettingsFile(settings: OnboardingSettings): Promise<vo
   const dir = path.dirname(settingsPath);
   await fs.mkdir(dir, { recursive: true });
 
+  // The temp file holds the client secret in cleartext, so it is created
+  // owner-only rather than hardened after the fact: on POSIX the mode applies
+  // at creation and rename carries it across, leaving no window in which the
+  // secret sits on disk world-readable.
   const tempPath = `${settingsPath}.tmp`;
-  await fs.writeFile(tempPath, `${JSON.stringify(settings, null, 2)}\n`, "utf-8");
+  await fs.writeFile(tempPath, `${JSON.stringify(settings, null, 2)}\n`, {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
   await fs.rename(tempPath, settingsPath);
 
-  // Windows ACLs are managed differently; chmod is best-effort on non-Windows.
-  if (process.platform !== "win32") {
-    await fs.chmod(settingsPath, 0o600);
-  }
+  // Windows ignores the mode above, and a file left over from an earlier run
+  // keeps its original permissions, so restrict the final path either way.
+  await hardenFile(settingsPath);
 }
 
 export async function patchOnboardingSettings(

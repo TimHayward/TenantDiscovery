@@ -85,6 +85,28 @@ describe("setupConfig", () => {
     });
   });
 
+  it("round-trips the secret through save and load after the permission change", async () => {
+    await withTempSettingsPath(async (settingsPath) => {
+      await patchOnboardingSettings({
+        tenantId: "tenant-1",
+        clientId: "app-client-id",
+        clientSecret: "an-awkward secret/with+padding==",
+        setupComplete: true,
+      });
+
+      const reloaded = await loadOnboardingSettings();
+      expect(reloaded.clientSecret).toBe("an-awkward secret/with+padding==");
+      expect(reloaded.tenantId).toBe("tenant-1");
+      expect(reloaded.setupComplete).toBe(true);
+
+      // Hardening applies to the file the API actually reads back, not to a
+      // temp file left behind beside it.
+      const onDisk = JSON.parse(await fs.readFile(settingsPath, "utf-8"));
+      expect(onDisk.clientSecret).toBe("an-awkward secret/with+padding==");
+      await expect(fs.access(`${settingsPath}.tmp`)).rejects.toThrow();
+    });
+  });
+
   it("clears existing secret when patch receives an empty value", async () => {
     await withTempSettingsPath(async () => {
       await patchOnboardingSettings({

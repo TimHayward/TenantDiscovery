@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { createClient, type Client } from "@libsql/client";
+import { hardenFile } from "./fileHardening.js";
 import { logger } from "./logger.js";
 
 const TTL_SECONDS = 3600;
@@ -23,6 +24,15 @@ function getDbPath(): string {
     return path.join(winAppData, "TenentDiscovery", "metrics.db");
   }
   return path.join(os.homedir(), ".config", "tenent-discovery", "metrics.db");
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 let _client: Client | null = null;
@@ -110,6 +120,15 @@ async function initClient(): Promise<void> {
       PRIMARY KEY (scan_id, fingerprint)
     )
   `);
+
+  // The database holds full tenant personal data (user principal names, mailbox
+  // and device inventories), so it is restricted to the owner once libSQL has
+  // actually created it, which is on the first statement above rather than on
+  // createClient. A client backed by something other than this path (an
+  // in-memory database, for instance) leaves nothing on disk to restrict.
+  if (await fileExists(dbPath)) {
+    await hardenFile(dbPath);
+  }
 }
 
 export async function getClient(): Promise<Client> {
