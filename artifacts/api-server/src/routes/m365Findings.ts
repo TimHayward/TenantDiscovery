@@ -6,6 +6,7 @@ import {
 } from "@workspace/api-zod";
 import {
   ensureFindingsCurrent,
+  getFinding,
   getFindings,
   updateFindingState,
   type FindingStateUpdate,
@@ -96,7 +97,7 @@ router.patch(
       return;
     }
 
-    const updated = (await getFindings()).find((f) => f.fingerprint === params.fingerprint);
+    const updated = await getFinding(params.fingerprint);
     res.json(updated);
   } catch (err) {
     req.log.error({ err }, "Failed to update finding state");

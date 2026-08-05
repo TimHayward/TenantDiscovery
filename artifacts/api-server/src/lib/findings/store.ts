@@ -113,25 +113,63 @@ export interface FindingsQuery {
   severity?: string;
   status?: string;
   category?: string;
+  /** Exact fingerprint, for reading back a single row after a write. */
+  fingerprint?: string;
 }
 
-/** Read the consolidated register, joined with lifecycle state. */
+/**
+ * Read the consolidated register, joined with lifecycle state.
+ *
+ * Severity, status and category are filtered in SQL with bound parameters, not
+ * in JavaScript, so the statement returns only the rows the caller asked for.
+ * A finding with no `finding_state` row is "open" by definition, which is why
+ * the status predicate coalesces rather than comparing `s.status` directly:
+ * comparing directly would silently drop every never-triaged finding from a
+ * `?status=open` query.
+ */
 export async function getFindings(query: FindingsQuery = {}): Promise<FindingWithState[]> {
   const client = await getClient();
+
+  const conditions: string[] = [];
+  const args: (string | number | null)[] = [];
+  // The three user-facing filters test truthiness, not `!== undefined`, because
+  // `category` is a free string in the query schema: `?category=` arrives as ""
+  // and has always meant "unfiltered" rather than "match nothing".
+  if (query.severity) {
+    conditions.push("f.severity = ?");
+    args.push(query.severity);
+  }
+  if (query.status) {
+    conditions.push("COALESCE(s.status, 'open') = ?");
+    args.push(query.status);
+  }
+  if (query.category) {
+    conditions.push("f.category = ?");
+    args.push(query.category);
+  }
+  // Fingerprint is an exact internal lookup, so an empty one must match nothing
+  // rather than fall through and return the whole register.
+  if (query.fingerprint !== undefined) {
+    conditions.push("f.fingerprint = ?");
+    args.push(query.fingerprint);
+  }
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
   const result = await client.execute({
     sql: `SELECT f.*, s.status AS state_status, s.owner, s.notes AS state_notes,
                  s.due_date, s.updated_at AS state_updated_at
           FROM findings f
           LEFT JOIN finding_state s ON s.fingerprint = f.fingerprint
+          ${where}
           ORDER BY
             CASE f.severity
               WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2
               WHEN 'low' THEN 3 ELSE 4 END,
             f.category, f.rule_id`,
-    args: [],
+    args,
   });
 
-  let rows = result.rows.map((row): FindingWithState => ({
+  return result.rows.map((row): FindingWithState => ({
     fingerprint: row.fingerprint as string,
     ruleId: row.rule_id as string,
     category: row.category as string,
@@ -152,11 +190,16 @@ export async function getFindings(query: FindingsQuery = {}): Promise<FindingWit
     lastSeen: toIso(row.last_seen),
     stateUpdatedAt: row.state_updated_at != null ? toIso(row.state_updated_at) : null,
   }));
+}
 
-  if (query.severity) rows = rows.filter((r) => r.severity === query.severity);
-  if (query.status) rows = rows.filter((r) => r.status === query.status);
-  if (query.category) rows = rows.filter((r) => r.category === query.category);
-  return rows;
+/**
+ * Read a single finding by fingerprint, joined with lifecycle state. Returns the
+ * same shape as `getFindings`, so a caller that needs one row after a write does
+ * not have to read and sort the whole register to find it.
+ */
+export async function getFinding(fingerprint: string): Promise<FindingWithState | undefined> {
+  const [row] = await getFindings({ fingerprint });
+  return row;
 }
 
 export interface FindingStateUpdate {
