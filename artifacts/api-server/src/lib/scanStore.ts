@@ -46,30 +46,36 @@ export async function recordScan(triggeredBy: string, startedAtMs?: number): Pro
       sql: "SELECT key, data, fetched_at, status, error_msg FROM metric_snapshots",
       args: [],
     });
-    for (const row of snaps.rows) {
-      await client.execute({
+
+    // Regenerate findings from the latest snapshots and archive them.
+    const findings: Finding[] = await regenerateFindings();
+
+    // One batch rather than a loop of awaited statements: a scan of any size
+    // costs a single round trip, and the whole archive commits together or not
+    // at all, so a failure part way through cannot leave a half-archived scan.
+    const statements = [
+      ...snaps.rows.map((row) => ({
         sql: `INSERT INTO metric_snapshots_history (scan_id, key, data, fetched_at, status, error_msg)
               VALUES (?, ?, ?, ?, ?, ?)`,
         args: [
           id, row.key as string, row.data as string,
           row.fetched_at as number, row.status as string, (row.error_msg as string | null) ?? null,
-        ],
-      });
-    }
-
-    // Regenerate findings from the latest snapshots and archive them.
-    const findings: Finding[] = await regenerateFindings();
-    for (const f of findings) {
-      await client.execute({
+        ] as (string | number | null)[],
+      })),
+      ...findings.map((f) => ({
         sql: `INSERT INTO findings_history
                 (scan_id, fingerprint, rule_id, category, title, severity, check_status, evidence_status, confidence_label)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           id, f.fingerprint, f.ruleId, f.category, f.title, f.severity,
           f.checkStatus, f.evidenceStatus, f.confidenceLabel,
-        ],
-      });
+        ] as (string | number | null)[],
+      })),
+    ];
+    if (statements.length > 0) {
+      await client.batch(statements, "write");
     }
+
     await autoCloseResolved(findings.map((f) => f.fingerprint));
 
     await client.execute({
@@ -96,12 +102,20 @@ export async function pruneOldScans(): Promise<void> {
     sql: `SELECT id FROM scan_runs ORDER BY started_at DESC LIMIT -1 OFFSET ?`,
     args: [limit],
   });
-  for (const row of old.rows) {
+  if (old.rows.length === 0) return;
+
+  // Same reasoning as the archive in `recordScan`: one round trip, and the three
+  // deletes for a scan commit together, so a pruned scan cannot survive as an
+  // orphaned run row with its history already gone.
+  const statements = old.rows.flatMap((row) => {
     const sid = row.id as string;
-    await client.execute({ sql: "DELETE FROM metric_snapshots_history WHERE scan_id = ?", args: [sid] });
-    await client.execute({ sql: "DELETE FROM findings_history WHERE scan_id = ?", args: [sid] });
-    await client.execute({ sql: "DELETE FROM scan_runs WHERE id = ?", args: [sid] });
-  }
+    return [
+      { sql: "DELETE FROM metric_snapshots_history WHERE scan_id = ?", args: [sid] },
+      { sql: "DELETE FROM findings_history WHERE scan_id = ?", args: [sid] },
+      { sql: "DELETE FROM scan_runs WHERE id = ?", args: [sid] },
+    ];
+  });
+  await client.batch(statements, "write");
 }
 
 export async function listScans(): Promise<ScanRun[]> {
