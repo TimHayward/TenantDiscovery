@@ -41,3 +41,9 @@ jobs:
 
       - name: Lint
         run: pnpm run lint
+
+      # The dashboard build enforces the eager entry payload ceiling
+      # (ENTRY_JS_BUDGET_BYTES in artifacts/m365-dashboard/vite.config.ts) and
+      # exits non-zero when it is exceeded, so this step is the bundle budget.
+      - name: Build and enforce bundle budget
+        run: pnpm run build
