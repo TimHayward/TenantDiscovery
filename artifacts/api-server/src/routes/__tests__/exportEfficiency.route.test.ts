@@ -68,7 +68,10 @@ describe("the two workbook routes", () => {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(res.body as Buffer);
+    // supertest hands back a Node Buffer, which is what load wants at runtime;
+    // exceljs declares the parameter against a non-generic Buffer, so the
+    // assertion reconciles the two declarations rather than changing the value.
+    await wb.xlsx.load(res.body as Parameters<typeof wb.xlsx.load>[0]);
     return wb;
   }
 
