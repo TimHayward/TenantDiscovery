@@ -1,0 +1,172 @@
+version: 2
+
+updates:
+  # One entry per pnpm workspace package. A single root "/" entry is not used
+  # because Dependabot's pnpm-workspace.yaml auto-discovery is new enough that
+  # relying on it to reach every artifacts/*, lib/* and scripts package.json
+  # cannot be verified from here; explicit directories are unambiguous.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    # Mirrors pnpm-workspace.yaml's minimumReleaseAge (1440 minutes = 1 day):
+    # without this, Dependabot can propose a package published minutes ago and
+    # `pnpm install` in CI will refuse it. See docs/agent-runs/T05.md.
+    cooldown:
+      default-days: 1
+
+  - package-ecosystem: npm
+    directory: "/artifacts/api-server"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 1
+
+  - package-ecosystem: npm
+    directory: "/artifacts/m365-dashboard"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 1
+
+  - package-ecosystem: npm
+    directory: "/artifacts/mockup-sandbox"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 1
+
+  - package-ecosystem: npm
+    directory: "/lib/api-client-react"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 1
+
+  - package-ecosystem: npm
+    directory: "/lib/api-spec"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 1
+
+  - package-ecosystem: npm
+    directory: "/lib/api-zod"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 1
+
+  - package-ecosystem: npm
+    directory: "/lib/db"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 1
+
+  - package-ecosystem: npm
+    directory: "/lib/permissions-manifest"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 1
+
+  - package-ecosystem: npm
+    directory: "/scripts"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 1
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
