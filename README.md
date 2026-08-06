@@ -25,6 +25,19 @@ $env:AZURE_CLIENT_ID = "your-client-id"
 $env:AZURE_CLIENT_SECRET = "your-client-secret"
 ```
 
+### Collection tuning (optional)
+
+Collectors reach Microsoft Graph and Defender for Endpoint through one shared fetch helper, which bounds how long a request may take, how often it is retried, and how many requests may be in flight against a single host at once. The defaults suit a tenant of any size and should be left alone unless a refresh is demonstrably being throttled.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `GRAPH_MAX_CONCURRENCY` (api-server) | `8` | Concurrent requests allowed against `graph.microsoft.com`. Several collectors issue one request per discovered principal or device, so without a ceiling a large tenant throttles itself. |
+| `DEFENDER_MAX_CONCURRENCY` (api-server) | `8` | The same ceiling for `api.security.microsoft.com` and `api.securitycenter.microsoft.com`. Defender has its own budget, so a throttled Graph cannot hold up Defender collection. |
+| `GRAPH_FETCH_TIMEOUT_MS` (api-server) | `60000` | How long a single collection request may take before it is abandoned and reported as a collection issue. |
+| `GRAPH_MAX_RETRIES` (api-server) | `3` | How many times a throttled (429) or transient (5xx) response is retried. A server-provided `Retry-After` is honoured up to two minutes; a computed backoff is jittered and capped at thirty seconds. |
+
+Lower the two concurrency ceilings if the tenant still reports throttling, and raise them only with evidence: issuing more requests than a tenant tolerates makes a refresh slower rather than faster, because every throttled request is retried. Setting either to `1` serialises collection against that host and will make a full refresh take considerably longer. A value below `1` is treated as `1`, since a ceiling of zero would stall collection entirely.
+
 ### Network exposure (optional)
 
 The API server holds Graph credentials, so by default it only listens on `127.0.0.1`, requires no token, and does not send CORS headers. The dashboard reaches it through the Vite `/api` proxy, which works without any of these settings. Override only if you understand the exposure:
