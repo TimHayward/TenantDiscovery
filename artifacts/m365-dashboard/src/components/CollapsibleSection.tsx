@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronDown, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@workspace/ui-kit/card";
 import { SectionStatusBanner } from "@/components/SectionStatusBanner";
 import { issueKindLabel, type IssueSummary } from "@/lib/collectionStatus";
+import { useIsSectionTargeted } from "@/lib/tabRoutes";
 
 interface CollapsibleSectionProps {
   title: React.ReactNode;
@@ -64,28 +65,34 @@ export function CollapsibleSection({
   const [open, toggle, setOpen] = usePersistedToggle(storageKey, defaultOpen);
   const isCompact = density === "compact";
   const elementId = sectionId ?? storageKey;
+  const cardRef = useRef<HTMLDivElement>(null);
 
+  // A `/tab/:tab#section` deep link opens this section and scrolls to it. The
+  // effect fires on the edge where the fragment starts naming this section, so
+  // a reader who collapses it afterwards is not fought by a re-open, and the
+  // owning tab is already visible by then: the fragment and the tab travel in
+  // one navigation, and a tab loading its chunk mounts its sections only once
+  // it is on screen. Scrolling in the next frame lets the expansion lay out
+  // first.
+  const targeted = useIsSectionTargeted(elementId);
   useEffect(() => {
-    if (!elementId) return;
-    function handler(e: Event) {
-      const ce = e as CustomEvent<{ id: string }>;
-      if (ce.detail?.id === elementId) {
-        setOpen(true);
-        if (storageKey) {
-          try {
-            localStorage.setItem(`m365-section:${storageKey}`, "true");
-          } catch {
-            // Same as above: persisting the toggle state is best-effort only.
-          }
-        }
+    if (!targeted) return undefined;
+    setOpen(true);
+    if (storageKey) {
+      try {
+        localStorage.setItem(`m365-section:${storageKey}`, "true");
+      } catch {
+        // Same as above: persisting the toggle state is best-effort only.
       }
     }
-    window.addEventListener("m365:open-section", handler);
-    return () => window.removeEventListener("m365:open-section", handler);
-  }, [elementId, storageKey, setOpen]);
+    const frame = requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [targeted, storageKey, setOpen]);
 
   return (
-    <Card id={elementId} className={className}>
+    <Card id={elementId} ref={cardRef} className={className}>
       <CardHeader
         className={`${isCompact ? "px-3 pt-3 gap-2.5" : "px-4 pt-4 gap-3"} flex-row items-start justify-between space-y-0 cursor-pointer select-none transition-colors hover:bg-muted/30 rounded-t-lg ${open ? (isCompact ? "pb-1.5" : "pb-2") : (isCompact ? "pb-3 rounded-b-lg" : "pb-4 rounded-b-lg")}`}
         onClick={toggle}
