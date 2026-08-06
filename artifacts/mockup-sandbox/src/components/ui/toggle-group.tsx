@@ -1,4 +1,7 @@
 "use client"
+// Diverged from artifacts/m365-dashboard/src/components/ui/toggle-group.tsx.
+// This copy has drifted from the dashboard version and was deliberately left
+// unreconciled. See docs/ui-divergence.md for what differs and why.
 
 import * as React from "react"
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group"

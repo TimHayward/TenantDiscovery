@@ -1,4 +1,7 @@
 "use client"
+// Diverged from artifacts/m365-dashboard/src/components/ui/resizable.tsx.
+// This copy has drifted from the dashboard version and was deliberately left
+// unreconciled. See docs/ui-divergence.md for what differs and why.
 
 import { GripVertical } from "lucide-react"
 import * as ResizablePrimitive from "react-resizable-panels"
