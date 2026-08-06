@@ -1,5 +1,5 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@workspace/ui-kit/card";
+import { Skeleton } from "@workspace/ui-kit/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpIcon, ArrowDownIcon, AlertTriangleIcon, KeyRoundIcon, BadgeAlertIcon } from "lucide-react";
 import type { ConfidenceLabel, EvidenceStatus } from "@workspace/permissions-manifest";

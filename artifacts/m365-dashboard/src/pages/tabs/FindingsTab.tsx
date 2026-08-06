@@ -11,11 +11,11 @@ import {
   type DriftEntry,
 } from "@workspace/api-client-react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@workspace/ui-kit/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@workspace/ui-kit/input";
+import { Skeleton } from "@workspace/ui-kit/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui-kit/table";
 import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";

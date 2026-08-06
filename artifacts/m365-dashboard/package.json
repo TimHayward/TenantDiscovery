@@ -60,6 +60,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@workspace/api-client-react": "workspace:*",
     "@workspace/permissions-manifest": "workspace:*",
+    "@workspace/ui-kit": "workspace:*",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "cmdk": "^1.1.1",

@@ -15,7 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@workspace/ui-kit/table";
 
 interface PermissionRow {
   name: string;

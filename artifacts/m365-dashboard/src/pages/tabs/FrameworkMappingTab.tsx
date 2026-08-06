@@ -1,8 +1,8 @@
 import { useGetM365FrameworkCoverage, type FrameworkCoverage, type FrameworkControlCoverage } from "@workspace/api-client-react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@workspace/ui-kit/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui-kit/table";
 import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
 import { EmptyState } from "@/components/EmptyState";
 import { TableSkeleton } from "@/components/TableSkeleton";

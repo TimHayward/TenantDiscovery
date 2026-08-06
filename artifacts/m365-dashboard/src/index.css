@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+/* The shared component kit lives outside this application's directory, so
+   Tailwind's automatic source detection does not reach it. Without this the
+   build still succeeds and every class used only by a kit component is purged,
+   which is a failure no gate catches. See docs/ui-divergence.md. */
+@source "../../../lib/ui-kit/src";
+
 @custom-variant hover (&:hover);
 @custom-variant dark (&:where(.dark, .dark *));
 

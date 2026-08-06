@@ -1,9 +1,9 @@
 import { useGetM365ExchangeWithMetadata, useGetM365DataSources } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui-kit/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@workspace/ui-kit/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";
 import { EmptyState } from "@/components/EmptyState";

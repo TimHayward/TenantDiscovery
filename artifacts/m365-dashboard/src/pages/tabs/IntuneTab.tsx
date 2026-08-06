@@ -10,9 +10,9 @@ import {
 } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui-kit/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@workspace/ui-kit/skeleton";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -45,8 +45,8 @@ import {
 } from "@tanstack/react-table";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
+} from "@workspace/ui-kit/table";
+import { Input } from "@workspace/ui-kit/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type {

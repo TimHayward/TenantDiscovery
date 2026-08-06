@@ -1,10 +1,10 @@
 import { useGetM365SecurityWithMetadata } from "@workspace/api-client-react";
 import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable";
 import { KPICard } from "@/components/KPICard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui-kit/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { summarizeIssues, getCollectionIssues } from "@/lib/collectionStatus";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@workspace/ui-kit/skeleton";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -18,7 +18,7 @@ import { useChartTheme } from "@/lib/useChartTheme";
 import { formatDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Input } from "@/components/ui/input";
+import { Input } from "@workspace/ui-kit/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type {

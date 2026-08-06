@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { AlertCircle, LockKeyhole, RefreshCw, ShieldAlert } from "lucide-react";
 import { PermissionCodeList } from "@/components/PermissionCodeList";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@workspace/ui-kit/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,8 +9,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+} from "@workspace/ui-kit/card";
+import { Input } from "@workspace/ui-kit/input";
 import {
   type OnboardingStatus,
   patchOnboardingSetup,

@@ -1,5 +1,5 @@
 import { Inbox, type LucideIcon } from "lucide-react";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@workspace/ui-kit/empty";
 
 /**
  * Thin wrapper over the ui/empty primitives so tabs share one empty-data

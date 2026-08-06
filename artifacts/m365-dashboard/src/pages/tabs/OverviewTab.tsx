@@ -4,7 +4,7 @@ import {
   useGetM365ServiceHealthWithMetadata,
 } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui-kit/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ConnectionTestPanel } from "@/components/ConnectionTestPanel";
 import { summarizeIssues, getCollectionIssues } from "@/lib/collectionStatus";
@@ -14,7 +14,7 @@ import {
   LICENSES_HIDDEN_SKUS_CHANGED_EVENT,
   readHiddenLicenseSkus,
 } from "@/lib/licenseFilters";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@workspace/ui-kit/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useMemo, useState } from "react";

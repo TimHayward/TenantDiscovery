@@ -12,8 +12,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
+} from "@workspace/ui-kit/table";
+import { Input } from "@workspace/ui-kit/input";
 import { ExportBtn } from "@/components/ExportBtn";
 import { DataTable } from "@/components/DataTable";
 import { ErrorPanel, RefreshIndicator } from "@/components/ErrorPanel";

@@ -1,8 +1,8 @@
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@workspace/ui-kit/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui-kit/table";
 import { CheckCircle2, XCircle, AlertTriangle, HelpCircle } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@workspace/ui-kit/skeleton";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { getMetricDataSourceEntry, type ConfidenceLabel, type EvidenceStatus, type ManualCheckDefinition, type ManualReasonCode } from "@workspace/permissions-manifest";
 import { CHECK_STATUS_BADGE_CLASS, EVIDENCE_STATUS_LABEL } from "@/lib/statusTokens";

@@ -3,9 +3,9 @@ import { ChecklistTable, type ChecklistGroup } from "@/components/ChecklistTable
 import { KPICard } from "@/components/KPICard";
 import { ExportBtn } from "@/components/ExportBtn";
 import { DataTable } from "@/components/DataTable";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui-kit/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@workspace/ui-kit/skeleton";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -20,7 +20,7 @@ import { getCollectionIssues, summarizeIssues } from "@/lib/collectionStatus";
 import { useChartTheme } from "@/lib/useChartTheme";
 import { useState, useMemo, useCallback } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Input } from "@/components/ui/input";
+import { Input } from "@workspace/ui-kit/input";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import type { UserItem } from "@workspace/api-client-react";

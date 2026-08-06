@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ChevronDown, AlertTriangle } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@workspace/ui-kit/card";
 import { SectionStatusBanner } from "@/components/SectionStatusBanner";
 import { issueKindLabel, type IssueSummary } from "@/lib/collectionStatus";
 

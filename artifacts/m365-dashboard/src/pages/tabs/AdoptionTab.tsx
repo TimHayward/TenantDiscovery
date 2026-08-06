@@ -1,8 +1,8 @@
 import { useGetM365AdoptionWithMetadata } from "@workspace/api-client-react";
 import { KPICard } from "@/components/KPICard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui-kit/card";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@workspace/ui-kit/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
   BarChart,
