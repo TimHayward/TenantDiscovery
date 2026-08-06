@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense, type ComponentType } from "react";
+import { Link, useLocation } from "wouter";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui-kit/table";
@@ -17,6 +18,7 @@ import {
   postM365Refresh,
 } from "@workspace/api-client-react";
 import { getOnboardingStatus } from "@/lib/onboardingApi";
+import { TAB_ROUTES, tabHref, readSectionId, type TabId } from "@/lib/tabRoutes";
 import { useToast } from "@/hooks/use-toast";
 
 import { TabErrorBoundary } from "@/components/TabErrorBoundary";
@@ -26,22 +28,51 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 // trimming the entry bundle (heavy tabs like Intune/Defender + their Recharts
 // dependency no longer ship up front). The tabs are named exports, so each lazy
 // import maps the named export onto the `default` shape React.lazy expects.
-const OverviewTab = lazy(() => import("./tabs/OverviewTab").then((m) => ({ default: m.OverviewTab })));
-const UsersTab = lazy(() => import("./tabs/UsersTab").then((m) => ({ default: m.UsersTab })));
-const LicensesTab = lazy(() => import("./tabs/LicensesTab").then((m) => ({ default: m.LicensesTab })));
-const SecurityTab = lazy(() => import("./tabs/SecurityTab").then((m) => ({ default: m.SecurityTab })));
-const ExchangeTab = lazy(() => import("./tabs/ExchangeTab").then((m) => ({ default: m.ExchangeTab })));
-const TeamsSharePointTab = lazy(() => import("./tabs/TeamsSharePointTab").then((m) => ({ default: m.TeamsSharePointTab })));
-const ComplianceTab = lazy(() => import("./tabs/ComplianceTab").then((m) => ({ default: m.ComplianceTab })));
-const FindingsTab = lazy(() => import("./tabs/FindingsTab").then((m) => ({ default: m.FindingsTab })));
-const FrameworkMappingTab = lazy(() => import("./tabs/FrameworkMappingTab").then((m) => ({ default: m.FrameworkMappingTab })));
-const IntuneTab = lazy(() => import("./tabs/IntuneTab").then((m) => ({ default: m.IntuneTab })));
-const ServicePrincipalsTab = lazy(() => import("./tabs/ServicePrincipalsTab").then((m) => ({ default: m.ServicePrincipalsTab })));
-const AppsTab = lazy(() => import("./tabs/AppsTab").then((m) => ({ default: m.AppsTab })));
-const DefenderTab = lazy(() => import("./tabs/DefenderTab").then((m) => ({ default: m.DefenderTab })));
-const AdoptionTab = lazy(() => import("./tabs/AdoptionTab").then((m) => ({ default: m.AdoptionTab })));
-const PowerBITab = lazy(() => import("./tabs/PowerBITab").then((m) => ({ default: m.PowerBITab })));
-const SettingsTab = lazy(() => import("./tabs/SettingsTab").then((m) => ({ default: m.SettingsTab })));
+// Collecting them in a record keyed by TabId keeps the `import()` calls intact,
+// so the chunks stay lazy, while making a tab without a component a type error.
+const TAB_COMPONENTS: Record<TabId, ComponentType> = {
+  "overview":           lazy(() => import("./tabs/OverviewTab").then((m) => ({ default: m.OverviewTab }))),
+  "findings":           lazy(() => import("./tabs/FindingsTab").then((m) => ({ default: m.FindingsTab }))),
+  "frameworks":         lazy(() => import("./tabs/FrameworkMappingTab").then((m) => ({ default: m.FrameworkMappingTab }))),
+  "users":              lazy(() => import("./tabs/UsersTab").then((m) => ({ default: m.UsersTab }))),
+  "licenses":           lazy(() => import("./tabs/LicensesTab").then((m) => ({ default: m.LicensesTab }))),
+  "security":           lazy(() => import("./tabs/SecurityTab").then((m) => ({ default: m.SecurityTab }))),
+  "exchange":           lazy(() => import("./tabs/ExchangeTab").then((m) => ({ default: m.ExchangeTab }))),
+  "teams-sp":           lazy(() => import("./tabs/TeamsSharePointTab").then((m) => ({ default: m.TeamsSharePointTab }))),
+  "compliance":         lazy(() => import("./tabs/ComplianceTab").then((m) => ({ default: m.ComplianceTab }))),
+  "intune":             lazy(() => import("./tabs/IntuneTab").then((m) => ({ default: m.IntuneTab }))),
+  "defender":           lazy(() => import("./tabs/DefenderTab").then((m) => ({ default: m.DefenderTab }))),
+  "service-principals": lazy(() => import("./tabs/ServicePrincipalsTab").then((m) => ({ default: m.ServicePrincipalsTab }))),
+  "apps":               lazy(() => import("./tabs/AppsTab").then((m) => ({ default: m.AppsTab }))),
+  "adoption":           lazy(() => import("./tabs/AdoptionTab").then((m) => ({ default: m.AdoptionTab }))),
+  "power-bi":           lazy(() => import("./tabs/PowerBITab").then((m) => ({ default: m.PowerBITab }))),
+  "settings":           lazy(() => import("./tabs/SettingsTab").then((m) => ({ default: m.SettingsTab }))),
+};
+
+/**
+ * One panel element per tab, created once at module scope.
+ *
+ * The element identity has to be stable, not merely the component identity.
+ * React bails out of re-rendering a subtree when it is handed the very same
+ * element object it rendered last time, and that bail-out is what keeps a route
+ * change from re-rendering every tab that is mounted but hidden. Without it,
+ * navigation re-renders each mounted tab's whole tree, which for the chart-heavy
+ * tabs is a great deal of avoidable work on every tab change. Tab components
+ * take no props, so nothing is lost by freezing the elements.
+ */
+const TAB_PANELS = TAB_ROUTES.map(({ id }) => {
+  const TabComponent = TAB_COMPONENTS[id];
+  return {
+    id,
+    panel: (
+      <TabErrorBoundary>
+        <Suspense fallback={<TableSkeleton />}>
+          <TabComponent />
+        </Suspense>
+      </TabErrorBoundary>
+    ),
+  };
+});
 
 const INTERVAL_OPTIONS = [
   { label: "Off", ms: 0 },
@@ -74,34 +105,36 @@ function invalidateM365Data(queryClient: ReturnType<typeof useQueryClient>): voi
   });
 }
 
-const NAV_ITEMS = [
-  { value: "overview",           label: "Overview",             icon: LayoutDashboard },
-  { value: "findings",           label: "Findings",             icon: ListChecks      },
-  { value: "frameworks",         label: "Framework Mapping",    icon: ShieldCheck     },
-  { value: "users",              label: "Users & Identity",     icon: Users           },
-  { value: "licenses",           label: "Licenses",             icon: CreditCard      },
-  { value: "security",           label: "Security",             icon: Shield          },
-  { value: "exchange",           label: "Exchange Online",      icon: Mail            },
-  { value: "teams-sp",           label: "Teams & SharePoint",   icon: MessageSquare   },
-  { value: "compliance",         label: "Compliance & Health",  icon: ClipboardCheck  },
-  { value: "intune",             label: "Intune",               icon: Smartphone      },
-  { value: "defender",           label: "Defender",             icon: Swords          },
-  { value: "service-principals", label: "Enterprise Apps",      icon: AppWindow       },
-  { value: "apps",               label: "Apps & Permissions",   icon: KeyRound        },
-  { value: "adoption",           label: "Adoption",             icon: TrendingUp      },
-  { value: "power-bi",           label: "Power BI",             icon: BarChart2       },
-  { value: "settings",           label: "Settings",             icon: Settings        },
-] as const;
-
-type NavValue = typeof NAV_ITEMS[number]["value"];
+// The sidebar's order and labels come from TAB_ROUTES; only the icon lives here,
+// because it is presentation rather than routing. Keying the record by TabId is
+// what stops the two drifting: a tab added to TAB_ROUTES without an icon is a
+// compile error, not a blank sidebar entry.
+const TAB_ICONS: Record<TabId, ComponentType<{ className?: string }>> = {
+  "overview":           LayoutDashboard,
+  "findings":           ListChecks,
+  "frameworks":         ShieldCheck,
+  "users":              Users,
+  "licenses":           CreditCard,
+  "security":           Shield,
+  "exchange":           Mail,
+  "teams-sp":           MessageSquare,
+  "compliance":         ClipboardCheck,
+  "intune":             Smartphone,
+  "defender":           Swords,
+  "service-principals": AppWindow,
+  "apps":               KeyRound,
+  "adoption":           TrendingUp,
+  "power-bi":           BarChart2,
+  "settings":           Settings,
+};
 
 type NavSectionLink = {
   label: string;
   id: string;
-  tab?: NavValue;
+  tab?: TabId;
 };
 
-const NAV_SECTIONS: Partial<Record<NavValue, Array<NavSectionLink>>> = {
+const NAV_SECTIONS: Partial<Record<TabId, Array<NavSectionLink>>> = {
   overview: [
     { label: "Summary",                    id: "overview-summary"           },
     { label: "Licensing & Service Health", id: "overview-licensing-health"  },
@@ -194,9 +227,10 @@ const NAV_SECTIONS: Partial<Record<NavValue, Array<NavSectionLink>>> = {
   ],
 };
 
-export default function Dashboard() {
+export default function Dashboard({ tab: activeTab }: { tab: TabId }) {
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
+  const [, navigate] = useLocation();
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -252,12 +286,19 @@ export default function Dashboard() {
   const [exportOpen, setExportOpen] = useState(false);
   const [showDataSources, setShowDataSources] = useState(false);
   const [selectedIntervalMs, setSelectedIntervalMs] = useState(0);
-  const [activeTab, setActiveTab] = useState<NavValue>("overview");
-  const [visitedTabs, setVisitedTabs] = useState<Set<NavValue>>(new Set(["overview"]));
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [scrollTrigger, setScrollTrigger] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const pendingScrollId = useRef<string | null>(null);
+
+  // Keep-alive: a tab is mounted once and then stays in the DOM, hidden, so
+  // returning to it neither remounts its component tree nor refetches its
+  // queries. The active tab now comes from the URL rather than from state, so
+  // the set is grown here during the render the route change already causes.
+  // Growing it in an effect instead would commit one frame in which the tab is
+  // active but not yet mounted, which is a visible blank.
+  const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<TabId>>(() => new Set([activeTab]));
+  if (!visitedTabs.has(activeTab)) {
+    setVisitedTabs(new Set(visitedTabs).add(activeTab));
+  }
 
   const loading = isLoading || isFetching;
   const dataSourceRows = useMemo(() => Array.from(
@@ -308,26 +349,6 @@ export default function Dashboard() {
     return undefined;
   }, [loading]);
 
-  // Scroll to a section after the tab has rendered
-  useEffect(() => {
-    if (!pendingScrollId.current) return;
-    const id = pendingScrollId.current;
-    let attempts = 0;
-    const tryScroll = () => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-        pendingScrollId.current = null;
-      } else if (attempts < 10) {
-        attempts++;
-        setTimeout(tryScroll, 50);
-      } else {
-        pendingScrollId.current = null;
-      }
-    };
-    tryScroll();
-  }, [activeTab, scrollTrigger]);
-
   const handleRefresh = () => {
     invalidateM365Data(queryClient);
   };
@@ -370,22 +391,22 @@ export default function Dashboard() {
     return () => clearTimeout(t);
   }, [isRefreshing]);
 
-  const switchTab = useCallback((value: NavValue) => {
-    setActiveTab(value);
-    setVisitedTabs((prev) => {
-      if (prev.has(value)) return prev;
-      const next = new Set(prev);
-      next.add(value);
-      return next;
-    });
-  }, []);
+  // Section links are ordinary anchors, so wouter navigates them and the section
+  // itself reacts to the fragment. The one case an anchor cannot cover is a
+  // click on the link the URL already points at: the location would not change,
+  // so nothing would re-open or re-scroll, where the old event-based version
+  // always did. Dropping the fragment and restoring it on the next frame is a
+  // change the section observes; both steps replace, so the round trip leaves
+  // no entry in the back history.
+  const isCurrentSection = useCallback(
+    (tabValue: TabId, sectionId: string) => tabValue === activeTab && readSectionId() === sectionId,
+    [activeTab],
+  );
 
-  const navigateToSection = useCallback((tabValue: NavValue, sectionId: string) => {
-    window.dispatchEvent(new CustomEvent("m365:open-section", { detail: { id: sectionId } }));
-    pendingScrollId.current = sectionId;
-    switchTab(tabValue);
-    setScrollTrigger((t) => t + 1);
-  }, [switchTab]);
+  const retargetSection = useCallback((tabValue: TabId, sectionId: string) => {
+    navigate(tabHref(tabValue), { replace: true });
+    requestAnimationFrame(() => navigate(tabHref(tabValue, sectionId), { replace: true }));
+  }, [navigate]);
 
   // Newest real Microsoft Graph collection time across all metric keys, rather
   // than the local React Query fetch time (which can be much fresher than the
@@ -407,7 +428,7 @@ export default function Dashboard() {
       })()
     : null;
 
-  const baseLabel = NAV_ITEMS.find((n) => n.value === activeTab)?.label ?? "";
+  const baseLabel = TAB_ROUTES.find((t) => t.id === activeTab)?.label ?? "";
   const tenantName = overviewData?.tenantName;
   const activeLabel =
     activeTab === "overview" && tenantName && tenantName !== "Unknown Tenant"
@@ -554,13 +575,18 @@ export default function Dashboard() {
           className="sticky top-12 h-[calc(100vh-3rem)] shrink-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-[width] duration-200 overflow-hidden print:hidden"
         >
           <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
-            {NAV_ITEMS.map(({ value, label, icon: Icon }) => {
+            {TAB_ROUTES.map(({ id: value, label }) => {
+              const Icon = TAB_ICONS[value];
               const isActive = activeTab === value;
               const sections = NAV_SECTIONS[value] ?? [];
 
-              const mainBtn = (
-                <button
-                  onClick={() => switchTab(value)}
+              // Real anchors, not buttons: the point of routing the tabs is that
+              // a reader can copy the address of the thing they are looking at,
+              // and that only works if the sidebar carries an href.
+              const mainLink = (
+                <Link
+                  href={tabHref(value)}
+                  aria-current={isActive ? "page" : undefined}
                   className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
                     isActive
                       ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold"
@@ -572,13 +598,13 @@ export default function Dashboard() {
                   {isActive && sidebarExpanded && (
                     <span className="ml-auto w-1.5 h-1.5 rounded-full bg-sidebar-primary-foreground opacity-70 flex-shrink-0" />
                   )}
-                </button>
+                </Link>
               );
 
               if (!sidebarExpanded) {
                 return (
                   <Tooltip key={value}>
-                    <TooltipTrigger asChild>{mainBtn}</TooltipTrigger>
+                    <TooltipTrigger asChild>{mainLink}</TooltipTrigger>
                     <TooltipContent side="right">{label}</TooltipContent>
                   </Tooltip>
                 );
@@ -586,18 +612,23 @@ export default function Dashboard() {
 
               return (
                 <div key={value} className="mb-0.5">
-                  {mainBtn}
+                  {mainLink}
                   {isActive && sections.length > 0 && (
                     <div className="pb-1">
                       {sections.map(({ label: sLabel, id, tab }) => (
-                        <button
+                        <Link
                           key={id}
-                          onClick={() => navigateToSection(tab ?? value, id)}
+                          href={tabHref(tab ?? value, id)}
+                          onClick={(event) => {
+                            if (!isCurrentSection(tab ?? value, id)) return;
+                            event.preventDefault();
+                            retargetSection(tab ?? value, id);
+                          }}
                           className="w-full flex items-center gap-2 pl-9 pr-3 py-1 text-[12px] text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
                         >
                           <span className="w-1 h-1 rounded-full bg-current opacity-50 shrink-0" />
                           <span className="truncate">{sLabel}</span>
-                        </button>
+                        </Link>
                       ))}
                     </div>
                   )}
@@ -761,23 +792,16 @@ export default function Dashboard() {
 
             {/* Tab content — code-split and lazy-mounted on first visit, then kept in DOM to
                 preserve React Query cache. ErrorBoundary wraps Suspense so a chunk-load
-                failure surfaces the boundary rather than crashing the tree. */}
-            {visitedTabs.has("overview")           && <div className={activeTab === "overview"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><OverviewTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("findings")           && <div className={activeTab === "findings"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><FindingsTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("frameworks")         && <div className={activeTab === "frameworks"         ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><FrameworkMappingTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("users")              && <div className={activeTab === "users"              ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><UsersTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("licenses")           && <div className={activeTab === "licenses"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><LicensesTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("security")           && <div className={activeTab === "security"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><SecurityTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("exchange")           && <div className={activeTab === "exchange"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><ExchangeTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("teams-sp")           && <div className={activeTab === "teams-sp"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><TeamsSharePointTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("compliance")         && <div className={activeTab === "compliance"         ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><ComplianceTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("intune")             && <div className={activeTab === "intune"             ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><IntuneTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("defender")           && <div className={activeTab === "defender"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><DefenderTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("service-principals") && <div className={activeTab === "service-principals" ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><ServicePrincipalsTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("apps")               && <div className={activeTab === "apps"               ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><AppsTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("adoption")           && <div className={activeTab === "adoption"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><AdoptionTab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("power-bi")           && <div className={activeTab === "power-bi"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><PowerBITab /></Suspense></TabErrorBoundary></div>}
-            {visitedTabs.has("settings")           && <div className={activeTab === "settings"           ? "" : "hidden"}><TabErrorBoundary><Suspense fallback={<TableSkeleton />}><SettingsTab /></Suspense></TabErrorBoundary></div>}
+                failure surfaces the boundary rather than crashing the tree. Each wrapper
+                is keyed by tab id, so a tab that joins the visited set later slots in
+                beside the others rather than displacing them. */}
+            {TAB_PANELS.map(({ id, panel }) =>
+              visitedTabs.has(id) ? (
+                <div key={id} className={activeTab === id ? "" : "hidden"}>
+                  {panel}
+                </div>
+              ) : null,
+            )}
 
           </div>
         </main>
