@@ -168,13 +168,6 @@ async function attemptResourceFetch(
   }
 }
 
-function graphFetchWithRetry(
-  url: string,
-  extraHeaders?: Record<string, string>,
-): Promise<Response> {
-  return fetchResourceWithRetry(url, GRAPH_SCOPE, extraHeaders);
-}
-
 function classifyStatus(status: number | null): CollectionIssueCategory {
   if (status === 401 || status === 403) return "permission";
   if (status === 402) return "license";

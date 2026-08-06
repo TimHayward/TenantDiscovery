@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import {
+  createCollectionIssue,
   fetchAllGraphPages,
+  fetchAllResourcePages,
   fetchGraphJson,
-  fetchResourceWithRetry,
   getAccessToken,
   isPermissionIssue,
   type CollectionIssue,
@@ -48,21 +50,33 @@ const MFA_METHOD_META: Record<string, { displayName: string; strength: string; s
   officePhone:                        { displayName: "Office Phone",                    strength: "Weak",               strengthLevel: 1 },
 };
 
+const DEFENDER_MACHINES_URL = "https://api.security.microsoft.com/api/machines?$top=10000";
+
+/**
+ * Two aliases for the same resource. Which one a tenant will issue a token for
+ * depends on how the app registration was consented, so both are tried.
+ */
+const DEFENDER_SCOPES = [
+  "https://api.securitycenter.microsoft.com/.default",
+  "https://api.security.microsoft.com/.default",
+];
+
 interface DefenderMachinesResult {
   machines: MdeMachine[];
   status: number | null;
   error: string | null;
   scope: string | null;
+  issues: CollectionIssue[];
 }
 
-async function fetchDefenderMachinesWithDiagnostics(): Promise<DefenderMachinesResult> {
-  const defenderScopes = [
-    "https://api.securitycenter.microsoft.com/.default",
-    "https://api.security.microsoft.com/.default",
-  ];
-
-  let usedScope: string | null = null;
-  for (const scope of defenderScopes) {
+/**
+ * Find the Defender scope alias this tenant will issue a token for.
+ *
+ * This probe is genuinely Defender-specific and stays here; the request itself
+ * goes through the shared helpers.
+ */
+async function resolveDefenderScope(): Promise<string | null> {
+  for (const scope of DEFENDER_SCOPES) {
     try {
       await Promise.race([
         getAccessToken(scope),
@@ -70,36 +84,93 @@ async function fetchDefenderMachinesWithDiagnostics(): Promise<DefenderMachinesR
           setTimeout(() => reject(new Error("Defender token acquisition timed out after 8s")), 8_000),
         ),
       ]);
-      usedScope = scope;
-      break;
+      return scope;
     } catch { /* Try next scope alias */ }
   }
+  return null;
+}
 
-  if (!usedScope) return { machines: [], status: null, error: "Failed to acquire Defender token for known scopes.", scope: null };
+async function fetchDefenderMachinesWithDiagnostics(): Promise<DefenderMachinesResult> {
+  const usedScope = await resolveDefenderScope();
 
-  const machines: MdeMachine[] = [];
-  let url: string | null = "https://api.security.microsoft.com/api/machines?$top=10000";
-  let lastStatus: number | null = null;
-
-  while (url) {
-    try {
-      // Shares the Graph helpers' timeout/retry policy (GRAPH_FETCH_TIMEOUT_MS /
-      // GRAPH_MAX_RETRIES) via the scope-parameterized retry fetch.
-      const resp: Response = await fetchResourceWithRetry(url, usedScope);
-      lastStatus = resp.status;
-      if (!resp.ok) {
-        const body = await resp.text();
-        return { machines: [], status: resp.status, error: body.slice(0, 500), scope: usedScope };
-      }
-      const page = (await resp.json()) as { value?: MdeMachine[]; "@odata.nextLink"?: string; nextLink?: string };
-      if (Array.isArray(page.value)) machines.push(...page.value);
-      url = page["@odata.nextLink"] ?? page.nextLink ?? null;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Defender machines request failed";
-      return { machines: [], status: lastStatus, error: message, scope: usedScope };
-    }
+  if (!usedScope) {
+    const message = "Failed to acquire Defender token for known scopes.";
+    return {
+      machines: [],
+      status: null,
+      error: message,
+      scope: null,
+      issues: [createCollectionIssue("securityEstateDefenderMachines", null, message)],
+    };
   }
-  return { machines, status: lastStatus, error: null, scope: usedScope };
+
+  // Defender is a different host with a different token scope, so it uses the
+  // scope-parameterised variant of the shared paging helper. That gives it the
+  // same timeout (GRAPH_FETCH_TIMEOUT_MS), the same bounded retry
+  // (GRAPH_MAX_RETRIES), its own per-host concurrency budget
+  // (DEFENDER_MAX_CONCURRENCY) and the same collection-issue capture as Graph.
+  const paged = await fetchAllResourcePages<MdeMachine>(
+    DEFENDER_MACHINES_URL,
+    "securityEstateDefenderMachines",
+    { scope: usedScope },
+  );
+
+  const firstIssue = paged.issues[0] ?? null;
+
+  return {
+    // A partial machine list is discarded on failure, as it was before this
+    // collector moved onto the shared helper. Reporting the machines collected
+    // before the failing page would be an improvement, but it would change what
+    // the device inventory contains, which is not this change's business.
+    machines: firstIssue ? [] : paged.items,
+    // The helper only reports a status when a page failed. Every page that did
+    // not fail was 2xx by definition, and in practice 200.
+    status: firstIssue ? firstIssue.status : 200,
+    error: firstIssue ? firstIssue.message : null,
+    scope: usedScope,
+    issues: paged.issues,
+  };
+}
+
+/**
+ * A device identity that does not change between collections.
+ *
+ * Intune and Defender records that are not Entra joined used to fall back to
+ * `Math.random()` when the source identifier was absent, so the merged
+ * inventory came out different on every run and drift reported the whole
+ * non-Entra estate as churn. The tuple hashed here is made only of fields that
+ * do not move: a name, an operating system and, where available, an enrolment
+ * date. Patch levels and last-seen timestamps are deliberately excluded.
+ *
+ * Returns null when the anchor is missing, because a key derived from an
+ * operating system alone would collide across unrelated devices. The caller
+ * excludes those devices and records a collection note instead of inventing an
+ * identity for them.
+ */
+function stableDeviceKey(
+  prefix: string,
+  anchor: string | null | undefined,
+  ...rest: Array<string | null | undefined>
+): string | null {
+  const normalisedAnchor = (anchor ?? "").trim().toLowerCase();
+  if (normalisedAnchor.length === 0) return null;
+  const tuple = [normalisedAnchor, ...rest.map((part) => (part ?? "").trim().toLowerCase())];
+  const digest = createHash("sha256").update(tuple.join("\u0000")).digest("hex").slice(0, 32);
+  return `${prefix}:${digest}`;
+}
+
+/** Merge identity for an Intune managed device, or null when nothing stable exists. */
+function managedDeviceIdentity(md: GraphManagedDevice): string | null {
+  if (md.azureADDeviceId) return md.azureADDeviceId;
+  if (md.id) return `intune:${md.id}`;
+  return stableDeviceKey("intune", md.deviceName, md.operatingSystem, md.enrolledDateTime);
+}
+
+/** Merge identity for a Defender machine, or null when nothing stable exists. */
+function mdeMachineIdentity(m: MdeMachine): string | null {
+  if (m.aadDeviceId) return m.aadDeviceId;
+  if (m.id) return `mde:${m.id}`;
+  return stableDeviceKey("mde", m.computerDnsName ?? m.deviceName, m.osPlatform);
 }
 
 function summariseUsers(users: GraphCAPolicyConditions["users"]): string {
@@ -399,7 +470,9 @@ export async function collectSecurityEstate() {
     ),
     fetchAllGraphPages<GraphManagedDevice>(
       "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices" +
-        `?$select=id,deviceName,azureADDeviceId,operatingSystem,osVersion,lastSyncDateTime,managementAgent,complianceState&$top=${GRAPH_MAX_PAGE_SIZE}`,
+        // enrolledDateTime is selected for its stability, not for display: it is
+        // part of the tuple that keys a managed device carrying no identifier.
+        `?$select=id,deviceName,azureADDeviceId,operatingSystem,osVersion,lastSyncDateTime,enrolledDateTime,managementAgent,complianceState&$top=${GRAPH_MAX_PAGE_SIZE}`,
       "securityEstateManagedDevices",
     ),
     fetchAllGraphPages<GraphServicePrincipal>(
@@ -464,11 +537,18 @@ export async function collectSecurityEstate() {
   const byId = new Map(deviceList.map((d) => [d.id, d]));
   const byName = new Map(deviceList.map((d) => [normalizeName(d.displayName), d] as const).filter(([name]) => name.length > 0));
 
+  let unidentifiableManagedDevices = 0;
+  let unidentifiableMdeMachines = 0;
+
   for (const md of managedDevicesRaw) {
     const aadDeviceId = md.azureADDeviceId ?? null;
     const deviceName = md.deviceName ?? "Unknown";
     const existingByName = byName.get(normalizeName(deviceName));
-    const id = aadDeviceId ?? `intune:${md.id ?? Math.random().toString(36).slice(2)}`;
+    const id = managedDeviceIdentity(md);
+    if (!id) {
+      unidentifiableManagedDevices += 1;
+      continue;
+    }
     const existing = byId.get(id) ?? (!aadDeviceId ? existingByName : undefined);
     const complianceState = md.complianceState?.toLowerCase() ?? "unknown";
     const inferredCompliance = complianceState === "compliant" ? true : complianceState === "noncompliant" ? false : null;
@@ -495,7 +575,11 @@ export async function collectSecurityEstate() {
     const aadDeviceId = m.aadDeviceId ?? null;
     const mdeDisplayName = m.computerDnsName ?? m.deviceName ?? m.id ?? "Unknown";
     const existingByName = byName.get(normalizeName(mdeDisplayName));
-    const id = aadDeviceId ?? `mde:${m.id ?? Math.random().toString(36).slice(2)}`;
+    const id = mdeMachineIdentity(m);
+    if (!id) {
+      unidentifiableMdeMachines += 1;
+      continue;
+    }
     const existing = byId.get(id) ?? (!aadDeviceId ? existingByName : undefined);
     if (existing) {
       existing.managementType = "MicrosoftSense";
@@ -552,14 +636,22 @@ export async function collectSecurityEstate() {
   }
   const oauthApps = Array.from(oauthMap.values()).sort((a, b) => (a.isOrgWide === b.isOrgWide ? 0 : a.isOrgWide ? -1 : 1));
 
-  const mdeDeviceInventory: DeviceEstateEntry[] = mdeMachinesRaw.map((m) => ({
-    id: m.aadDeviceId ?? `mde:${m.id ?? Math.random().toString(36).slice(2)}`,
-    displayName: m.computerDnsName ?? m.deviceName ?? m.id ?? "Unknown",
-    operatingSystem: m.osPlatform ?? m.osProcessor ?? "Unknown",
-    operatingSystemVersion: m.osVersion ?? null, trustType: null,
-    isManaged: true, isCompliant: null, managementType: "MicrosoftSense",
-    approximateLastSignInDateTime: m.lastSeen ?? null,
-  }));
+  // Keyed by the same identity the merge above used, so the standalone Defender
+  // inventory and the merged estate agree on what a device is called.
+  const mdeDeviceInventory: DeviceEstateEntry[] = mdeMachinesRaw
+    .map((m): DeviceEstateEntry | null => {
+      const id = mdeMachineIdentity(m);
+      if (!id) return null;
+      return {
+        id,
+        displayName: m.computerDnsName ?? m.deviceName ?? m.id ?? "Unknown",
+        operatingSystem: m.osPlatform ?? m.osProcessor ?? "Unknown",
+        operatingSystemVersion: m.osVersion ?? null, trustType: null,
+        isManaged: true, isCompliant: null, managementType: "MicrosoftSense",
+        approximateLastSignInDateTime: m.lastSeen ?? null,
+      };
+    })
+    .filter((entry): entry is DeviceEstateEntry => entry !== null);
 
   const mdeStatus = { ok: !mdeResult.error, status: mdeResult.status, count: mdeMachinesRaw.length, scope: mdeResult.scope, error: mdeResult.error };
 
@@ -589,10 +681,41 @@ export async function collectSecurityEstate() {
   };
   const firstError = incidentsResult.issues[0]?.message ?? alertsResult.issues[0]?.message ?? null;
 
+  const collectionIssues: CollectionIssue[] = [
+    ...devicesRawResult.issues,
+    ...managedDevicesRawResult.issues,
+    ...servicePrincipalsRawResult.issues,
+    ...oauthGrantsRawResult.issues,
+    ...mdeResult.issues,
+    ...incidentsResult.issues,
+    ...alertsResult.issues,
+  ];
+
+  // A device with no identifier and no name has nothing that survives to the
+  // next collection, so it is left out of the drift-keyed inventory rather than
+  // given an invented key that would report it as churn every run.
+  if (unidentifiableManagedDevices > 0) {
+    collectionIssues.push(createCollectionIssue(
+      "securityEstateManagedDevices",
+      null,
+      `${unidentifiableManagedDevices} Intune managed device(s) carried no Entra device id, Intune id or device name, ` +
+        "so no stable identity could be derived. They are excluded from the device inventory.",
+    ));
+  }
+  if (unidentifiableMdeMachines > 0) {
+    collectionIssues.push(createCollectionIssue(
+      "securityEstateDefenderMachines",
+      null,
+      `${unidentifiableMdeMachines} Defender machine(s) carried no Entra device id, machine id or name, ` +
+        "so no stable identity could be derived. They are excluded from the device inventory.",
+    ));
+  }
+
   return {
     deviceSummary, deviceList, mdeDeviceInventory, mdeStatus, saasApps, oauthApps,
     defenderOfficeAlerts, defenderOfficeStatus, defenderEndpointAlerts, defenderEndpointStatus,
     incidentAlert30dSummary,
     incidentAlert30dStatus: { ok: !firstError, error: firstError },
+    collectionIssues,
   };
 }
