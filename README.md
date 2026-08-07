@@ -25,6 +25,52 @@ $env:AZURE_CLIENT_ID = "your-client-id"
 $env:AZURE_CLIENT_SECRET = "your-client-secret"
 ```
 
+## Offline demonstration mode
+
+Seeing this tool work normally requires a tenant, an app registration, consented permissions and a successful collection run. Demonstration mode removes all four: the server reads a recorded snapshot from `fixtures/` instead of calling Microsoft Graph, and the dashboard runs on it exactly as it runs on a real tenant.
+
+```bash
+DEMO_MODE=neglected-smb pnpm --filter @workspace/api-server run dev
+pnpm --filter @workspace/m365-dashboard run dev
+```
+
+Two profiles ship with the repository:
+
+| Profile | Shape |
+|---------|-------|
+| `healthy-mid-market` | Roughly 250 users, MFA broadly enforced, Secure Score 462/600, a short tail of low-severity findings |
+| `neglected-smb` | Roughly 60 users, sparse MFA, legacy authentication permitted, ownerless app registrations with expired secrets, anonymous sharing links, no DLP policies and the audit log off |
+
+**Both profiles are entirely invented.** No tenant was contacted to produce them. Every domain is under the RFC 2606 reserved `.example` TLD, every identifier is a readable `demo-...` string rather than a GUID, and every display name carries a `(demo)` suffix so that a screenshot of any tab, and every row of a PDF or spreadsheet export, says so on its face. `fixtures/build.mjs` is committed alongside the data it writes so a reviewer can see exactly how each value was produced.
+
+With `DEMO_MODE` set:
+
+- the Graph client refuses to issue credentials or a client at all, so no outbound call to Microsoft is possible;
+- onboarding is satisfied, so the dashboard renders rather than routing to setup;
+- every API response carries an `X-Demo-Mode` header and a `demoMode` property;
+- the fact is logged at startup as a boxed warning;
+- the dashboard shows a persistent banner that cannot be dismissed, on every tab, taken from the API response rather than from a build-time constant — so a production build pointed at a demonstration server still shows it.
+
+With `DEMO_MODE` unset, none of the above happens and behaviour is unchanged.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DEMO_MODE` (api-server) | _(unset)_ | Name of a directory under `fixtures/`. Set it to serve that profile instead of calling Graph. |
+| `DEMO_FIXTURES_DIR` (api-server) | _(unset)_ | Where the fixture profiles live. Only needed when the server runs away from the repository, such as in a container. |
+
+### Recording a fixture from a real tenant
+
+`scripts/src/exportFixture.ts` records a running server's collection into a new profile:
+
+```bash
+pnpm --filter @workspace/scripts exec tsx src/exportFixture.ts \
+  --profile acme-manufacturing --api http://127.0.0.1:5100
+```
+
+It redacts by default and fails closed. Tenant identifiers, user principal names, display names, email addresses, device names, object identifiers and free text are replaced with generated equivalents, consistently, so references between snapshots survive. Any field it does not recognise is **dropped**, with a warning naming the field and where it was found, rather than passed through.
+
+> **A recording is not a fixture until a human has read it.** Redaction by field name cannot see a tenant name inside a policy description, a supplier in a SharePoint site title or a customer in a Teams channel name. The recorder writes to `fixtures/<profile>/recorded-<timestamp>/`, which `.gitignore` excludes, so a raw recording cannot be committed by accident. Promoting one is a deliberate act: review every file, move it up into the profile directory, and set `synthetic` in the manifest honestly.
+
 ### Collection tuning (optional)
 
 Collectors reach Microsoft Graph and Defender for Endpoint through one shared fetch helper, which bounds how long a request may take, how often it is retried, and how many requests may be in flight against a single host at once. The defaults suit a tenant of any size and should be left alone unless a refresh is demonstrably being throttled.
