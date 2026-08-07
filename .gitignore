@@ -69,3 +69,11 @@ onboarding-settings.json
 *.db
 *.db-journal
 *.db-wal
+
+# Raw fixture recordings. `scripts/src/exportFixture.ts` redacts by field name,
+# which is a good default and not a guarantee: a tenant name in a policy
+# description or a customer in a site title survives it. A recording becomes a
+# committable fixture only after a human has read every file in it and moved
+# them up into the profile directory deliberately.
+fixtures/*/recorded-*
+fixtures/recorded-*
