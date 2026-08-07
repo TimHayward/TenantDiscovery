@@ -1,22 +1,29 @@
 import { Archive } from "lucide-react";
 
 /**
- * The fields a live finding carries that the scan archive does not.
+ * The fields a live finding carries that a scan-scoped view cannot show, split
+ * by the reason it cannot show them.
  *
- * `findings_history` stores nine columns per finding and `/m365/scans/{id}`
- * returns six of them. Everything below is therefore genuinely absent from a
- * scan-scoped view rather than merely zero, and the difference matters: showing
- * a blank archived field as `0`, or as "no owner", is the defect backlog 5.8
- * exists to fix elsewhere, so this tab names the gap instead.
+ * The two reasons are worth keeping apart. `findings_history` stores nine
+ * columns per finding; `GET /m365/scans/{id}` returns six of them. So evidence
+ * status and confidence are archived and merely not served, which a change to
+ * one route would fix, whereas description, remediation and the rest were never
+ * written and are gone for every scan already recorded. Either way the field is
+ * absent rather than zero, and showing a blank archived field as `0`, or as "no
+ * owner", is the defect backlog 5.8 exists to fix elsewhere.
  */
-const UNARCHIVED_FIELDS: string[] = [
+const NEVER_ARCHIVED: string[] = [
   "Description",
   "Remediation",
-  "Evidence status",
-  "Confidence",
   "Source metric",
   "Triage state (status, owner, notes, due date)",
   "First seen and last seen",
+];
+
+const ARCHIVED_BUT_NOT_SERVED: string[] = [
+  "Evidence status",
+  "Confidence",
+  "the archived metric snapshot payloads (only the list of keys is returned)",
 ];
 
 /**
@@ -38,9 +45,10 @@ export function SummaryOnlyNote({
       <div>
         <p>
           <span className="font-medium text-foreground">Summary only.</span> Each scan is archived
-          as a summary row per finding. These fields are not archived and are shown as{" "}
-          <span className="font-medium">not archived</span> rather than as zero or blank:{" "}
-          {UNARCHIVED_FIELDS.join(", ")}.
+          as a summary row per finding, so a scan-scoped view shows less than the live one. Where a
+          field is missing it is shown as <span className="font-medium">not archived</span> rather
+          than as zero or blank. Never archived: {NEVER_ARCHIVED.join(", ")}. Archived but not
+          returned by the scan endpoint: {ARCHIVED_BUT_NOT_SERVED.join(", ")}.
         </p>
         {children && <p className="mt-1">{children}</p>}
       </div>
