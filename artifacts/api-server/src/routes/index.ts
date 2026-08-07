@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import m365FixturesRouter from "./m365Fixtures";
 import healthRouter from "./health";
 import m365OverviewRouter from "./m365Overview";
 import m365UsersRouter from "./m365Users";
@@ -28,6 +29,9 @@ import onboardingRouter from "./onboarding";
 
 const router: IRouter = Router();
 
+// First: it flags every response below it as demonstration data, and answers
+// the onboarding gate, both of which are no-ops when DEMO_MODE is unset.
+router.use(m365FixturesRouter);
 router.use(healthRouter);
 router.use(m365OverviewRouter);
 router.use(m365UsersRouter);
