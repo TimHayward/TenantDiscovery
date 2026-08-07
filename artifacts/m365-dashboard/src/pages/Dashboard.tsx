@@ -7,7 +7,7 @@ import {
   RefreshCw, ChevronDown, Printer, Sun, Moon, PanelLeftClose, PanelLeftOpen,
   LayoutDashboard, Users, CreditCard, Shield, Mail,
   MessageSquare, ClipboardCheck, Smartphone, Swords, AppWindow, TrendingUp, BarChart2,
-  Database, X, ListChecks, Download, KeyRound, ShieldCheck, Settings,
+  Database, X, ListChecks, Download, KeyRound, ShieldCheck, Settings, History,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
@@ -34,6 +34,7 @@ const TAB_COMPONENTS: Record<TabId, ComponentType> = {
   "overview":           lazy(() => import("./tabs/OverviewTab").then((m) => ({ default: m.OverviewTab }))),
   "findings":           lazy(() => import("./tabs/FindingsTab").then((m) => ({ default: m.FindingsTab }))),
   "frameworks":         lazy(() => import("./tabs/FrameworkMappingTab").then((m) => ({ default: m.FrameworkMappingTab }))),
+  "history":            lazy(() => import("./tabs/HistoryTab").then((m) => ({ default: m.HistoryTab }))),
   "users":              lazy(() => import("./tabs/UsersTab").then((m) => ({ default: m.UsersTab }))),
   "licenses":           lazy(() => import("./tabs/LicensesTab").then((m) => ({ default: m.LicensesTab }))),
   "security":           lazy(() => import("./tabs/SecurityTab").then((m) => ({ default: m.SecurityTab }))),
@@ -113,6 +114,7 @@ const TAB_ICONS: Record<TabId, ComponentType<{ className?: string }>> = {
   "overview":           LayoutDashboard,
   "findings":           ListChecks,
   "frameworks":         ShieldCheck,
+  "history":            History,
   "users":              Users,
   "licenses":           CreditCard,
   "security":           Shield,
@@ -146,6 +148,12 @@ const NAV_SECTIONS: Partial<Record<TabId, Array<NavSectionLink>>> = {
   frameworks: [
     { label: "CIS Microsoft 365",      id: "framework-CIS-M365" },
     { label: "NCSC Cyber Essentials",  id: "framework-NCSC-CE"  },
+  ],
+  history: [
+    { label: "Scan Runs",           id: "history-scans"  },
+    { label: "Severity Trend",      id: "history-trend"  },
+    { label: "Drift Between Scans", id: "history-drift"  },
+    { label: "Per-Finding History", id: "history-finding" },
   ],
   users: [
     { label: "Summary",                    id: "users-summary"                   },

@@ -14,6 +14,7 @@ export const TAB_ROUTES = [
   { id: "overview",           label: "Overview"            },
   { id: "findings",           label: "Findings"            },
   { id: "frameworks",         label: "Framework Mapping"   },
+  { id: "history",            label: "History"             },
   { id: "users",              label: "Users & Identity"    },
   { id: "licenses",           label: "Licenses"            },
   { id: "security",           label: "Security"            },
