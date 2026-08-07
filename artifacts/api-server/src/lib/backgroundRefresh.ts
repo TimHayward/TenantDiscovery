@@ -1,3 +1,5 @@
+import { getDemoProfile, isDemoMode } from "./fixtures/demoMode.js";
+import { loadManifest, loadSnapshot } from "./fixtures/loader.js";
 import { logger } from "./logger.js";
 import * as metricStore from "./metricStore.js";
 import type { SnapshotEntry } from "./metricStore.js";
@@ -23,6 +25,16 @@ const TTL_SECONDS = 3600;
 const STAGGER_MS = 5_000;
 const TICK_INTERVAL_MS = 30 * 60 * 1000;
 const REFRESH_THRESHOLD_MS = 10 * 60 * 1000;
+
+/**
+ * Fixture snapshots never go stale, and a stale one would be worse than useless:
+ * `getOrFetch` falls back to the live collector when a key has expired, and in
+ * demonstration mode that collector has no credentials to work with. Ten years
+ * keeps the seeded snapshots fresh for the life of any demonstration, so the
+ * only thing that ever rewrites them is an explicit refresh, which reads the
+ * fixture again.
+ */
+const DEMO_TTL_SECONDS = 10 * 365 * 24 * 3600;
 
 interface Task {
   key: string;
@@ -53,13 +65,33 @@ const TASKS: Task[] = [
 
 const running = new Set<string>();
 
+/**
+ * Where a task's data comes from.
+ *
+ * Demonstration mode replaces the collector, and nothing below it. Every
+ * snapshot still lands in the metric store through the same write, so the
+ * findings engine, the drift computation, the scan archive, the export pipeline
+ * and all twenty-odd routes run on the code they run on in production; the only
+ * substitution is the one call that would otherwise have reached Microsoft.
+ *
+ * See `docs/agent-runs/T10.md` for why the substitution is here rather than at
+ * the HTTP transport.
+ */
+function sourceFor(task: Task): () => Promise<unknown> {
+  return isDemoMode() ? () => loadSnapshot(task.key) : task.collect;
+}
+
+function ttlSeconds(): number {
+  return isDemoMode() ? DEMO_TTL_SECONDS : TTL_SECONDS;
+}
+
 async function runTask(task: Task): Promise<void> {
   if (running.has(task.key)) return;
   running.add(task.key);
   try {
     logger.info({ key: task.key }, "Background collect starting");
-    const data = await task.collect();
-    await metricStore.set(task.key, data, TTL_SECONDS);
+    const data = await sourceFor(task)();
+    await metricStore.set(task.key, data, ttlSeconds());
     logger.info({ key: task.key }, "Background collect complete");
   } catch (err) {
     logger.warn({ err, key: task.key }, "Background collect failed");
@@ -86,7 +118,57 @@ async function refreshStale(): Promise<void> {
   }
 }
 
+/**
+ * Announce demonstration mode at startup, loudly enough that nobody who reads a
+ * log can be in any doubt about what the dashboard above it is showing.
+ */
+async function announceDemoMode(profile: string): Promise<void> {
+  const banner = "=".repeat(78);
+  const manifest = await loadManifest().catch(() => null);
+  for (const line of [
+    banner,
+    "  DEMONSTRATION MODE IS ON. THIS SERVER IS NOT CONNECTED TO A REAL TENANT.",
+    `  Fixture profile : ${profile}${manifest ? ` (${manifest.name})` : ""}`,
+    ...(manifest
+      ? [
+          `  Description     : ${manifest.description}`,
+          `  Recorded        : ${manifest.recordedAt}`,
+          `  Synthetic data  : ${manifest.synthetic ? "yes, entirely invented" : "NO — recorded from a real tenant and redacted"}`,
+        ]
+      : ["  Manifest        : could not be read; the fixture may be incomplete"]),
+    "  Every figure the dashboard shows is fictional. Do not present it as an",
+    "  assessment of any tenant. Unset DEMO_MODE to return to live collection.",
+    banner,
+  ]) {
+    logger.warn(line);
+  }
+}
+
+/**
+ * Seed every snapshot from the fixture and record the baseline scan.
+ *
+ * Live collection is staggered over a minute and a half to be gentle with Graph
+ * throttling. Reading nineteen local files needs none of that, and the point of
+ * demonstration mode is that the dashboard has data the moment it is opened, so
+ * this runs the lot at once and records the baseline scan as soon as they land.
+ */
+async function seedFromFixtures(profile: string): Promise<void> {
+  const startedAt = Date.now();
+  await announceDemoMode(profile);
+  await Promise.all(TASKS.map((task) => runTask(task)));
+  await recordScan("demo-fixture", startedAt);
+  logger.warn({ profile, keys: TASKS.length }, "Demonstration fixture loaded");
+}
+
 export function start(): void {
+  const demoProfile = getDemoProfile();
+  if (demoProfile !== null) {
+    seedFromFixtures(demoProfile).catch((err) =>
+      logger.error({ err, profile: demoProfile }, "Failed to load the demonstration fixture"),
+    );
+    return;
+  }
+
   logger.info("Starting background refresh scheduler");
 
   // Stagger initial collection, then record a baseline scan once they have run.
