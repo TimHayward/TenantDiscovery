@@ -1,0 +1,18 @@
+{
+  "tenantName": "Fabrikam Joinery (demonstration fixture)",
+  "tenantId": "demo-tenant-fabrikam-joinery",
+  "totalUsers": 60,
+  "activeUsers": 47,
+  "totalLicenses": 100,
+  "assignedLicenses": 55,
+  "mfaEnabledPercent": 38,
+  "secureScore": 168,
+  "secureScoreMax": 600,
+  "guestUsers": 7,
+  "disabledUsers": 6,
+  "activeServices": 8,
+  "totalServices": 10,
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

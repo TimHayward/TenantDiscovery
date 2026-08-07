@@ -1,0 +1,19 @@
+{
+  "dlpPolicies": 0,
+  "activeDlpPolicies": 0,
+  "retentionPolicies": 0,
+  "retentionLabelCount": 0,
+  "retentionEvidence": "apiBacked",
+  "sensitivityLabels": 0,
+  "dlpPolicyMatches": 0,
+  "complianceScore": 31,
+  "complianceScoreMax": 100,
+  "auditLogEnabled": false,
+  "unifiedAuditLogEnabled": false,
+  "eDiscoveryCases": 0,
+  "sensitivityLabelsList": [],
+  "sensitivityLabelsPermissionRequired": false,
+  "collectionNotes": [
+    "Synthetic fixture: eDiscovery and DLP counts were invented, not collected."
+  ]
+}

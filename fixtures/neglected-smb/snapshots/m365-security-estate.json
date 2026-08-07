@@ -1,0 +1,617 @@
+{
+  "deviceSummary": {
+    "total": 64,
+    "managed": 41,
+    "unmanaged": 23,
+    "mde": 12,
+    "azureAdJoined": 29,
+    "hybridJoined": 4,
+    "registered": 8,
+    "unknown": 23,
+    "byOs": {
+      "Android": 19,
+      "Windows": 21
+    }
+  },
+  "deviceList": [
+    {
+      "id": "demo-device-0001",
+      "displayName": "DEMO-AND-0001",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-18T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0002",
+      "displayName": "DEMO-AND-0002",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-05T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0003",
+      "displayName": "DEMO-AND-0003",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-09T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0004",
+      "displayName": "DEMO-AND-0004",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-14T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0005",
+      "displayName": "DEMO-AND-0005",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-11T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0006",
+      "displayName": "DEMO-AND-0006",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-03T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0007",
+      "displayName": "DEMO-AND-0007",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-21T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0008",
+      "displayName": "DEMO-AND-0008",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-11T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0009",
+      "displayName": "DEMO-WIN-0009",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-02T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0010",
+      "displayName": "DEMO-WIN-0010",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-18T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0011",
+      "displayName": "DEMO-WIN-0011",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-03-10T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0012",
+      "displayName": "DEMO-WIN-0012",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-03-18T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0013",
+      "displayName": "DEMO-WIN-0013",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-30T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0014",
+      "displayName": "DEMO-WIN-0014",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-23T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0015",
+      "displayName": "DEMO-WIN-0015",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-04T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0016",
+      "displayName": "DEMO-WIN-0016",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0017",
+      "displayName": "DEMO-WIN-0017",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0018",
+      "displayName": "DEMO-WIN-0018",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-25T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0019",
+      "displayName": "DEMO-WIN-0019",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-03T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0020",
+      "displayName": "DEMO-WIN-0020",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-03-29T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0021",
+      "displayName": "DEMO-WIN-0021",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-07-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0022",
+      "displayName": "DEMO-AND-0022",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-03-24T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0023",
+      "displayName": "DEMO-AND-0023",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-19T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0024",
+      "displayName": "DEMO-WIN-0024",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-21T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0025",
+      "displayName": "DEMO-AND-0025",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-28T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0026",
+      "displayName": "DEMO-WIN-0026",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0027",
+      "displayName": "DEMO-WIN-0027",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-03-18T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0028",
+      "displayName": "DEMO-AND-0028",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-19T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0029",
+      "displayName": "DEMO-AND-0029",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-31T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0030",
+      "displayName": "DEMO-AND-0030",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-03-24T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0031",
+      "displayName": "DEMO-WIN-0031",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-20T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0032",
+      "displayName": "DEMO-AND-0032",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-16T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0033",
+      "displayName": "DEMO-WIN-0033",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0034",
+      "displayName": "DEMO-AND-0034",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-11T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0035",
+      "displayName": "DEMO-AND-0035",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-03-23T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0036",
+      "displayName": "DEMO-WIN-0036",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-17T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0037",
+      "displayName": "DEMO-AND-0037",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-10T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0038",
+      "displayName": "DEMO-WIN-0038",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-11T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0039",
+      "displayName": "DEMO-WIN-0039",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-04-02T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0040",
+      "displayName": "DEMO-AND-0040",
+      "operatingSystem": "Android",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": false,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-05-25T09:00:00.000Z"
+    }
+  ],
+  "saasApps": [
+    {
+      "id": "demo-sp-001",
+      "displayName": "Microsoft Teams services (demo)",
+      "publisherName": "Microsoft Services (demo)",
+      "appOwnerOrganizationId": "demo-tenant-microsoft",
+      "isFirstParty": true,
+      "createdDateTime": "2025-12-04T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    },
+    {
+      "id": "demo-sp-002",
+      "displayName": "Old stock sync (demo)",
+      "publisherName": "Demo Software Ltd",
+      "appOwnerOrganizationId": "demo-tenant-fabrikam-joinery",
+      "isFirstParty": false,
+      "createdDateTime": "2024-04-26T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    },
+    {
+      "id": "demo-sp-003",
+      "displayName": "Accounts export (demo)",
+      "publisherName": "Demo Software Ltd",
+      "appOwnerOrganizationId": "demo-tenant-fabrikam-joinery",
+      "isFirstParty": false,
+      "createdDateTime": "2024-08-09T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    },
+    {
+      "id": "demo-sp-004",
+      "displayName": "Consultant access (demo)",
+      "publisherName": "Demo Software Ltd",
+      "appOwnerOrganizationId": "demo-tenant-fabrikam-joinery",
+      "isFirstParty": false,
+      "createdDateTime": "2024-08-07T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    },
+    {
+      "id": "demo-sp-005",
+      "displayName": "Marketing automation (demo)",
+      "publisherName": "Demo Software Ltd",
+      "appOwnerOrganizationId": "demo-tenant-fabrikam-joinery",
+      "isFirstParty": false,
+      "createdDateTime": "2025-03-14T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    },
+    {
+      "id": "demo-sp-006",
+      "displayName": "Retired backup tool (demo)",
+      "publisherName": "Demo Software Ltd",
+      "appOwnerOrganizationId": "demo-tenant-fabrikam-joinery",
+      "isFirstParty": false,
+      "createdDateTime": "2024-12-20T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    }
+  ],
+  "oauthApps": [
+    {
+      "clientId": "demo-spappid-001",
+      "displayName": "Old stock sync (demo)",
+      "consentType": "AllPrincipals",
+      "scopes": [
+        "Directory.ReadWrite.All",
+        "Mail.ReadWrite",
+        "Files.ReadWrite.All"
+      ],
+      "isOrgWide": true
+    },
+    {
+      "clientId": "demo-spappid-002",
+      "displayName": "Accounts export (demo)",
+      "consentType": "AllPrincipals",
+      "scopes": [
+        "Directory.ReadWrite.All",
+        "Mail.ReadWrite",
+        "Files.ReadWrite.All"
+      ],
+      "isOrgWide": true
+    },
+    {
+      "clientId": "demo-spappid-003",
+      "displayName": "Consultant access (demo)",
+      "consentType": "AllPrincipals",
+      "scopes": [
+        "Directory.ReadWrite.All",
+        "Mail.ReadWrite",
+        "Files.ReadWrite.All"
+      ],
+      "isOrgWide": true
+    }
+  ],
+  "defenderOfficeAlerts": [
+    {
+      "id": "demo-alert-001",
+      "title": "Malicious attachment delivered to inbox (demo)",
+      "severity": "high",
+      "status": "new",
+      "serviceSource": "microsoftDefenderForOffice365",
+      "category": "InitialAccess",
+      "createdDateTime": "2026-06-30T09:00:00.000Z"
+    },
+    {
+      "id": "demo-alert-002",
+      "title": "Suspicious inbox forwarding rule (demo)",
+      "severity": "high",
+      "status": "new",
+      "serviceSource": "microsoftDefenderForOffice365",
+      "category": "Exfiltration",
+      "createdDateTime": "2026-06-07T09:00:00.000Z"
+    },
+    {
+      "id": "demo-alert-003",
+      "title": "Password spray attempt against tenant (demo)",
+      "severity": "medium",
+      "status": "inProgress",
+      "serviceSource": "microsoftDefenderForOffice365",
+      "category": "CredentialAccess",
+      "createdDateTime": "2026-06-04T09:00:00.000Z"
+    },
+    {
+      "id": "demo-alert-004",
+      "title": "Anonymous sharing link created for finance file (demo)",
+      "severity": "medium",
+      "status": "new",
+      "serviceSource": "microsoftDefenderForOffice365",
+      "category": "Exfiltration",
+      "createdDateTime": "2026-06-05T09:00:00.000Z"
+    },
+    {
+      "id": "demo-alert-005",
+      "title": "Sign-in from unfamiliar location (demo)",
+      "severity": "low",
+      "status": "resolved",
+      "serviceSource": "microsoftDefenderForOffice365",
+      "category": "InitialAccess",
+      "createdDateTime": "2026-06-01T09:00:00.000Z"
+    }
+  ],
+  "defenderOfficeStatus": {
+    "ok": true,
+    "error": null,
+    "totalAlerts": 5,
+    "high": 2,
+    "medium": 2,
+    "low": 1,
+    "informational": 0
+  }
+}

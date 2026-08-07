@@ -1,0 +1,8 @@
+{
+  "name": "Neglected SMB",
+  "description": "Roughly 60 users, sparse MFA, legacy authentication still permitted, stale app registrations with expiring credentials, and several high-severity findings. Entirely invented.",
+  "schemaVersion": 1,
+  "recordedAt": "2026-07-01T09:00:00.000Z",
+  "synthetic": true,
+  "source": "Hand-authored by fixtures/build.mjs. No tenant was contacted and no real identifier, domain, mailbox or person appears anywhere in this profile."
+}

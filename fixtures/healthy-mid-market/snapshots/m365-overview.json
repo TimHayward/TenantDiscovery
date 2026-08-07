@@ -1,0 +1,18 @@
+{
+  "tenantName": "Northwind Traders (demonstration fixture)",
+  "tenantId": "demo-tenant-northwind-traders",
+  "totalUsers": 250,
+  "activeUsers": 229,
+  "totalLicenses": 370,
+  "assignedLicenses": 335,
+  "mfaEnabledPercent": 92,
+  "secureScore": 462,
+  "secureScoreMax": 600,
+  "guestUsers": 12,
+  "disabledUsers": 9,
+  "activeServices": 10,
+  "totalServices": 10,
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

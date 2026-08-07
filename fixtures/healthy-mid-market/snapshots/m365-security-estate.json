@@ -1,0 +1,557 @@
+{
+  "deviceSummary": {
+    "total": 236,
+    "managed": 230,
+    "unmanaged": 6,
+    "mde": 207,
+    "azureAdJoined": 161,
+    "hybridJoined": 23,
+    "registered": 46,
+    "unknown": 6,
+    "byOs": {
+      "Windows": 10,
+      "macOS": 17,
+      "iOS": 13
+    }
+  },
+  "deviceList": [
+    {
+      "id": "demo-device-0001",
+      "displayName": "DEMO-WIN-0001",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-26T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0002",
+      "displayName": "DEMO-MAC-0002",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-28T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0003",
+      "displayName": "DEMO-IOS-0003",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-28T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0004",
+      "displayName": "DEMO-MAC-0004",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-29T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0005",
+      "displayName": "DEMO-MAC-0005",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-29T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0006",
+      "displayName": "DEMO-MAC-0006",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-07-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0007",
+      "displayName": "DEMO-WIN-0007",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-07-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0008",
+      "displayName": "DEMO-MAC-0008",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-07-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0009",
+      "displayName": "DEMO-WIN-0009",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0010",
+      "displayName": "DEMO-IOS-0010",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-26T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0011",
+      "displayName": "DEMO-WIN-0011",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-07-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0012",
+      "displayName": "DEMO-MAC-0012",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-26T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0013",
+      "displayName": "DEMO-IOS-0013",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-29T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0014",
+      "displayName": "DEMO-MAC-0014",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0015",
+      "displayName": "DEMO-MAC-0015",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-29T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0016",
+      "displayName": "DEMO-MAC-0016",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0017",
+      "displayName": "DEMO-IOS-0017",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0018",
+      "displayName": "DEMO-MAC-0018",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0019",
+      "displayName": "DEMO-IOS-0019",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0020",
+      "displayName": "DEMO-MAC-0020",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-29T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0021",
+      "displayName": "DEMO-WIN-0021",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-29T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0022",
+      "displayName": "DEMO-WIN-0022",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-28T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0023",
+      "displayName": "DEMO-IOS-0023",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-30T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0024",
+      "displayName": "DEMO-IOS-0024",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-07-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0025",
+      "displayName": "DEMO-WIN-0025",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-28T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0026",
+      "displayName": "DEMO-MAC-0026",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-07-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0027",
+      "displayName": "DEMO-MAC-0027",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0028",
+      "displayName": "DEMO-MAC-0028",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-30T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0029",
+      "displayName": "DEMO-IOS-0029",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0030",
+      "displayName": "DEMO-WIN-0030",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-27T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0031",
+      "displayName": "DEMO-MAC-0031",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-28T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0032",
+      "displayName": "DEMO-IOS-0032",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-07-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0033",
+      "displayName": "DEMO-WIN-0033",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.19045.4291",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-07-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0034",
+      "displayName": "DEMO-IOS-0034",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-29T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0035",
+      "displayName": "DEMO-IOS-0035",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-28T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0036",
+      "displayName": "DEMO-MAC-0036",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-26T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0037",
+      "displayName": "DEMO-IOS-0037",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "17.4.1",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-30T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0038",
+      "displayName": "DEMO-IOS-0038",
+      "operatingSystem": "iOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-30T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0039",
+      "displayName": "DEMO-MAC-0039",
+      "operatingSystem": "macOS",
+      "operatingSystemVersion": "14.0.0",
+      "trustType": "Workplace",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-30T09:00:00.000Z"
+    },
+    {
+      "id": "demo-device-0040",
+      "displayName": "DEMO-WIN-0040",
+      "operatingSystem": "Windows",
+      "operatingSystemVersion": "10.0.22631.3593",
+      "trustType": "AzureAd",
+      "isManaged": true,
+      "isCompliant": true,
+      "managementType": "MDM",
+      "approximateLastSignInDateTime": "2026-06-29T09:00:00.000Z"
+    }
+  ],
+  "saasApps": [
+    {
+      "id": "demo-sp-001",
+      "displayName": "Microsoft Teams services (demo)",
+      "publisherName": "Microsoft Services (demo)",
+      "appOwnerOrganizationId": "demo-tenant-microsoft",
+      "isFirstParty": true,
+      "createdDateTime": "2025-11-22T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    },
+    {
+      "id": "demo-sp-002",
+      "displayName": "Microsoft Intune (demo)",
+      "publisherName": "Microsoft Services (demo)",
+      "appOwnerOrganizationId": "demo-tenant-microsoft",
+      "isFirstParty": true,
+      "createdDateTime": "2023-11-10T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    },
+    {
+      "id": "demo-sp-003",
+      "displayName": "Expenses integration (demo)",
+      "publisherName": "Demo Software Ltd",
+      "appOwnerOrganizationId": "demo-tenant-northwind-traders",
+      "isFirstParty": false,
+      "createdDateTime": "2023-08-01T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    },
+    {
+      "id": "demo-sp-004",
+      "displayName": "Reporting exporter (demo)",
+      "publisherName": "Demo Software Ltd",
+      "appOwnerOrganizationId": "demo-tenant-northwind-traders",
+      "isFirstParty": false,
+      "createdDateTime": "2025-12-15T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    },
+    {
+      "id": "demo-sp-005",
+      "displayName": "Backup connector (demo)",
+      "publisherName": "Demo Software Ltd",
+      "appOwnerOrganizationId": "demo-tenant-northwind-traders",
+      "isFirstParty": false,
+      "createdDateTime": "2025-10-06T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    },
+    {
+      "id": "demo-sp-006",
+      "displayName": "Deployment identity (demo)",
+      "publisherName": "Demo Software Ltd",
+      "appOwnerOrganizationId": "demo-tenant-northwind-traders",
+      "isFirstParty": false,
+      "createdDateTime": "2023-10-22T09:00:00.000Z",
+      "tags": [
+        "demo-fixture"
+      ]
+    }
+  ],
+  "oauthApps": [],
+  "defenderOfficeAlerts": [
+    {
+      "id": "demo-alert-001",
+      "title": "Suspicious inbox forwarding rule (demo)",
+      "severity": "medium",
+      "status": "resolved",
+      "serviceSource": "microsoftDefenderForOffice365",
+      "category": "InitialAccess",
+      "createdDateTime": "2026-06-10T09:00:00.000Z"
+    },
+    {
+      "id": "demo-alert-002",
+      "title": "Unusual volume of external file sharing (demo)",
+      "severity": "low",
+      "status": "inProgress",
+      "serviceSource": "microsoftDefenderForOffice365",
+      "category": "Exfiltration",
+      "createdDateTime": "2026-06-02T09:00:00.000Z"
+    }
+  ],
+  "defenderOfficeStatus": {
+    "ok": true,
+    "error": null,
+    "totalAlerts": 2,
+    "high": 0,
+    "medium": 1,
+    "low": 1,
+    "informational": 0
+  }
+}

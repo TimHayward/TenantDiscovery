@@ -1,0 +1,272 @@
+{
+  "permanentGlobalAdminsCount": 6,
+  "permanentGlobalAdminsWithProductivityCount": 5,
+  "permanentAdminsCount": 7,
+  "permanentAdminsWithProductivityCount": 6,
+  "eligibleGlobalAdminsCount": 0,
+  "eligibleGlobalAdminsWithProductivityCount": 0,
+  "eligibleAdminsCount": 0,
+  "eligibleAdminsWithProductivityCount": 0,
+  "permanentGlobalAdmins": [
+    {
+      "id": "demo-user-0001",
+      "displayName": "Bela Marlowend (demo)",
+      "userPrincipalName": "bela.marlowend@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0002",
+      "displayName": "Pax Ellwither (demo)",
+      "userPrincipalName": "pax.ellwither@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0003",
+      "displayName": "Emre Ravenscot (demo)",
+      "userPrincipalName": "emre.ravenscot@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0004",
+      "displayName": "Mira Inglemere (demo)",
+      "userPrincipalName": "mira.inglemere@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0005",
+      "displayName": "Sana Dunmarch (demo)",
+      "userPrincipalName": "sana.dunmarch@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator",
+        "Exchange Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0006",
+      "displayName": "Gia Ravenscot (demo)",
+      "userPrincipalName": "gia.ravenscot@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": false
+    }
+  ],
+  "permanentGlobalAdminsWithProductivity": [
+    {
+      "id": "demo-user-0001",
+      "displayName": "Bela Marlowend (demo)",
+      "userPrincipalName": "bela.marlowend@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0002",
+      "displayName": "Pax Ellwither (demo)",
+      "userPrincipalName": "pax.ellwither@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0003",
+      "displayName": "Emre Ravenscot (demo)",
+      "userPrincipalName": "emre.ravenscot@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0004",
+      "displayName": "Mira Inglemere (demo)",
+      "userPrincipalName": "mira.inglemere@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0005",
+      "displayName": "Sana Dunmarch (demo)",
+      "userPrincipalName": "sana.dunmarch@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator",
+        "Exchange Administrator"
+      ],
+      "hasProductivityLicense": true
+    }
+  ],
+  "permanentAdmins": [
+    {
+      "id": "demo-user-0001",
+      "displayName": "Bela Marlowend (demo)",
+      "userPrincipalName": "bela.marlowend@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0002",
+      "displayName": "Pax Ellwither (demo)",
+      "userPrincipalName": "pax.ellwither@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0003",
+      "displayName": "Emre Ravenscot (demo)",
+      "userPrincipalName": "emre.ravenscot@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0004",
+      "displayName": "Mira Inglemere (demo)",
+      "userPrincipalName": "mira.inglemere@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0005",
+      "displayName": "Sana Dunmarch (demo)",
+      "userPrincipalName": "sana.dunmarch@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator",
+        "Exchange Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0006",
+      "displayName": "Gia Ravenscot (demo)",
+      "userPrincipalName": "gia.ravenscot@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": false
+    },
+    {
+      "id": "demo-user-0007",
+      "displayName": "Gia Thornmere (demo)",
+      "userPrincipalName": "gia.thornmere@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Exchange Administrator"
+      ],
+      "hasProductivityLicense": true
+    }
+  ],
+  "permanentAdminsWithProductivity": [
+    {
+      "id": "demo-user-0001",
+      "displayName": "Bela Marlowend (demo)",
+      "userPrincipalName": "bela.marlowend@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0002",
+      "displayName": "Pax Ellwither (demo)",
+      "userPrincipalName": "pax.ellwither@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0003",
+      "displayName": "Emre Ravenscot (demo)",
+      "userPrincipalName": "emre.ravenscot@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0004",
+      "displayName": "Mira Inglemere (demo)",
+      "userPrincipalName": "mira.inglemere@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0005",
+      "displayName": "Sana Dunmarch (demo)",
+      "userPrincipalName": "sana.dunmarch@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator",
+        "Exchange Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0007",
+      "displayName": "Gia Thornmere (demo)",
+      "userPrincipalName": "gia.thornmere@fabrikam-joinery.example",
+      "accountEnabled": true,
+      "roles": [
+        "Exchange Administrator"
+      ],
+      "hasProductivityLicense": true
+    }
+  ],
+  "eligibleGlobalAdmins": [],
+  "eligibleGlobalAdminsWithProductivity": [],
+  "eligibleAdmins": [],
+  "eligibleAdminsWithProductivity": [],
+  "eligibleAssignmentCount": 0,
+  "dormantEligibleCount": 0,
+  "roleDataSource": "directoryRolesFallback",
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

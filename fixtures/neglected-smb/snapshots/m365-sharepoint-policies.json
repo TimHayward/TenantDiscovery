@@ -1,0 +1,14 @@
+{
+  "sharingCapability": "ExternalUserAndGuestSharing",
+  "oneDriveSharingCapability": "ExternalUserAndGuestSharing",
+  "sharingDomainRestrictionMode": "None",
+  "sharingAllowedDomainCount": 0,
+  "sharingBlockedDomainCount": 0,
+  "defaultSharingLinkType": "AnonymousAccess",
+  "defaultLinkPermission": "View",
+  "anyoneLinkExpirationInDays": null,
+  "policyPermissionError": false,
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

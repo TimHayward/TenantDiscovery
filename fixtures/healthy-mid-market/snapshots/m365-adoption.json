@@ -1,0 +1,375 @@
+{
+  "workloads": [
+    {
+      "workload": "exchange",
+      "displayName": "Exchange (demo)",
+      "activeUsers": 224,
+      "inactiveUsers": 14,
+      "licensedUsers": 238,
+      "adoptionPercent": 94,
+      "isValueGap": false,
+      "trend": [
+        {
+          "period": "2026-02",
+          "activeUsers": 190,
+          "licensedUsers": 238,
+          "adoptionPercent": 80
+        },
+        {
+          "period": "2026-03",
+          "activeUsers": 197,
+          "licensedUsers": 238,
+          "adoptionPercent": 83
+        },
+        {
+          "period": "2026-04",
+          "activeUsers": 204,
+          "licensedUsers": 238,
+          "adoptionPercent": 86
+        },
+        {
+          "period": "2026-05",
+          "activeUsers": 211,
+          "licensedUsers": 238,
+          "adoptionPercent": 89
+        },
+        {
+          "period": "2026-06",
+          "activeUsers": 217,
+          "licensedUsers": 238,
+          "adoptionPercent": 91
+        },
+        {
+          "period": "2026-07",
+          "activeUsers": 224,
+          "licensedUsers": 238,
+          "adoptionPercent": 94
+        }
+      ],
+      "depth": {
+        "teamChatMessages": 2856,
+        "privateChatMessages": 1539,
+        "calls": 428,
+        "meetings": 670,
+        "odViewedOrEdited": 443,
+        "odSynced": 301,
+        "odSharedInternally": 308,
+        "odSharedExternally": 56,
+        "spVisitedPages": 676,
+        "spViewedOrEdited": 963,
+        "spSynced": 68,
+        "spSharedInternally": 369,
+        "spSharedExternally": 11,
+        "emailSent": 14687,
+        "emailReceived": 52440,
+        "emailRead": 18712
+      }
+    },
+    {
+      "workload": "teams",
+      "displayName": "Microsoft Teams (demo)",
+      "activeUsers": 171,
+      "inactiveUsers": 67,
+      "licensedUsers": 238,
+      "adoptionPercent": 72,
+      "isValueGap": false,
+      "trend": [
+        {
+          "period": "2026-02",
+          "activeUsers": 145,
+          "licensedUsers": 238,
+          "adoptionPercent": 61
+        },
+        {
+          "period": "2026-03",
+          "activeUsers": 150,
+          "licensedUsers": 238,
+          "adoptionPercent": 63
+        },
+        {
+          "period": "2026-04",
+          "activeUsers": 156,
+          "licensedUsers": 238,
+          "adoptionPercent": 66
+        },
+        {
+          "period": "2026-05",
+          "activeUsers": 161,
+          "licensedUsers": 238,
+          "adoptionPercent": 68
+        },
+        {
+          "period": "2026-06",
+          "activeUsers": 166,
+          "licensedUsers": 238,
+          "adoptionPercent": 70
+        },
+        {
+          "period": "2026-07",
+          "activeUsers": 171,
+          "licensedUsers": 238,
+          "adoptionPercent": 72
+        }
+      ],
+      "depth": {
+        "teamChatMessages": 842,
+        "privateChatMessages": 9574,
+        "calls": 571,
+        "meetings": 366,
+        "odViewedOrEdited": 2319,
+        "odSynced": 59,
+        "odSharedInternally": 235,
+        "odSharedExternally": 9,
+        "spVisitedPages": 5116,
+        "spViewedOrEdited": 874,
+        "spSynced": 468,
+        "spSharedInternally": 214,
+        "spSharedExternally": 30,
+        "emailSent": 17143,
+        "emailReceived": 32209,
+        "emailRead": 9558
+      }
+    },
+    {
+      "workload": "sharePoint",
+      "displayName": "SharePoint (demo)",
+      "activeUsers": 145,
+      "inactiveUsers": 93,
+      "licensedUsers": 238,
+      "adoptionPercent": 61,
+      "isValueGap": false,
+      "trend": [
+        {
+          "period": "2026-02",
+          "activeUsers": 123,
+          "licensedUsers": 238,
+          "adoptionPercent": 52
+        },
+        {
+          "period": "2026-03",
+          "activeUsers": 128,
+          "licensedUsers": 238,
+          "adoptionPercent": 54
+        },
+        {
+          "period": "2026-04",
+          "activeUsers": 132,
+          "licensedUsers": 238,
+          "adoptionPercent": 55
+        },
+        {
+          "period": "2026-05",
+          "activeUsers": 136,
+          "licensedUsers": 238,
+          "adoptionPercent": 57
+        },
+        {
+          "period": "2026-06",
+          "activeUsers": 141,
+          "licensedUsers": 238,
+          "adoptionPercent": 59
+        },
+        {
+          "period": "2026-07",
+          "activeUsers": 145,
+          "licensedUsers": 238,
+          "adoptionPercent": 61
+        }
+      ],
+      "depth": {
+        "teamChatMessages": 7199,
+        "privateChatMessages": 10043,
+        "calls": 648,
+        "meetings": 593,
+        "odViewedOrEdited": 1556,
+        "odSynced": 290,
+        "odSharedInternally": 82,
+        "odSharedExternally": 5,
+        "spVisitedPages": 639,
+        "spViewedOrEdited": 1417,
+        "spSynced": 443,
+        "spSharedInternally": 232,
+        "spSharedExternally": 19,
+        "emailSent": 795,
+        "emailReceived": 38596,
+        "emailRead": 15908
+      }
+    },
+    {
+      "workload": "oneDrive",
+      "displayName": "OneDrive (demo)",
+      "activeUsers": 162,
+      "inactiveUsers": 76,
+      "licensedUsers": 238,
+      "adoptionPercent": 68,
+      "isValueGap": false,
+      "trend": [
+        {
+          "period": "2026-02",
+          "activeUsers": 138,
+          "licensedUsers": 238,
+          "adoptionPercent": 58
+        },
+        {
+          "period": "2026-03",
+          "activeUsers": 143,
+          "licensedUsers": 238,
+          "adoptionPercent": 60
+        },
+        {
+          "period": "2026-04",
+          "activeUsers": 147,
+          "licensedUsers": 238,
+          "adoptionPercent": 62
+        },
+        {
+          "period": "2026-05",
+          "activeUsers": 152,
+          "licensedUsers": 238,
+          "adoptionPercent": 64
+        },
+        {
+          "period": "2026-06",
+          "activeUsers": 157,
+          "licensedUsers": 238,
+          "adoptionPercent": 66
+        },
+        {
+          "period": "2026-07",
+          "activeUsers": 162,
+          "licensedUsers": 238,
+          "adoptionPercent": 68
+        }
+      ],
+      "depth": {
+        "teamChatMessages": 5309,
+        "privateChatMessages": 5611,
+        "calls": 684,
+        "meetings": 58,
+        "odViewedOrEdited": 899,
+        "odSynced": 248,
+        "odSharedInternally": 193,
+        "odSharedExternally": 46,
+        "spVisitedPages": 3190,
+        "spViewedOrEdited": 2498,
+        "spSynced": 201,
+        "spSharedInternally": 357,
+        "spSharedExternally": 5,
+        "emailSent": 13623,
+        "emailReceived": 34725,
+        "emailRead": 22416
+      }
+    },
+    {
+      "workload": "yammer",
+      "displayName": "Viva Engage (demo)",
+      "activeUsers": 43,
+      "inactiveUsers": 195,
+      "licensedUsers": 238,
+      "adoptionPercent": 18,
+      "isValueGap": true,
+      "trend": [
+        {
+          "period": "2026-02",
+          "activeUsers": 37,
+          "licensedUsers": 238,
+          "adoptionPercent": 16
+        },
+        {
+          "period": "2026-03",
+          "activeUsers": 38,
+          "licensedUsers": 238,
+          "adoptionPercent": 16
+        },
+        {
+          "period": "2026-04",
+          "activeUsers": 39,
+          "licensedUsers": 238,
+          "adoptionPercent": 16
+        },
+        {
+          "period": "2026-05",
+          "activeUsers": 40,
+          "licensedUsers": 238,
+          "adoptionPercent": 17
+        },
+        {
+          "period": "2026-06",
+          "activeUsers": 42,
+          "licensedUsers": 238,
+          "adoptionPercent": 18
+        },
+        {
+          "period": "2026-07",
+          "activeUsers": 43,
+          "licensedUsers": 238,
+          "adoptionPercent": 18
+        }
+      ],
+      "depth": {
+        "teamChatMessages": 3034,
+        "privateChatMessages": 11109,
+        "calls": 264,
+        "meetings": 0,
+        "odViewedOrEdited": 1003,
+        "odSynced": 144,
+        "odSharedInternally": 138,
+        "odSharedExternally": 2,
+        "spVisitedPages": 3014,
+        "spViewedOrEdited": 299,
+        "spSynced": 130,
+        "spSharedInternally": 367,
+        "spSharedExternally": 10,
+        "emailSent": 3674,
+        "emailReceived": 13308,
+        "emailRead": 5980
+      }
+    }
+  ],
+  "totalActiveUsers": 224,
+  "totalLicensedUsers": 238,
+  "overallAdoptionPercent": 94,
+  "valueGapCount": 1,
+  "appsActivation": [
+    {
+      "app": "windows",
+      "displayName": "Microsoft 365 apps for Windows (demo)",
+      "activeUsers": 190
+    },
+    {
+      "app": "mac",
+      "displayName": "Microsoft 365 apps for Mac (demo)",
+      "activeUsers": 19
+    },
+    {
+      "app": "mobile",
+      "displayName": "Microsoft 365 mobile apps (demo)",
+      "activeUsers": 107
+    }
+  ],
+  "copilotAdoption": {
+    "enabledUsers": 25,
+    "activeUsers": 15,
+    "adoptionPercent": 60,
+    "appBreakdown": [
+      {
+        "app": "teams",
+        "displayName": "Copilot in Teams (demo)",
+        "enabledUsers": 25,
+        "activeUsers": 13
+      },
+      {
+        "app": "word",
+        "displayName": "Copilot in Word (demo)",
+        "enabledUsers": 25,
+        "activeUsers": 8
+      }
+    ]
+  },
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": [],
+  "collectionNotes": [
+    "Synthetic fixture: usage reports were invented, not collected from Graph."
+  ]
+}

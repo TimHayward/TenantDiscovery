@@ -1,0 +1,824 @@
+{
+  "secureScore": 168,
+  "secureScoreMax": 600,
+  "secureScorePercent": 28,
+  "mfaEnabledUsers": 23,
+  "mfaDisabledUsers": 37,
+  "mfaEnabledPercent": 38,
+  "conditionalAccessPolicies": 2,
+  "enabledCAPs": 1,
+  "disabledCAPs": 1,
+  "reportOnlyCAPs": 0,
+  "secureScoreHistory": [
+    {
+      "date": "2026-05-13",
+      "score": 161,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-05-20",
+      "score": 162,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-05-27",
+      "score": 163,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-06-03",
+      "score": 164,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-06-10",
+      "score": 165,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-06-17",
+      "score": 166,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-06-24",
+      "score": 167,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-07-01",
+      "score": 168,
+      "maxScore": 600
+    }
+  ],
+  "controlCategories": [
+    {
+      "category": "Identity",
+      "score": 76,
+      "maxScore": 240
+    },
+    {
+      "category": "Data",
+      "score": 34,
+      "maxScore": 150
+    },
+    {
+      "category": "Device",
+      "score": 34,
+      "maxScore": 120
+    },
+    {
+      "category": "Apps",
+      "score": 25,
+      "maxScore": 90
+    }
+  ],
+  "caPolicies": [
+    {
+      "id": "demo-ca-policy-01",
+      "displayName": "MFA for finance team (demo)",
+      "state": "enabled",
+      "targetUsers": "Group: Finance",
+      "targetApps": "All cloud apps",
+      "authStrength": "Multifactor authentication",
+      "modifiedDateTime": "2025-07-05T09:00:00.000Z"
+    },
+    {
+      "id": "demo-ca-policy-02",
+      "displayName": "Block legacy authentication (demo)",
+      "state": "disabled",
+      "targetUsers": "All users",
+      "targetApps": "All cloud apps",
+      "authStrength": "Not applicable",
+      "modifiedDateTime": "2025-10-24T09:00:00.000Z"
+    }
+  ],
+  "riskyUsers": 5,
+  "adminsWithoutMfa": 3,
+  "mfaUsersList": [
+    {
+      "id": "demo-user-0001",
+      "displayName": "Bela Marlowend (demo)",
+      "userPrincipalName": "bela.marlowend@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0002",
+      "displayName": "Pax Ellwither (demo)",
+      "userPrincipalName": "pax.ellwither@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0003",
+      "displayName": "Emre Ravenscot (demo)",
+      "userPrincipalName": "emre.ravenscot@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0004",
+      "displayName": "Mira Inglemere (demo)",
+      "userPrincipalName": "mira.inglemere@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0005",
+      "displayName": "Sana Dunmarch (demo)",
+      "userPrincipalName": "sana.dunmarch@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0006",
+      "displayName": "Gia Ravenscot (demo)",
+      "userPrincipalName": "gia.ravenscot@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0007",
+      "displayName": "Gia Thornmere (demo)",
+      "userPrincipalName": "gia.thornmere@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0008",
+      "displayName": "Zev Sablewood (demo)",
+      "userPrincipalName": "zev.sablewood@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0009",
+      "displayName": "Fern Thornmere (demo)",
+      "userPrincipalName": "fern.thornmere@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0010",
+      "displayName": "Gia Quillfen (demo)",
+      "userPrincipalName": "gia.quillfen@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0011",
+      "displayName": "Bela Juniperry (demo)",
+      "userPrincipalName": "bela.juniperry@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0012",
+      "displayName": "Ravi Marlowend (demo)",
+      "userPrincipalName": "ravi.marlowend@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0013",
+      "displayName": "Nils Ashvale (demo)",
+      "userPrincipalName": "nils.ashvale@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0014",
+      "displayName": "Oona Kestrelby (demo)",
+      "userPrincipalName": "oona.kestrelby@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0015",
+      "displayName": "Idris Thornmere (demo)",
+      "userPrincipalName": "idris.thornmere@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0016",
+      "displayName": "Mira Ashvale (demo)",
+      "userPrincipalName": "mira.ashvale@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0017",
+      "displayName": "Idris Inglemere (demo)",
+      "userPrincipalName": "idris.inglemere@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0018",
+      "displayName": "Mira Kestrelby (demo)",
+      "userPrincipalName": "mira.kestrelby@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0019",
+      "displayName": "Yara Sablewood (demo)",
+      "userPrincipalName": "yara.sablewood@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0020",
+      "displayName": "Hal Ashvale (demo)",
+      "userPrincipalName": "hal.ashvale@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0021",
+      "displayName": "Sana Ellwither (demo)",
+      "userPrincipalName": "sana.ellwither@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0022",
+      "displayName": "Tam Harrowfen (demo)",
+      "userPrincipalName": "tam.harrowfen@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0023",
+      "displayName": "Nils Wilderness (demo)",
+      "userPrincipalName": "nils.wilderness@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0024",
+      "displayName": "Fern Marlowend (demo)",
+      "userPrincipalName": "fern.marlowend@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0025",
+      "displayName": "Kit Ellwither (demo)",
+      "userPrincipalName": "kit.ellwither@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0026",
+      "displayName": "Alex Juniperry (demo)",
+      "userPrincipalName": "alex.juniperry@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0027",
+      "displayName": "Sana Brambleton (demo)",
+      "userPrincipalName": "sana.brambleton@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0028",
+      "displayName": "Fern Ellwither (demo)",
+      "userPrincipalName": "fern.ellwither@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0029",
+      "displayName": "Pax Sablewood (demo)",
+      "userPrincipalName": "pax.sablewood@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0030",
+      "displayName": "Vito Underhay (demo)",
+      "userPrincipalName": "vito.underhay@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0031",
+      "displayName": "Vito Thornmere (demo)",
+      "userPrincipalName": "vito.thornmere@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0032",
+      "displayName": "Umi Inglemere (demo)",
+      "userPrincipalName": "umi.inglemere@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0033",
+      "displayName": "Kit Ashvale (demo)",
+      "userPrincipalName": "kit.ashvale@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0034",
+      "displayName": "Idris Ravenscot (demo)",
+      "userPrincipalName": "idris.ravenscot@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0035",
+      "displayName": "Kit Glasswick (demo)",
+      "userPrincipalName": "kit.glasswick@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0036",
+      "displayName": "Nils Larkmond (demo)",
+      "userPrincipalName": "nils.larkmond@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0037",
+      "displayName": "Tam Dunmarch (demo)",
+      "userPrincipalName": "tam.dunmarch@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0038",
+      "displayName": "Cai Brambleton (demo)",
+      "userPrincipalName": "cai.brambleton@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0039",
+      "displayName": "Ravi Yewbank (demo)",
+      "userPrincipalName": "ravi.yewbank@fabrikam-joinery.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0040",
+      "displayName": "Dara Oxhollow (demo)",
+      "userPrincipalName": "dara.oxhollow@fabrikam-joinery.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    }
+  ],
+  "mfaMethodsBreakdown": [
+    {
+      "method": "fido2",
+      "displayName": "FIDO2 security key (demo)",
+      "strength": "Phishing-resistant",
+      "strengthLevel": 3,
+      "count": 0,
+      "percentOfUsers": 0
+    },
+    {
+      "method": "microsoftAuthenticatorPush",
+      "displayName": "Authenticator push (demo)",
+      "strength": "Strong",
+      "strengthLevel": 2,
+      "count": 14,
+      "percentOfUsers": 23
+    },
+    {
+      "method": "mobilePhone",
+      "displayName": "SMS (demo)",
+      "strength": "Weak",
+      "strengthLevel": 1,
+      "count": 9,
+      "percentOfUsers": 15
+    }
+  ],
+  "riskDetectionTimeline": [
+    {
+      "date": "2026-06-18",
+      "high": 2,
+      "medium": 1,
+      "low": 2,
+      "total": 5
+    },
+    {
+      "date": "2026-06-19",
+      "high": 0,
+      "medium": 0,
+      "low": 1,
+      "total": 1
+    },
+    {
+      "date": "2026-06-20",
+      "high": 0,
+      "medium": 0,
+      "low": 2,
+      "total": 2
+    },
+    {
+      "date": "2026-06-21",
+      "high": 0,
+      "medium": 1,
+      "low": 1,
+      "total": 2
+    },
+    {
+      "date": "2026-06-22",
+      "high": 0,
+      "medium": 0,
+      "low": 2,
+      "total": 2
+    },
+    {
+      "date": "2026-06-23",
+      "high": 2,
+      "medium": 0,
+      "low": 1,
+      "total": 3
+    },
+    {
+      "date": "2026-06-24",
+      "high": 0,
+      "medium": 1,
+      "low": 2,
+      "total": 3
+    },
+    {
+      "date": "2026-06-25",
+      "high": 0,
+      "medium": 0,
+      "low": 1,
+      "total": 1
+    },
+    {
+      "date": "2026-06-26",
+      "high": 0,
+      "medium": 0,
+      "low": 2,
+      "total": 2
+    },
+    {
+      "date": "2026-06-27",
+      "high": 0,
+      "medium": 1,
+      "low": 1,
+      "total": 2
+    },
+    {
+      "date": "2026-06-28",
+      "high": 2,
+      "medium": 0,
+      "low": 2,
+      "total": 4
+    },
+    {
+      "date": "2026-06-29",
+      "high": 0,
+      "medium": 0,
+      "low": 1,
+      "total": 1
+    },
+    {
+      "date": "2026-06-30",
+      "high": 0,
+      "medium": 1,
+      "low": 2,
+      "total": 3
+    },
+    {
+      "date": "2026-07-01",
+      "high": 0,
+      "medium": 0,
+      "low": 1,
+      "total": 1
+    }
+  ],
+  "riskyUsersDetail": [
+    {
+      "id": "demo-user-0001",
+      "displayName": "Bela Marlowend (demo)",
+      "userPrincipalName": "bela.marlowend@fabrikam-joinery.example",
+      "riskLevel": "high",
+      "riskState": "atRisk",
+      "riskLastUpdatedDateTime": "2026-06-30T09:00:00.000Z"
+    },
+    {
+      "id": "demo-user-0002",
+      "displayName": "Pax Ellwither (demo)",
+      "userPrincipalName": "pax.ellwither@fabrikam-joinery.example",
+      "riskLevel": "medium",
+      "riskState": "atRisk",
+      "riskLastUpdatedDateTime": "2026-06-12T09:00:00.000Z"
+    },
+    {
+      "id": "demo-user-0003",
+      "displayName": "Emre Ravenscot (demo)",
+      "userPrincipalName": "emre.ravenscot@fabrikam-joinery.example",
+      "riskLevel": "low",
+      "riskState": "atRisk",
+      "riskLastUpdatedDateTime": "2026-06-14T09:00:00.000Z"
+    },
+    {
+      "id": "demo-user-0004",
+      "displayName": "Mira Inglemere (demo)",
+      "userPrincipalName": "mira.inglemere@fabrikam-joinery.example",
+      "riskLevel": "low",
+      "riskState": "atRisk",
+      "riskLastUpdatedDateTime": "2026-06-23T09:00:00.000Z"
+    },
+    {
+      "id": "demo-user-0005",
+      "displayName": "Sana Dunmarch (demo)",
+      "userPrincipalName": "sana.dunmarch@fabrikam-joinery.example",
+      "riskLevel": "low",
+      "riskState": "atRisk",
+      "riskLastUpdatedDateTime": "2026-06-13T09:00:00.000Z"
+    }
+  ],
+  "secureScoreControls": [
+    {
+      "controlName": "demo-control-require.mfa.for.administrative.roles",
+      "title": "Require MFA for administrative roles (demo)",
+      "controlCategory": "Identity",
+      "description": "Synthetic Secure Score control for the neglected-smb demonstration profile.",
+      "score": 0,
+      "scoreInPercentage": 0,
+      "implementationStatus": "Not configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "notConfigured"
+    },
+    {
+      "controlName": "demo-control-block.legacy.authentication",
+      "title": "Block legacy authentication (demo)",
+      "controlCategory": "Identity",
+      "description": "Synthetic Secure Score control for the neglected-smb demonstration profile.",
+      "score": 0,
+      "scoreInPercentage": 0,
+      "implementationStatus": "Not configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "notConfigured"
+    },
+    {
+      "controlName": "demo-control-enable.self.service.password.reset",
+      "title": "Enable self-service password reset (demo)",
+      "controlCategory": "Identity",
+      "description": "Synthetic Secure Score control for the neglected-smb demonstration profile.",
+      "score": 0,
+      "scoreInPercentage": 0,
+      "implementationStatus": "Not configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "notConfigured"
+    },
+    {
+      "controlName": "demo-control-turn.on.customer.lockbox",
+      "title": "Turn on customer lockbox (demo)",
+      "controlCategory": "Data",
+      "description": "Synthetic Secure Score control for the neglected-smb demonstration profile.",
+      "score": 0,
+      "scoreInPercentage": 0,
+      "implementationStatus": "Not configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "notConfigured"
+    },
+    {
+      "controlName": "demo-control-enable.safe.attachments.for.sharepoint",
+      "title": "Enable Safe Attachments for SharePoint (demo)",
+      "controlCategory": "Apps",
+      "description": "Synthetic Secure Score control for the neglected-smb demonstration profile.",
+      "score": 0,
+      "scoreInPercentage": 0,
+      "implementationStatus": "Not configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "notConfigured"
+    },
+    {
+      "controlName": "demo-control-enable.audit.log.search",
+      "title": "Enable audit log search (demo)",
+      "controlCategory": "Data",
+      "description": "Synthetic Secure Score control for the neglected-smb demonstration profile.",
+      "score": 0,
+      "scoreInPercentage": 0,
+      "implementationStatus": "Not configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "notConfigured"
+    },
+    {
+      "controlName": "demo-control-restrict.application.registration",
+      "title": "Restrict application registration (demo)",
+      "controlCategory": "Apps",
+      "description": "Synthetic Secure Score control for the neglected-smb demonstration profile.",
+      "score": 0,
+      "scoreInPercentage": 0,
+      "implementationStatus": "Not configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "notConfigured"
+    }
+  ],
+  "legacyAuthSignInCount": 412,
+  "legacyAuthBlockedByCA": false,
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

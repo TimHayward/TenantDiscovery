@@ -1,0 +1,71 @@
+{
+  "totalSites": 5,
+  "activeSites": 4,
+  "totalStorageUsedGB": 212.5,
+  "totalStorageAllocatedGB": 500,
+  "storageUtilizationPercent": 43,
+  "totalFiles": 16552,
+  "totalPageViews": 10657,
+  "oneDriveTotalStorageGB": 6000,
+  "oneDriveUsedStorageGB": 1296,
+  "sites": [
+    {
+      "name": "Office (demo)",
+      "url": "https://fabrikam-joinery-demo.example/sites/office",
+      "storageUsedGB": 19.2,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-05-15T09:00:00.000Z",
+      "isActive": true,
+      "pageViews": 2852,
+      "filesCount": 88,
+      "assignedTeamName": "Workshop (demo)"
+    },
+    {
+      "name": "Quotes (demo)",
+      "url": "https://fabrikam-joinery-demo.example/sites/quotes",
+      "storageUsedGB": 72.5,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-06-26T09:00:00.000Z",
+      "isActive": true,
+      "pageViews": 702,
+      "filesCount": 3522,
+      "assignedTeamName": null
+    },
+    {
+      "name": "Drawings (demo)",
+      "url": "https://fabrikam-joinery-demo.example/sites/drawings",
+      "storageUsedGB": 13.1,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-01-09T09:00:00.000Z",
+      "isActive": true,
+      "pageViews": 2239,
+      "filesCount": 2692,
+      "assignedTeamName": null
+    },
+    {
+      "name": "Suppliers (demo)",
+      "url": "https://fabrikam-joinery-demo.example/sites/suppliers",
+      "storageUsedGB": 63.5,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2025-07-16T09:00:00.000Z",
+      "isActive": false,
+      "pageViews": 1663,
+      "filesCount": 7684,
+      "assignedTeamName": "Site fitters (demo)"
+    },
+    {
+      "name": "Old intranet (demo)",
+      "url": "https://fabrikam-joinery-demo.example/sites/old.intranet",
+      "storageUsedGB": 44.2,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2025-11-28T09:00:00.000Z",
+      "isActive": true,
+      "pageViews": 3201,
+      "filesCount": 2566,
+      "assignedTeamName": null
+    }
+  ],
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

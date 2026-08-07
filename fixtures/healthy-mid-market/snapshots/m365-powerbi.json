@@ -1,0 +1,97 @@
+{
+  "available": true,
+  "totalWorkspaces": 6,
+  "activeWorkspaces": 6,
+  "orphanedWorkspaces": 1,
+  "personalWorkspaces": 1,
+  "dedicatedCapacityWorkspaces": 2,
+  "totalDatasets": 16,
+  "refreshableDatasets": 10,
+  "totalReports": 35,
+  "capacities": [
+    {
+      "id": "demo-capacity-01",
+      "displayName": "Demo shared capacity",
+      "sku": "A1",
+      "state": "Active",
+      "adminCount": 2
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "demo-workspace-01",
+      "name": "My workspace (demo)",
+      "type": "PersonalGroup",
+      "state": "Active",
+      "isOrphaned": false,
+      "adminCount": 2,
+      "datasetCount": 2,
+      "reportCount": 0,
+      "isOnDedicatedCapacity": true,
+      "capacityId": "demo-capacity-01"
+    },
+    {
+      "id": "demo-workspace-02",
+      "name": "Finance reporting (demo)",
+      "type": "Workspace",
+      "state": "Active",
+      "isOrphaned": false,
+      "adminCount": 3,
+      "datasetCount": 0,
+      "reportCount": 3,
+      "isOnDedicatedCapacity": true,
+      "capacityId": "demo-capacity-01"
+    },
+    {
+      "id": "demo-workspace-03",
+      "name": "Sales analytics (demo)",
+      "type": "Workspace",
+      "state": "Active",
+      "isOrphaned": false,
+      "adminCount": 1,
+      "datasetCount": 4,
+      "reportCount": 9,
+      "isOnDedicatedCapacity": false,
+      "capacityId": null
+    },
+    {
+      "id": "demo-workspace-04",
+      "name": "Operations (demo)",
+      "type": "Workspace",
+      "state": "Active",
+      "isOrphaned": false,
+      "adminCount": 2,
+      "datasetCount": 0,
+      "reportCount": 6,
+      "isOnDedicatedCapacity": false,
+      "capacityId": null
+    },
+    {
+      "id": "demo-workspace-05",
+      "name": "Sandbox (demo)",
+      "type": "Workspace",
+      "state": "Active",
+      "isOrphaned": true,
+      "adminCount": 0,
+      "datasetCount": 8,
+      "reportCount": 8,
+      "isOnDedicatedCapacity": false,
+      "capacityId": null
+    },
+    {
+      "id": "demo-workspace-06",
+      "name": "Retired pilots (demo)",
+      "type": "Workspace",
+      "state": "Active",
+      "isOrphaned": false,
+      "adminCount": 3,
+      "datasetCount": 2,
+      "reportCount": 9,
+      "isOnDedicatedCapacity": false,
+      "capacityId": null
+    }
+  ],
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

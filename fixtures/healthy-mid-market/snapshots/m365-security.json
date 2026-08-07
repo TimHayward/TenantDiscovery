@@ -1,0 +1,839 @@
+{
+  "secureScore": 462,
+  "secureScoreMax": 600,
+  "secureScorePercent": 77,
+  "mfaEnabledUsers": 229,
+  "mfaDisabledUsers": 21,
+  "mfaEnabledPercent": 92,
+  "conditionalAccessPolicies": 5,
+  "enabledCAPs": 4,
+  "disabledCAPs": 0,
+  "reportOnlyCAPs": 1,
+  "secureScoreHistory": [
+    {
+      "date": "2026-05-13",
+      "score": 434,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-05-20",
+      "score": 438,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-05-27",
+      "score": 442,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-06-03",
+      "score": 446,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-06-10",
+      "score": 450,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-06-17",
+      "score": 454,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-06-24",
+      "score": 458,
+      "maxScore": 600
+    },
+    {
+      "date": "2026-07-01",
+      "score": 462,
+      "maxScore": 600
+    }
+  ],
+  "controlCategories": [
+    {
+      "category": "Identity",
+      "score": 208,
+      "maxScore": 240
+    },
+    {
+      "category": "Data",
+      "score": 92,
+      "maxScore": 150
+    },
+    {
+      "category": "Device",
+      "score": 92,
+      "maxScore": 120
+    },
+    {
+      "category": "Apps",
+      "score": 69,
+      "maxScore": 90
+    }
+  ],
+  "caPolicies": [
+    {
+      "id": "demo-ca-policy-01",
+      "displayName": "Require MFA for all users (demo)",
+      "state": "enabled",
+      "targetUsers": "All users",
+      "targetApps": "All cloud apps",
+      "authStrength": "Multifactor authentication",
+      "modifiedDateTime": "2026-02-07T09:00:00.000Z"
+    },
+    {
+      "id": "demo-ca-policy-02",
+      "displayName": "Block legacy authentication (demo)",
+      "state": "enabled",
+      "targetUsers": "All users",
+      "targetApps": "All cloud apps",
+      "authStrength": "Not applicable",
+      "modifiedDateTime": "2026-03-07T09:00:00.000Z"
+    },
+    {
+      "id": "demo-ca-policy-03",
+      "displayName": "Require compliant device for admins (demo)",
+      "state": "enabled",
+      "targetUsers": "Directory roles",
+      "targetApps": "All cloud apps",
+      "authStrength": "Multifactor authentication",
+      "modifiedDateTime": "2025-10-28T09:00:00.000Z"
+    },
+    {
+      "id": "demo-ca-policy-04",
+      "displayName": "Risk-based sign-in (demo)",
+      "state": "enabled",
+      "targetUsers": "All users",
+      "targetApps": "All cloud apps",
+      "authStrength": "Multifactor authentication",
+      "modifiedDateTime": "2026-01-30T09:00:00.000Z"
+    },
+    {
+      "id": "demo-ca-policy-05",
+      "displayName": "Pilot: phishing-resistant MFA for admins (demo)",
+      "state": "enabledForReportingButNotEnforced",
+      "targetUsers": "Directory roles",
+      "targetApps": "All cloud apps",
+      "authStrength": "Phishing-resistant MFA",
+      "modifiedDateTime": "2025-06-18T09:00:00.000Z"
+    }
+  ],
+  "riskyUsers": 1,
+  "adminsWithoutMfa": 0,
+  "mfaUsersList": [
+    {
+      "id": "demo-user-0001",
+      "displayName": "Ravi Fenmoor (demo)",
+      "userPrincipalName": "ravi.fenmoor@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0002",
+      "displayName": "Zev Ellwither (demo)",
+      "userPrincipalName": "zev.ellwither@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0003",
+      "displayName": "Kit Fenmoor (demo)",
+      "userPrincipalName": "kit.fenmoor@northwind-traders.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0004",
+      "displayName": "Bela Fenmoor (demo)",
+      "userPrincipalName": "bela.fenmoor@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0005",
+      "displayName": "Lior Vellacourt (demo)",
+      "userPrincipalName": "lior.vellacourt@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0006",
+      "displayName": "Vito Thornmere (demo)",
+      "userPrincipalName": "vito.thornmere@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": true,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0007",
+      "displayName": "Wren Wilderness (demo)",
+      "userPrincipalName": "wren.wilderness@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0008",
+      "displayName": "Fern Glasswick (demo)",
+      "userPrincipalName": "fern.glasswick@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0009",
+      "displayName": "Emre Pinebarrow (demo)",
+      "userPrincipalName": "emre.pinebarrow@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": true,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0010",
+      "displayName": "Yara Netherby (demo)",
+      "userPrincipalName": "yara.netherby@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0011",
+      "displayName": "Fern Sablewood (demo)",
+      "userPrincipalName": "fern.sablewood@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0012",
+      "displayName": "Sana Juniperry (demo)",
+      "userPrincipalName": "sana.juniperry@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": true,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0013",
+      "displayName": "Dara Sablewood (demo)",
+      "userPrincipalName": "dara.sablewood@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0014",
+      "displayName": "Cai Ashvale (demo)",
+      "userPrincipalName": "cai.ashvale@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0015",
+      "displayName": "Cai Corrindale (demo)",
+      "userPrincipalName": "cai.corrindale@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0016",
+      "displayName": "Tam Fenmoor (demo)",
+      "userPrincipalName": "tam.fenmoor@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0017",
+      "displayName": "Cai Harrowfen (demo)",
+      "userPrincipalName": "cai.harrowfen@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0018",
+      "displayName": "Fern Wilderness (demo)",
+      "userPrincipalName": "fern.wilderness@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0019",
+      "displayName": "Pax Wilderness (demo)",
+      "userPrincipalName": "pax.wilderness@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0020",
+      "displayName": "Oona Oxhollow (demo)",
+      "userPrincipalName": "oona.oxhollow@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": true,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0021",
+      "displayName": "Quinn Underhay (demo)",
+      "userPrincipalName": "quinn.underhay@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0022",
+      "displayName": "Idris Pinebarrow (demo)",
+      "userPrincipalName": "idris.pinebarrow@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0023",
+      "displayName": "Quinn Thornmere (demo)",
+      "userPrincipalName": "quinn.thornmere@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0024",
+      "displayName": "Jo Vellacourt (demo)",
+      "userPrincipalName": "jo.vellacourt@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0025",
+      "displayName": "Wren Fenmoor (demo)",
+      "userPrincipalName": "wren.fenmoor@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": true,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0026",
+      "displayName": "Dara Ashvale (demo)",
+      "userPrincipalName": "dara.ashvale@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": true,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0027",
+      "displayName": "Cai Pinebarrow (demo)",
+      "userPrincipalName": "cai.pinebarrow@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0028",
+      "displayName": "Hal Oxhollow (demo)",
+      "userPrincipalName": "hal.oxhollow@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0029",
+      "displayName": "Pax Yewbank (demo)",
+      "userPrincipalName": "pax.yewbank@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0030",
+      "displayName": "Emre Thornmere (demo)",
+      "userPrincipalName": "emre.thornmere@northwind-traders.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0031",
+      "displayName": "Jo Glasswick (demo)",
+      "userPrincipalName": "jo.glasswick@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0032",
+      "displayName": "Jo Corrindale (demo)",
+      "userPrincipalName": "jo.corrindale@northwind-traders.example",
+      "isMfaRegistered": false,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": false,
+      "methodsRegistered": [],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0033",
+      "displayName": "Vito Pinebarrow (demo)",
+      "userPrincipalName": "vito.pinebarrow@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": true,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0034",
+      "displayName": "Cai Brambleton (demo)",
+      "userPrincipalName": "cai.brambleton@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": true,
+      "isSsprRegistered": false,
+      "methodsRegistered": [
+        "mobilePhone"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0035",
+      "displayName": "Umi Thornmere (demo)",
+      "userPrincipalName": "umi.thornmere@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0036",
+      "displayName": "Bela Vellacourt (demo)",
+      "userPrincipalName": "bela.vellacourt@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0037",
+      "displayName": "Vito Netherby (demo)",
+      "userPrincipalName": "vito.netherby@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": true,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0038",
+      "displayName": "Xan Quillfen (demo)",
+      "userPrincipalName": "xan.quillfen@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "softwareOneTimePasscode"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0039",
+      "displayName": "Mira Oxhollow (demo)",
+      "userPrincipalName": "mira.oxhollow@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": false,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    },
+    {
+      "id": "demo-user-0040",
+      "displayName": "Idris Yewbank (demo)",
+      "userPrincipalName": "idris.yewbank@northwind-traders.example",
+      "isMfaRegistered": true,
+      "isPasswordlessCapable": true,
+      "isSsprRegistered": true,
+      "methodsRegistered": [
+        "microsoftAuthenticatorPush"
+      ],
+      "accountEnabled": true,
+      "userType": "Member"
+    }
+  ],
+  "mfaMethodsBreakdown": [
+    {
+      "method": "fido2",
+      "displayName": "FIDO2 security key (demo)",
+      "strength": "Phishing-resistant",
+      "strengthLevel": 3,
+      "count": 10,
+      "percentOfUsers": 4
+    },
+    {
+      "method": "microsoftAuthenticatorPush",
+      "displayName": "Authenticator push (demo)",
+      "strength": "Strong",
+      "strengthLevel": 2,
+      "count": 137,
+      "percentOfUsers": 55
+    },
+    {
+      "method": "mobilePhone",
+      "displayName": "SMS (demo)",
+      "strength": "Weak",
+      "strengthLevel": 1,
+      "count": 92,
+      "percentOfUsers": 37
+    }
+  ],
+  "riskDetectionTimeline": [
+    {
+      "date": "2026-06-18",
+      "high": 0,
+      "medium": 1,
+      "low": 2,
+      "total": 3
+    },
+    {
+      "date": "2026-06-19",
+      "high": 0,
+      "medium": 0,
+      "low": 1,
+      "total": 1
+    },
+    {
+      "date": "2026-06-20",
+      "high": 0,
+      "medium": 0,
+      "low": 2,
+      "total": 2
+    },
+    {
+      "date": "2026-06-21",
+      "high": 0,
+      "medium": 1,
+      "low": 1,
+      "total": 2
+    },
+    {
+      "date": "2026-06-22",
+      "high": 0,
+      "medium": 0,
+      "low": 2,
+      "total": 2
+    },
+    {
+      "date": "2026-06-23",
+      "high": 0,
+      "medium": 0,
+      "low": 1,
+      "total": 1
+    },
+    {
+      "date": "2026-06-24",
+      "high": 0,
+      "medium": 1,
+      "low": 2,
+      "total": 3
+    },
+    {
+      "date": "2026-06-25",
+      "high": 0,
+      "medium": 0,
+      "low": 1,
+      "total": 1
+    },
+    {
+      "date": "2026-06-26",
+      "high": 0,
+      "medium": 0,
+      "low": 2,
+      "total": 2
+    },
+    {
+      "date": "2026-06-27",
+      "high": 0,
+      "medium": 1,
+      "low": 1,
+      "total": 2
+    },
+    {
+      "date": "2026-06-28",
+      "high": 0,
+      "medium": 0,
+      "low": 2,
+      "total": 2
+    },
+    {
+      "date": "2026-06-29",
+      "high": 0,
+      "medium": 0,
+      "low": 1,
+      "total": 1
+    },
+    {
+      "date": "2026-06-30",
+      "high": 0,
+      "medium": 1,
+      "low": 2,
+      "total": 3
+    },
+    {
+      "date": "2026-07-01",
+      "high": 0,
+      "medium": 0,
+      "low": 1,
+      "total": 1
+    }
+  ],
+  "riskyUsersDetail": [
+    {
+      "id": "demo-user-0001",
+      "displayName": "Ravi Fenmoor (demo)",
+      "userPrincipalName": "ravi.fenmoor@northwind-traders.example",
+      "riskLevel": "high",
+      "riskState": "atRisk",
+      "riskLastUpdatedDateTime": "2026-06-17T09:00:00.000Z"
+    }
+  ],
+  "secureScoreControls": [
+    {
+      "controlName": "demo-control-require.mfa.for.administrative.roles",
+      "title": "Require MFA for administrative roles (demo)",
+      "controlCategory": "Identity",
+      "description": "Synthetic Secure Score control for the healthy-mid-market demonstration profile.",
+      "score": 30,
+      "scoreInPercentage": 100,
+      "implementationStatus": "Configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "configured"
+    },
+    {
+      "controlName": "demo-control-block.legacy.authentication",
+      "title": "Block legacy authentication (demo)",
+      "controlCategory": "Identity",
+      "description": "Synthetic Secure Score control for the healthy-mid-market demonstration profile.",
+      "score": 20,
+      "scoreInPercentage": 100,
+      "implementationStatus": "Configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "configured"
+    },
+    {
+      "controlName": "demo-control-enable.self.service.password.reset",
+      "title": "Enable self-service password reset (demo)",
+      "controlCategory": "Identity",
+      "description": "Synthetic Secure Score control for the healthy-mid-market demonstration profile.",
+      "score": 10,
+      "scoreInPercentage": 100,
+      "implementationStatus": "Configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "configured"
+    },
+    {
+      "controlName": "demo-control-turn.on.customer.lockbox",
+      "title": "Turn on customer lockbox (demo)",
+      "controlCategory": "Data",
+      "description": "Synthetic Secure Score control for the healthy-mid-market demonstration profile.",
+      "score": 0,
+      "scoreInPercentage": 0,
+      "implementationStatus": "Not configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "notConfigured"
+    },
+    {
+      "controlName": "demo-control-enable.safe.attachments.for.sharepoint",
+      "title": "Enable Safe Attachments for SharePoint (demo)",
+      "controlCategory": "Apps",
+      "description": "Synthetic Secure Score control for the healthy-mid-market demonstration profile.",
+      "score": 0,
+      "scoreInPercentage": 0,
+      "implementationStatus": "Not configured",
+      "lastSynced": "2026-06-30T09:00:00.000Z",
+      "status": "notConfigured"
+    }
+  ],
+  "legacyAuthSignInCount": 0,
+  "legacyAuthBlockedByCA": true,
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

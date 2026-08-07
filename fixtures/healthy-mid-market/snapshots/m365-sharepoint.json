@@ -1,0 +1,104 @@
+{
+  "totalSites": 8,
+  "activeSites": 6,
+  "totalStorageUsedGB": 539.7,
+  "totalStorageAllocatedGB": 800,
+  "storageUtilizationPercent": 67,
+  "totalFiles": 44499,
+  "totalPageViews": 11925,
+  "oneDriveTotalStorageGB": 25000,
+  "oneDriveUsedStorageGB": 2350,
+  "sites": [
+    {
+      "name": "Finance (demo)",
+      "url": "https://northwind-traders-demo.example/sites/finance",
+      "storageUsedGB": 75.7,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-06-03T09:00:00.000Z",
+      "isActive": true,
+      "pageViews": 38,
+      "filesCount": 7604,
+      "assignedTeamName": "Finance (demo)"
+    },
+    {
+      "name": "Sales (demo)",
+      "url": "https://northwind-traders-demo.example/sites/sales",
+      "storageUsedGB": 67.4,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-06-10T09:00:00.000Z",
+      "isActive": true,
+      "pageViews": 1211,
+      "filesCount": 2305,
+      "assignedTeamName": null
+    },
+    {
+      "name": "Engineering (demo)",
+      "url": "https://northwind-traders-demo.example/sites/engineering",
+      "storageUsedGB": 85.5,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-06-24T09:00:00.000Z",
+      "isActive": true,
+      "pageViews": 812,
+      "filesCount": 3524,
+      "assignedTeamName": null
+    },
+    {
+      "name": "Support (demo)",
+      "url": "https://northwind-traders-demo.example/sites/support",
+      "storageUsedGB": 74.7,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-06-09T09:00:00.000Z",
+      "isActive": false,
+      "pageViews": 3729,
+      "filesCount": 3991,
+      "assignedTeamName": "Customer Support (demo)"
+    },
+    {
+      "name": "People (demo)",
+      "url": "https://northwind-traders-demo.example/sites/people",
+      "storageUsedGB": 70,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-06-17T09:00:00.000Z",
+      "isActive": true,
+      "pageViews": 816,
+      "filesCount": 7901,
+      "assignedTeamName": null
+    },
+    {
+      "name": "Intranet (demo)",
+      "url": "https://northwind-traders-demo.example/sites/intranet",
+      "storageUsedGB": 10.5,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-06-26T09:00:00.000Z",
+      "isActive": true,
+      "pageViews": 1932,
+      "filesCount": 8850,
+      "assignedTeamName": null
+    },
+    {
+      "name": "Projects (demo)",
+      "url": "https://northwind-traders-demo.example/sites/projects",
+      "storageUsedGB": 73.2,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-06-24T09:00:00.000Z",
+      "isActive": true,
+      "pageViews": 2178,
+      "filesCount": 5146,
+      "assignedTeamName": "Leadership (demo)"
+    },
+    {
+      "name": "Procurement (demo)",
+      "url": "https://northwind-traders-demo.example/sites/procurement",
+      "storageUsedGB": 82.7,
+      "storageAllocatedGB": 100,
+      "lastActivityDate": "2026-06-27T09:00:00.000Z",
+      "isActive": false,
+      "pageViews": 1209,
+      "filesCount": 5178,
+      "assignedTeamName": null
+    }
+  ],
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

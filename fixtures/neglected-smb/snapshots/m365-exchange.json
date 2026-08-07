@@ -1,0 +1,67 @@
+{
+  "totalMailboxes": 59,
+  "activeMailboxes": 46,
+  "sharedMailboxes": 5,
+  "roomMailboxes": 1,
+  "totalStorageUsedGB": 625.4,
+  "totalStorageAllocatedGB": 2650,
+  "storageUtilizationPercent": 24,
+  "mailboxSizeDistribution": [
+    {
+      "range": "0-1 GB",
+      "count": 13
+    },
+    {
+      "range": "1-5 GB",
+      "count": 20
+    },
+    {
+      "range": "5-25 GB",
+      "count": 16
+    },
+    {
+      "range": "25 GB+",
+      "count": 4
+    }
+  ],
+  "emailActivityLast30Days": {
+    "sent": 4770,
+    "received": 20988,
+    "read": 16112
+  },
+  "quarantinedMessages": 387,
+  "malwareDetected": 27,
+  "spamFiltered": 4752,
+  "domainAuthRecords": [
+    {
+      "domain": "fabrikam-joinery.example",
+      "hasSpf": true,
+      "hasDkim": false,
+      "hasDmarc": true,
+      "mxConfigured": true,
+      "spfRecord": "v=spf1 include:spf.demo-mail.example ~all",
+      "dmarcPolicy": "p=none",
+      "dkimSource": "none",
+      "expectedSpf": true,
+      "expectedMx": true
+    },
+    {
+      "domain": "fabrikam-joinery-shop.example",
+      "hasSpf": false,
+      "hasDkim": false,
+      "hasDmarc": false,
+      "mxConfigured": true,
+      "spfRecord": null,
+      "dmarcPolicy": null,
+      "dkimSource": "none",
+      "expectedSpf": true,
+      "expectedMx": true
+    }
+  ],
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": [],
+  "collectionNotes": [
+    "Synthetic fixture: DNS was not queried. Every record below was invented."
+  ]
+}

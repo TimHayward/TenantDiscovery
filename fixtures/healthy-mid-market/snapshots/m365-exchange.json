@@ -1,0 +1,67 @@
+{
+  "totalMailboxes": 260,
+  "activeMailboxes": 205,
+  "sharedMailboxes": 14,
+  "roomMailboxes": 8,
+  "totalStorageUsedGB": 1475.6,
+  "totalStorageAllocatedGB": 11900,
+  "storageUtilizationPercent": 12,
+  "mailboxSizeDistribution": [
+    {
+      "range": "0-1 GB",
+      "count": 57
+    },
+    {
+      "range": "1-5 GB",
+      "count": 90
+    },
+    {
+      "range": "5-25 GB",
+      "count": 71
+    },
+    {
+      "range": "25 GB+",
+      "count": 19
+    }
+  ],
+  "emailActivityLast30Days": {
+    "sent": 30226,
+    "received": 91392,
+    "read": 72114
+  },
+  "quarantinedMessages": 654,
+  "malwareDetected": 3,
+  "spamFiltered": 3244,
+  "domainAuthRecords": [
+    {
+      "domain": "northwind-traders.example",
+      "hasSpf": true,
+      "hasDkim": true,
+      "hasDmarc": true,
+      "mxConfigured": true,
+      "spfRecord": "v=spf1 include:spf.demo-mail.example -all",
+      "dmarcPolicy": "p=reject; rua=mailto:dmarc@northwind-traders.example",
+      "dkimSource": "exchange",
+      "expectedSpf": true,
+      "expectedMx": true
+    },
+    {
+      "domain": "mail.northwind-traders.example",
+      "hasSpf": true,
+      "hasDkim": true,
+      "hasDmarc": true,
+      "mxConfigured": true,
+      "spfRecord": "v=spf1 include:spf.demo-mail.example -all",
+      "dmarcPolicy": "p=quarantine",
+      "dkimSource": "exchange",
+      "expectedSpf": true,
+      "expectedMx": true
+    }
+  ],
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": [],
+  "collectionNotes": [
+    "Synthetic fixture: DNS was not queried. Every record below was invented."
+  ]
+}

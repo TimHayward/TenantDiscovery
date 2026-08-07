@@ -1,0 +1,51 @@
+{
+  "totalLicenses": 370,
+  "assignedLicenses": 335,
+  "availableLicenses": 35,
+  "utilizationPercent": 91,
+  "licenses": [
+    {
+      "skuId": "demo-sku-spe.e3",
+      "skuPartNumber": "SPE_E3",
+      "displayName": "Microsoft 365 E3 (demo)",
+      "total": 250,
+      "assigned": 238,
+      "available": 12,
+      "suspended": 0,
+      "warning": 0
+    },
+    {
+      "skuId": "demo-sku-ems",
+      "skuPartNumber": "EMS",
+      "displayName": "Enterprise Mobility + Security E3 (demo)",
+      "total": 60,
+      "assigned": 55,
+      "available": 5,
+      "suspended": 0,
+      "warning": 0
+    },
+    {
+      "skuId": "demo-sku-power.bi.pro",
+      "skuPartNumber": "POWER_BI_PRO",
+      "displayName": "Power BI Pro (demo)",
+      "total": 40,
+      "assigned": 31,
+      "available": 9,
+      "suspended": 0,
+      "warning": 0
+    },
+    {
+      "skuId": "demo-sku-exchangestandard",
+      "skuPartNumber": "EXCHANGESTANDARD",
+      "displayName": "Exchange Online (Plan 1) (demo)",
+      "total": 20,
+      "assigned": 11,
+      "available": 9,
+      "suspended": 0,
+      "warning": 0
+    }
+  ],
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

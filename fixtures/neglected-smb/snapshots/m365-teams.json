@@ -1,0 +1,97 @@
+{
+  "totalTeams": 5,
+  "activeTeams": 5,
+  "privateTeams": 3,
+  "publicTeams": 2,
+  "archivedTeams": 0,
+  "totalChannels": 20,
+  "activeUsersLast30Days": 19,
+  "meetingsOrganizedLast30Days": 115,
+  "callsLast30Days": 610,
+  "messagesLast30Days": 3185,
+  "guestAccessEnabled": true,
+  "externalAccessEnabled": true,
+  "teamsBySize": [
+    {
+      "range": "1-10",
+      "count": 3,
+      "totalTeamSize": 18,
+      "owners": 3,
+      "members": 15,
+      "guests": 0
+    },
+    {
+      "range": "11-50",
+      "count": 2,
+      "totalTeamSize": 40,
+      "owners": 2,
+      "members": 36,
+      "guests": 1
+    }
+  ],
+  "topTeams": [
+    {
+      "teamId": "demo-team-001",
+      "teamName": "Workshop (demo)",
+      "lastActivityDate": "2026-05-28T09:00:00.000Z",
+      "activeUsers": 5,
+      "activeChannels": 4,
+      "messages": 839,
+      "urgentMessages": 1,
+      "reactions": 144,
+      "meetingsOrganized": 19,
+      "guests": 2
+    },
+    {
+      "teamId": "demo-team-002",
+      "teamName": "Sales (demo)",
+      "lastActivityDate": "2026-02-03T09:00:00.000Z",
+      "activeUsers": 4,
+      "activeChannels": 4,
+      "messages": 724,
+      "urgentMessages": 3,
+      "reactions": 48,
+      "meetingsOrganized": 28,
+      "guests": 3
+    },
+    {
+      "teamId": "demo-team-003",
+      "teamName": "Office (demo)",
+      "lastActivityDate": "2026-02-18T09:00:00.000Z",
+      "activeUsers": 3,
+      "activeChannels": 1,
+      "messages": 413,
+      "urgentMessages": 2,
+      "reactions": 236,
+      "meetingsOrganized": 6,
+      "guests": 2
+    },
+    {
+      "teamId": "demo-team-004",
+      "teamName": "Site fitters (demo)",
+      "lastActivityDate": "2026-01-15T09:00:00.000Z",
+      "activeUsers": 5,
+      "activeChannels": 4,
+      "messages": 530,
+      "urgentMessages": 1,
+      "reactions": 145,
+      "meetingsOrganized": 31,
+      "guests": 1
+    },
+    {
+      "teamId": "demo-team-005",
+      "teamName": "Owners (demo)",
+      "lastActivityDate": "2026-01-15T09:00:00.000Z",
+      "activeUsers": 2,
+      "activeChannels": 2,
+      "messages": 679,
+      "urgentMessages": 2,
+      "reactions": 115,
+      "meetingsOrganized": 31,
+      "guests": 3
+    }
+  ],
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

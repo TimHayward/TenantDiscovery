@@ -1,0 +1,41 @@
+{
+  "totalLicenses": 100,
+  "assignedLicenses": 55,
+  "availableLicenses": 45,
+  "utilizationPercent": 55,
+  "licenses": [
+    {
+      "skuId": "demo-sku-spb",
+      "skuPartNumber": "SPB",
+      "displayName": "Microsoft 365 Business Premium (demo)",
+      "total": 60,
+      "assigned": 44,
+      "available": 16,
+      "suspended": 0,
+      "warning": 0
+    },
+    {
+      "skuId": "demo-sku-exchangestandard",
+      "skuPartNumber": "EXCHANGESTANDARD",
+      "displayName": "Exchange Online (Plan 1) (demo)",
+      "total": 25,
+      "assigned": 9,
+      "available": 16,
+      "suspended": 0,
+      "warning": 0
+    },
+    {
+      "skuId": "demo-sku-power.bi.standard",
+      "skuPartNumber": "POWER_BI_STANDARD",
+      "displayName": "Power BI (free) (demo)",
+      "total": 15,
+      "assigned": 2,
+      "available": 13,
+      "suspended": 0,
+      "warning": 0
+    }
+  ],
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

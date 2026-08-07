@@ -1,0 +1,84 @@
+{
+  "dlpPolicies": 6,
+  "activeDlpPolicies": 5,
+  "retentionPolicies": 9,
+  "retentionLabelCount": 9,
+  "retentionEvidence": "apiBacked",
+  "sensitivityLabels": 4,
+  "dlpPolicyMatches": 74,
+  "complianceScore": 78,
+  "complianceScoreMax": 100,
+  "auditLogEnabled": true,
+  "unifiedAuditLogEnabled": true,
+  "eDiscoveryCases": 2,
+  "sensitivityLabelsList": [
+    {
+      "id": "demo-label-01",
+      "name": "Public (demo)",
+      "description": "Synthetic sensitivity label for the healthy-mid-market demonstration profile.",
+      "tooltip": "Public content (demo)",
+      "color": "#0f766e",
+      "sensitivity": 0,
+      "isActive": true,
+      "isAppliable": true,
+      "hasProtection": false,
+      "contentFormats": [
+        "file",
+        "email"
+      ],
+      "parent": null
+    },
+    {
+      "id": "demo-label-02",
+      "name": "Internal (demo)",
+      "description": "Synthetic sensitivity label for the healthy-mid-market demonstration profile.",
+      "tooltip": "Internal content (demo)",
+      "color": "#b45309",
+      "sensitivity": 1,
+      "isActive": true,
+      "isAppliable": true,
+      "hasProtection": true,
+      "contentFormats": [
+        "file",
+        "email"
+      ],
+      "parent": null
+    },
+    {
+      "id": "demo-label-03",
+      "name": "Confidential (demo)",
+      "description": "Synthetic sensitivity label for the healthy-mid-market demonstration profile.",
+      "tooltip": "Confidential content (demo)",
+      "color": "#b91c1c",
+      "sensitivity": 2,
+      "isActive": true,
+      "isAppliable": true,
+      "hasProtection": true,
+      "contentFormats": [
+        "file",
+        "email"
+      ],
+      "parent": null
+    },
+    {
+      "id": "demo-label-04",
+      "name": "Highly confidential (demo)",
+      "description": "Synthetic sensitivity label for the healthy-mid-market demonstration profile.",
+      "tooltip": "Highly confidential content (demo)",
+      "color": "#1d4ed8",
+      "sensitivity": 3,
+      "isActive": true,
+      "isAppliable": true,
+      "hasProtection": true,
+      "contentFormats": [
+        "file",
+        "email"
+      ],
+      "parent": null
+    }
+  ],
+  "sensitivityLabelsPermissionRequired": false,
+  "collectionNotes": [
+    "Synthetic fixture: eDiscovery and DLP counts were invented, not collected."
+  ]
+}

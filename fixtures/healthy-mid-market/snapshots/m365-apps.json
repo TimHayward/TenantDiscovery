@@ -1,0 +1,212 @@
+{
+  "totalApps": 4,
+  "appsWithNoOwner": 1,
+  "appsWithHighRisk": 0,
+  "appsWithExpiredCredentials": 1,
+  "appsWithLongLivedSecrets": 0,
+  "multiTenantApps": 0,
+  "usersCanRegisterApps": false,
+  "permissionError": false,
+  "apps": [
+    {
+      "id": "demo-app-001",
+      "appId": "demo-appid-001",
+      "displayName": "Intranet single sign-on (demo)",
+      "createdDateTime": "2024-04-18T09:00:00.000Z",
+      "signInAudience": "AzureADMyOrg",
+      "owners": [
+        {
+          "id": "demo-user-0001",
+          "displayName": "Ravi Fenmoor (demo)",
+          "accountEnabled": true
+        }
+      ],
+      "credentials": [
+        {
+          "keyId": "demo-key-01-1",
+          "displayName": "Intranet single sign-on certificate (demo)",
+          "startDateTime": "2025-12-13T09:00:00.000Z",
+          "endDateTime": "2027-08-05T09:00:00.000Z",
+          "type": "certificate",
+          "hint": null
+        }
+      ],
+      "hasExpiredCredentials": false,
+      "hasLongLivedSecrets": false,
+      "permissions": [
+        {
+          "resourceAppId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "type": "Scope",
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskPermissions": false,
+      "highRiskScopes": [],
+      "redirectUris": [
+        "https://app.northwind-traders.example/auth"
+      ],
+      "hasWildcardRedirectUris": false,
+      "hasTenantWideAdminConsent": false,
+      "grantedScopes": [
+        "User.Read"
+      ],
+      "riskScore": 0,
+      "riskLevel": "low",
+      "riskFactors": []
+    },
+    {
+      "id": "demo-app-002",
+      "appId": "demo-appid-002",
+      "displayName": "Expenses integration (demo)",
+      "createdDateTime": "2024-11-12T09:00:00.000Z",
+      "signInAudience": "AzureADMyOrg",
+      "owners": [
+        {
+          "id": "demo-user-0002",
+          "displayName": "Zev Ellwither (demo)",
+          "accountEnabled": true
+        }
+      ],
+      "credentials": [
+        {
+          "keyId": "demo-key-02-1",
+          "displayName": "Expenses integration secret (demo)",
+          "startDateTime": "2026-03-03T09:00:00.000Z",
+          "endDateTime": "2027-02-16T09:00:00.000Z",
+          "type": "secret",
+          "hint": "dem"
+        }
+      ],
+      "hasExpiredCredentials": false,
+      "hasLongLivedSecrets": false,
+      "permissions": [
+        {
+          "resourceAppId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "type": "Scope",
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskPermissions": false,
+      "highRiskScopes": [],
+      "redirectUris": [
+        "https://app.northwind-traders.example/auth"
+      ],
+      "hasWildcardRedirectUris": false,
+      "hasTenantWideAdminConsent": false,
+      "grantedScopes": [
+        "User.Read"
+      ],
+      "riskScore": 0,
+      "riskLevel": "low",
+      "riskFactors": []
+    },
+    {
+      "id": "demo-app-003",
+      "appId": "demo-appid-003",
+      "displayName": "Reporting exporter (demo)",
+      "createdDateTime": "2024-09-10T09:00:00.000Z",
+      "signInAudience": "AzureADMyOrg",
+      "owners": [],
+      "credentials": [
+        {
+          "keyId": "demo-key-03-1",
+          "displayName": "Reporting exporter secret (demo)",
+          "startDateTime": "2026-04-02T09:00:00.000Z",
+          "endDateTime": "2027-03-28T09:00:00.000Z",
+          "type": "secret",
+          "hint": "dem"
+        }
+      ],
+      "hasExpiredCredentials": false,
+      "hasLongLivedSecrets": false,
+      "permissions": [
+        {
+          "resourceAppId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "type": "Scope",
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskPermissions": false,
+      "highRiskScopes": [],
+      "redirectUris": [
+        "https://app.northwind-traders.example/auth"
+      ],
+      "hasWildcardRedirectUris": false,
+      "hasTenantWideAdminConsent": false,
+      "grantedScopes": [
+        "User.Read"
+      ],
+      "riskScore": 30,
+      "riskLevel": "medium",
+      "riskFactors": [
+        "No owner assigned"
+      ]
+    },
+    {
+      "id": "demo-app-004",
+      "appId": "demo-appid-004",
+      "displayName": "Legacy timesheet importer (demo)",
+      "createdDateTime": "2025-10-06T09:00:00.000Z",
+      "signInAudience": "AzureADMyOrg",
+      "owners": [
+        {
+          "id": "demo-user-0004",
+          "displayName": "Bela Fenmoor (demo)",
+          "accountEnabled": true
+        }
+      ],
+      "credentials": [
+        {
+          "keyId": "demo-key-04-1",
+          "displayName": "Legacy timesheet importer secret (demo)",
+          "startDateTime": "2024-04-22T09:00:00.000Z",
+          "endDateTime": "2026-05-22T09:00:00.000Z",
+          "type": "secret",
+          "hint": "dem"
+        }
+      ],
+      "hasExpiredCredentials": true,
+      "hasLongLivedSecrets": false,
+      "permissions": [
+        {
+          "resourceAppId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "type": "Scope",
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskPermissions": false,
+      "highRiskScopes": [],
+      "redirectUris": [
+        "https://app.northwind-traders.example/auth"
+      ],
+      "hasWildcardRedirectUris": false,
+      "hasTenantWideAdminConsent": false,
+      "grantedScopes": [
+        "User.Read"
+      ],
+      "riskScore": 30,
+      "riskLevel": "medium",
+      "riskFactors": [
+        "Expired credential"
+      ]
+    }
+  ],
+  "partialData": false,
+  "collectionIssues": []
+}

@@ -1,0 +1,287 @@
+{
+  "totalApps": 5,
+  "appsWithNoOwner": 3,
+  "appsWithHighRisk": 3,
+  "appsWithExpiredCredentials": 3,
+  "appsWithLongLivedSecrets": 3,
+  "multiTenantApps": 1,
+  "usersCanRegisterApps": true,
+  "permissionError": false,
+  "apps": [
+    {
+      "id": "demo-app-001",
+      "appId": "demo-appid-001",
+      "displayName": "Website contact form (demo)",
+      "createdDateTime": "2023-11-12T09:00:00.000Z",
+      "signInAudience": "AzureADMyOrg",
+      "owners": [],
+      "credentials": [
+        {
+          "keyId": "demo-key-01-1",
+          "displayName": "Website contact form secret (demo)",
+          "startDateTime": "2023-06-27T09:00:00.000Z",
+          "endDateTime": "2025-06-16T09:00:00.000Z",
+          "type": "secret",
+          "hint": "dem"
+        }
+      ],
+      "hasExpiredCredentials": true,
+      "hasLongLivedSecrets": true,
+      "permissions": [
+        {
+          "resourceAppId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "type": "Scope",
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskPermissions": false,
+      "highRiskScopes": [],
+      "redirectUris": [
+        "https://app.fabrikam-joinery.example/auth"
+      ],
+      "hasWildcardRedirectUris": false,
+      "hasTenantWideAdminConsent": false,
+      "grantedScopes": [
+        "User.Read"
+      ],
+      "riskScore": 90,
+      "riskLevel": "high",
+      "riskFactors": [
+        "No owner assigned",
+        "Expired credential",
+        "Secret lifetime longer than 12 months"
+      ]
+    },
+    {
+      "id": "demo-app-002",
+      "appId": "demo-appid-002",
+      "displayName": "Old stock sync (demo)",
+      "createdDateTime": "2022-10-11T09:00:00.000Z",
+      "signInAudience": "AzureADMyOrg",
+      "owners": [],
+      "credentials": [
+        {
+          "keyId": "demo-key-02-1",
+          "displayName": "Old stock sync secret (demo)",
+          "startDateTime": "2022-08-31T09:00:00.000Z",
+          "endDateTime": "2024-10-19T09:00:00.000Z",
+          "type": "secret",
+          "hint": "dem"
+        }
+      ],
+      "hasExpiredCredentials": true,
+      "hasLongLivedSecrets": true,
+      "permissions": [
+        {
+          "resourceAppId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "Directory.ReadWrite.All",
+            "Mail.ReadWrite",
+            "Files.ReadWrite.All"
+          ],
+          "type": "Role",
+          "isHighRisk": true
+        }
+      ],
+      "hasHighRiskPermissions": true,
+      "highRiskScopes": [
+        "Directory.ReadWrite.All",
+        "Mail.ReadWrite",
+        "Files.ReadWrite.All"
+      ],
+      "redirectUris": [
+        "https://app.fabrikam-joinery.example/auth"
+      ],
+      "hasWildcardRedirectUris": false,
+      "hasTenantWideAdminConsent": true,
+      "grantedScopes": [
+        "Directory.ReadWrite.All",
+        "Mail.ReadWrite",
+        "Files.ReadWrite.All"
+      ],
+      "riskScore": 100,
+      "riskLevel": "high",
+      "riskFactors": [
+        "High-risk application permissions",
+        "No owner assigned",
+        "Expired credential",
+        "Secret lifetime longer than 12 months"
+      ]
+    },
+    {
+      "id": "demo-app-003",
+      "appId": "demo-appid-003",
+      "displayName": "Accounts export (demo)",
+      "createdDateTime": "2023-02-10T09:00:00.000Z",
+      "signInAudience": "AzureADMyOrg",
+      "owners": [
+        {
+          "id": "demo-user-0003",
+          "displayName": "Emre Ravenscot (demo)",
+          "accountEnabled": true
+        }
+      ],
+      "credentials": [
+        {
+          "keyId": "demo-key-03-1",
+          "displayName": "Accounts export secret (demo)",
+          "startDateTime": "2024-01-13T09:00:00.000Z",
+          "endDateTime": "2026-07-21T09:00:00.000Z",
+          "type": "secret",
+          "hint": "dem"
+        }
+      ],
+      "hasExpiredCredentials": false,
+      "hasLongLivedSecrets": false,
+      "permissions": [
+        {
+          "resourceAppId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "Directory.ReadWrite.All",
+            "Mail.ReadWrite",
+            "Files.ReadWrite.All"
+          ],
+          "type": "Role",
+          "isHighRisk": true
+        }
+      ],
+      "hasHighRiskPermissions": true,
+      "highRiskScopes": [
+        "Directory.ReadWrite.All",
+        "Mail.ReadWrite",
+        "Files.ReadWrite.All"
+      ],
+      "redirectUris": [
+        "https://*.fabrikam-joinery.example/auth"
+      ],
+      "hasWildcardRedirectUris": true,
+      "hasTenantWideAdminConsent": true,
+      "grantedScopes": [
+        "Directory.ReadWrite.All",
+        "Mail.ReadWrite",
+        "Files.ReadWrite.All"
+      ],
+      "riskScore": 30,
+      "riskLevel": "medium",
+      "riskFactors": [
+        "High-risk application permissions"
+      ]
+    },
+    {
+      "id": "demo-app-004",
+      "appId": "demo-appid-004",
+      "displayName": "Marketing automation (demo)",
+      "createdDateTime": "2023-01-14T09:00:00.000Z",
+      "signInAudience": "AzureADMultipleOrgs",
+      "owners": [
+        {
+          "id": "demo-user-0004",
+          "displayName": "Mira Inglemere (demo)",
+          "accountEnabled": true
+        }
+      ],
+      "credentials": [
+        {
+          "keyId": "demo-key-04-1",
+          "displayName": "Marketing automation secret (demo)",
+          "startDateTime": "2024-07-31T09:00:00.000Z",
+          "endDateTime": "2026-08-30T09:00:00.000Z",
+          "type": "secret",
+          "hint": "dem"
+        }
+      ],
+      "hasExpiredCredentials": false,
+      "hasLongLivedSecrets": true,
+      "permissions": [
+        {
+          "resourceAppId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "type": "Scope",
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskPermissions": false,
+      "highRiskScopes": [],
+      "redirectUris": [
+        "https://app.fabrikam-joinery.example/auth"
+      ],
+      "hasWildcardRedirectUris": false,
+      "hasTenantWideAdminConsent": false,
+      "grantedScopes": [
+        "User.Read"
+      ],
+      "riskScore": 30,
+      "riskLevel": "medium",
+      "riskFactors": [
+        "Secret lifetime longer than 12 months"
+      ]
+    },
+    {
+      "id": "demo-app-005",
+      "appId": "demo-appid-005",
+      "displayName": "Consultant access (demo)",
+      "createdDateTime": "2025-11-08T09:00:00.000Z",
+      "signInAudience": "AzureADMyOrg",
+      "owners": [],
+      "credentials": [
+        {
+          "keyId": "demo-key-05-1",
+          "displayName": "Consultant access secret (demo)",
+          "startDateTime": "2023-03-19T09:00:00.000Z",
+          "endDateTime": "2025-12-03T09:00:00.000Z",
+          "type": "secret",
+          "hint": "dem"
+        }
+      ],
+      "hasExpiredCredentials": true,
+      "hasLongLivedSecrets": false,
+      "permissions": [
+        {
+          "resourceAppId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "Directory.ReadWrite.All",
+            "Mail.ReadWrite",
+            "Files.ReadWrite.All"
+          ],
+          "type": "Role",
+          "isHighRisk": true
+        }
+      ],
+      "hasHighRiskPermissions": true,
+      "highRiskScopes": [
+        "Directory.ReadWrite.All",
+        "Mail.ReadWrite",
+        "Files.ReadWrite.All"
+      ],
+      "redirectUris": [
+        "https://app.fabrikam-joinery.example/auth"
+      ],
+      "hasWildcardRedirectUris": false,
+      "hasTenantWideAdminConsent": true,
+      "grantedScopes": [
+        "Directory.ReadWrite.All",
+        "Mail.ReadWrite",
+        "Files.ReadWrite.All"
+      ],
+      "riskScore": 90,
+      "riskLevel": "high",
+      "riskFactors": [
+        "High-risk application permissions",
+        "No owner assigned",
+        "Expired credential"
+      ]
+    }
+  ],
+  "partialData": false,
+  "collectionIssues": []
+}

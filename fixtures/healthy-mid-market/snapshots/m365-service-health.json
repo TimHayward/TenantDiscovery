@@ -1,0 +1,83 @@
+{
+  "overallStatus": "serviceOperational",
+  "servicesHealthy": 10,
+  "servicesWithIssues": 0,
+  "totalServices": 10,
+  "activeIncidents": 0,
+  "activeAdvisories": 1,
+  "services": [
+    {
+      "service": "Exchange Online (demo)",
+      "status": "serviceOperational",
+      "classification": "advisory",
+      "hasActiveIssues": false,
+      "activeIncidents": 0
+    },
+    {
+      "service": "Microsoft Teams (demo)",
+      "status": "serviceOperational",
+      "classification": "advisory",
+      "hasActiveIssues": false,
+      "activeIncidents": 0
+    },
+    {
+      "service": "SharePoint Online (demo)",
+      "status": "serviceOperational",
+      "classification": "advisory",
+      "hasActiveIssues": false,
+      "activeIncidents": 0
+    },
+    {
+      "service": "OneDrive for Business (demo)",
+      "status": "serviceOperational",
+      "classification": "advisory",
+      "hasActiveIssues": false,
+      "activeIncidents": 0
+    },
+    {
+      "service": "Microsoft Entra (demo)",
+      "status": "serviceOperational",
+      "classification": "advisory",
+      "hasActiveIssues": false,
+      "activeIncidents": 0
+    },
+    {
+      "service": "Microsoft Intune (demo)",
+      "status": "serviceOperational",
+      "classification": "advisory",
+      "hasActiveIssues": false,
+      "activeIncidents": 0
+    },
+    {
+      "service": "Microsoft Defender for Office 365 (demo)",
+      "status": "serviceOperational",
+      "classification": "advisory",
+      "hasActiveIssues": false,
+      "activeIncidents": 0
+    },
+    {
+      "service": "Microsoft Purview (demo)",
+      "status": "serviceOperational",
+      "classification": "advisory",
+      "hasActiveIssues": false,
+      "activeIncidents": 0
+    },
+    {
+      "service": "Power BI (demo)",
+      "status": "serviceOperational",
+      "classification": "advisory",
+      "hasActiveIssues": false,
+      "activeIncidents": 0
+    },
+    {
+      "service": "Microsoft 365 apps (demo)",
+      "status": "serviceOperational",
+      "classification": "advisory",
+      "hasActiveIssues": false,
+      "activeIncidents": 0
+    }
+  ],
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

@@ -1,0 +1,212 @@
+{
+  "total": 6,
+  "applicationCount": 5,
+  "managedIdentityCount": 1,
+  "microsoftOwnedCount": 2,
+  "thirdPartyCount": 4,
+  "disabledCount": 0,
+  "withHighRiskGrants": 0,
+  "permissionError": false,
+  "servicePrincipals": [
+    {
+      "id": "demo-sp-001",
+      "appId": "demo-spappid-001",
+      "displayName": "Microsoft Teams services (demo)",
+      "publisherName": "Microsoft Services (demo)",
+      "servicePrincipalType": "Application",
+      "accountEnabled": true,
+      "tags": [
+        "WindowsAzureActiveDirectoryIntegratedApp"
+      ],
+      "homepage": "https://app.northwind-traders.example/microsoft.teams.services",
+      "lastSignInDateTime": "2025-07-13T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "Principal",
+          "principalId": "demo-user-0001",
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskGrants": false,
+      "assignedUserCount": 0,
+      "assignedGroupCount": 4,
+      "isAdminConsented": false,
+      "isFirstParty": true,
+      "riskLevel": "low",
+      "riskScore": 10,
+      "riskFactors": []
+    },
+    {
+      "id": "demo-sp-002",
+      "appId": "demo-spappid-002",
+      "displayName": "Microsoft Intune (demo)",
+      "publisherName": "Microsoft Services (demo)",
+      "servicePrincipalType": "Application",
+      "accountEnabled": true,
+      "tags": [
+        "WindowsAzureActiveDirectoryIntegratedApp"
+      ],
+      "homepage": "https://app.northwind-traders.example/microsoft.intune",
+      "lastSignInDateTime": "2025-10-07T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "Principal",
+          "principalId": "demo-user-0002",
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskGrants": false,
+      "assignedUserCount": 17,
+      "assignedGroupCount": 0,
+      "isAdminConsented": false,
+      "isFirstParty": true,
+      "riskLevel": "low",
+      "riskScore": 10,
+      "riskFactors": []
+    },
+    {
+      "id": "demo-sp-003",
+      "appId": "demo-spappid-003",
+      "displayName": "Expenses integration (demo)",
+      "publisherName": "Demo Software Ltd",
+      "servicePrincipalType": "Application",
+      "accountEnabled": true,
+      "tags": [
+        "demo-fixture"
+      ],
+      "homepage": "https://app.northwind-traders.example/expenses.integration",
+      "lastSignInDateTime": "2026-01-07T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "Principal",
+          "principalId": "demo-user-0003",
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskGrants": false,
+      "assignedUserCount": 34,
+      "assignedGroupCount": 0,
+      "isAdminConsented": false,
+      "isFirstParty": false,
+      "riskLevel": "low",
+      "riskScore": 10,
+      "riskFactors": []
+    },
+    {
+      "id": "demo-sp-004",
+      "appId": "demo-spappid-004",
+      "displayName": "Reporting exporter (demo)",
+      "publisherName": "Demo Software Ltd",
+      "servicePrincipalType": "Application",
+      "accountEnabled": true,
+      "tags": [
+        "demo-fixture"
+      ],
+      "homepage": "https://app.northwind-traders.example/reporting.exporter",
+      "lastSignInDateTime": "2025-08-27T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "Principal",
+          "principalId": "demo-user-0004",
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskGrants": false,
+      "assignedUserCount": 23,
+      "assignedGroupCount": 1,
+      "isAdminConsented": false,
+      "isFirstParty": false,
+      "riskLevel": "low",
+      "riskScore": 10,
+      "riskFactors": []
+    },
+    {
+      "id": "demo-sp-005",
+      "appId": "demo-spappid-005",
+      "displayName": "Backup connector (demo)",
+      "publisherName": "Demo Software Ltd",
+      "servicePrincipalType": "Application",
+      "accountEnabled": true,
+      "tags": [
+        "demo-fixture"
+      ],
+      "homepage": "https://app.northwind-traders.example/backup.connector",
+      "lastSignInDateTime": "2025-03-28T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "Principal",
+          "principalId": "demo-user-0005",
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskGrants": false,
+      "assignedUserCount": 15,
+      "assignedGroupCount": 2,
+      "isAdminConsented": false,
+      "isFirstParty": false,
+      "riskLevel": "low",
+      "riskScore": 10,
+      "riskFactors": []
+    },
+    {
+      "id": "demo-sp-006",
+      "appId": "demo-spappid-006",
+      "displayName": "Deployment identity (demo)",
+      "publisherName": "Demo Software Ltd",
+      "servicePrincipalType": "ManagedIdentity",
+      "accountEnabled": true,
+      "tags": [
+        "demo-fixture"
+      ],
+      "homepage": "https://app.northwind-traders.example/deployment.identity",
+      "lastSignInDateTime": "2025-12-15T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "Principal",
+          "principalId": "demo-user-0006",
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskGrants": false,
+      "assignedUserCount": 15,
+      "assignedGroupCount": 1,
+      "isAdminConsented": false,
+      "isFirstParty": false,
+      "riskLevel": "low",
+      "riskScore": 10,
+      "riskFactors": []
+    }
+  ],
+  "partialData": false,
+  "collectionIssues": []
+}

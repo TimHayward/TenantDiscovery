@@ -1,0 +1,144 @@
+{
+  "installPermissionRequired": false,
+  "discoveryPermissionRequired": false,
+  "totalAssignedApps": 4,
+  "totalInstalled": 366,
+  "totalFailed": 5,
+  "totalPending": 4,
+  "totalNotApplicable": 12,
+  "totalNotInstalled": 549,
+  "installByPlatform": [
+    {
+      "platform": "Windows",
+      "installed": 310,
+      "failed": 2,
+      "pending": 1,
+      "notApplicable": 6,
+      "notInstalled": 148
+    },
+    {
+      "platform": "iOS",
+      "installed": 10,
+      "failed": 1,
+      "pending": 0,
+      "notApplicable": 4,
+      "notInstalled": 219
+    },
+    {
+      "platform": "macOS",
+      "installed": 46,
+      "failed": 2,
+      "pending": 3,
+      "notApplicable": 2,
+      "notInstalled": 182
+    }
+  ],
+  "appInstallList": [
+    {
+      "id": "demo-mobile-app-01",
+      "displayName": "Line of business portal (demo)",
+      "publisher": "Demo Software Ltd",
+      "platform": "Windows",
+      "installed": 100,
+      "failed": 2,
+      "pending": 0,
+      "notApplicable": 1,
+      "notInstalled": 128
+    },
+    {
+      "id": "demo-mobile-app-02",
+      "displayName": "Expenses (demo)",
+      "publisher": "Demo Software Ltd",
+      "platform": "iOS",
+      "installed": 10,
+      "failed": 1,
+      "pending": 0,
+      "notApplicable": 4,
+      "notInstalled": 219
+    },
+    {
+      "id": "demo-mobile-app-03",
+      "displayName": "Field service (demo)",
+      "publisher": "Demo Software Ltd",
+      "platform": "macOS",
+      "installed": 46,
+      "failed": 2,
+      "pending": 3,
+      "notApplicable": 2,
+      "notInstalled": 182
+    },
+    {
+      "id": "demo-mobile-app-04",
+      "displayName": "Password manager (demo)",
+      "publisher": "Demo Software Ltd",
+      "platform": "Windows",
+      "installed": 210,
+      "failed": 0,
+      "pending": 1,
+      "notApplicable": 5,
+      "notInstalled": 20
+    }
+  ],
+  "totalDiscoveredApps": 5,
+  "managedDiscoveredApps": 3,
+  "unmanagedDiscoveredApps": 2,
+  "discoveredByPlatform": [
+    {
+      "platform": "Windows",
+      "managed": 0,
+      "unmanaged": 2
+    },
+    {
+      "platform": "iOS",
+      "managed": 2,
+      "unmanaged": 0
+    },
+    {
+      "platform": "macOS",
+      "managed": 1,
+      "unmanaged": 0
+    }
+  ],
+  "discoveredAppList": [
+    {
+      "id": "demo-discovered-app-01",
+      "displayName": "Note taker (demo)",
+      "version": "9.6.0",
+      "deviceCount": 187,
+      "platform": "Windows",
+      "managed": false
+    },
+    {
+      "id": "demo-discovered-app-02",
+      "displayName": "Screen recorder (demo)",
+      "version": "6.7.0",
+      "deviceCount": 9,
+      "platform": "iOS",
+      "managed": true
+    },
+    {
+      "id": "demo-discovered-app-03",
+      "displayName": "PDF reader (demo)",
+      "version": "1.9.0",
+      "deviceCount": 43,
+      "platform": "macOS",
+      "managed": true
+    },
+    {
+      "id": "demo-discovered-app-04",
+      "displayName": "Chat client (demo)",
+      "version": "9.3.0",
+      "deviceCount": 96,
+      "platform": "Windows",
+      "managed": false
+    },
+    {
+      "id": "demo-discovered-app-05",
+      "displayName": "File sync (demo)",
+      "version": "6.8.0",
+      "deviceCount": 217,
+      "platform": "iOS",
+      "managed": true
+    }
+  ]
+}

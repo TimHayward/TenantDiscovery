@@ -1,0 +1,31 @@
+{
+  "available": false,
+  "totalWorkspaces": 0,
+  "activeWorkspaces": 0,
+  "orphanedWorkspaces": 0,
+  "personalWorkspaces": 0,
+  "dedicatedCapacityWorkspaces": 0,
+  "totalDatasets": 0,
+  "refreshableDatasets": 0,
+  "totalReports": 0,
+  "capacities": [],
+  "workspaces": [],
+  "partialData": true,
+  "permissionError": false,
+  "collectionIssues": [
+    {
+      "source": "powerBIWorkspaces",
+      "status": 403,
+      "category": "permission",
+      "message": "Synthetic fixture: this profile models a tenant that has not enabled Power BI service-principal access.",
+      "retryable": false,
+      "permissionRequired": true,
+      "requiredPermissions": [
+        {
+          "name": "Tenant.Read.All",
+          "accessKind": "external-scope"
+        }
+      ]
+    }
+  ]
+}

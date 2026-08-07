@@ -1,0 +1,107 @@
+{
+  "permanentGlobalAdminsCount": 2,
+  "permanentGlobalAdminsWithProductivityCount": 0,
+  "permanentAdminsCount": 5,
+  "permanentAdminsWithProductivityCount": 1,
+  "eligibleGlobalAdminsCount": 3,
+  "eligibleGlobalAdminsWithProductivityCount": 0,
+  "eligibleAdminsCount": 7,
+  "eligibleAdminsWithProductivityCount": 0,
+  "permanentGlobalAdmins": [
+    {
+      "id": "demo-user-0001",
+      "displayName": "Ravi Fenmoor (demo)",
+      "userPrincipalName": "ravi.fenmoor@northwind-traders.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": false
+    },
+    {
+      "id": "demo-user-0002",
+      "displayName": "Zev Ellwither (demo)",
+      "userPrincipalName": "zev.ellwither@northwind-traders.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": false
+    }
+  ],
+  "permanentGlobalAdminsWithProductivity": [],
+  "permanentAdmins": [
+    {
+      "id": "demo-user-0001",
+      "displayName": "Ravi Fenmoor (demo)",
+      "userPrincipalName": "ravi.fenmoor@northwind-traders.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": false
+    },
+    {
+      "id": "demo-user-0002",
+      "displayName": "Zev Ellwither (demo)",
+      "userPrincipalName": "zev.ellwither@northwind-traders.example",
+      "accountEnabled": true,
+      "roles": [
+        "Global Administrator"
+      ],
+      "hasProductivityLicense": false
+    },
+    {
+      "id": "demo-user-0003",
+      "displayName": "Kit Fenmoor (demo)",
+      "userPrincipalName": "kit.fenmoor@northwind-traders.example",
+      "accountEnabled": true,
+      "roles": [
+        "Exchange Administrator"
+      ],
+      "hasProductivityLicense": true
+    },
+    {
+      "id": "demo-user-0004",
+      "displayName": "Bela Fenmoor (demo)",
+      "userPrincipalName": "bela.fenmoor@northwind-traders.example",
+      "accountEnabled": true,
+      "roles": [
+        "Intune Administrator"
+      ],
+      "hasProductivityLicense": false
+    },
+    {
+      "id": "demo-user-0005",
+      "displayName": "Lior Vellacourt (demo)",
+      "userPrincipalName": "lior.vellacourt@northwind-traders.example",
+      "accountEnabled": true,
+      "roles": [
+        "Security Reader"
+      ],
+      "hasProductivityLicense": false
+    }
+  ],
+  "permanentAdminsWithProductivity": [
+    {
+      "id": "demo-user-0003",
+      "displayName": "Kit Fenmoor (demo)",
+      "userPrincipalName": "kit.fenmoor@northwind-traders.example",
+      "accountEnabled": true,
+      "roles": [
+        "Exchange Administrator"
+      ],
+      "hasProductivityLicense": true
+    }
+  ],
+  "eligibleGlobalAdmins": [],
+  "eligibleGlobalAdminsWithProductivity": [],
+  "eligibleAdmins": [],
+  "eligibleAdminsWithProductivity": [],
+  "eligibleAssignmentCount": 7,
+  "dormantEligibleCount": 0,
+  "roleDataSource": "unifiedRbac",
+  "partialData": false,
+  "permissionError": false,
+  "collectionIssues": []
+}

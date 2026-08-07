@@ -1,0 +1,224 @@
+{
+  "total": 6,
+  "applicationCount": 6,
+  "managedIdentityCount": 0,
+  "microsoftOwnedCount": 1,
+  "thirdPartyCount": 5,
+  "disabledCount": 1,
+  "withHighRiskGrants": 3,
+  "permissionError": false,
+  "servicePrincipals": [
+    {
+      "id": "demo-sp-001",
+      "appId": "demo-spappid-001",
+      "displayName": "Microsoft Teams services (demo)",
+      "publisherName": "Microsoft Services (demo)",
+      "servicePrincipalType": "Application",
+      "accountEnabled": true,
+      "tags": [
+        "WindowsAzureActiveDirectoryIntegratedApp"
+      ],
+      "homepage": "https://app.fabrikam-joinery.example/microsoft.teams.services",
+      "lastSignInDateTime": "2025-03-12T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "Principal",
+          "principalId": "demo-user-0001",
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskGrants": false,
+      "assignedUserCount": 9,
+      "assignedGroupCount": 4,
+      "isAdminConsented": false,
+      "isFirstParty": true,
+      "riskLevel": "low",
+      "riskScore": 10,
+      "riskFactors": []
+    },
+    {
+      "id": "demo-sp-002",
+      "appId": "demo-spappid-002",
+      "displayName": "Old stock sync (demo)",
+      "publisherName": "Demo Software Ltd",
+      "servicePrincipalType": "Application",
+      "accountEnabled": true,
+      "tags": [
+        "demo-fixture"
+      ],
+      "homepage": "https://app.fabrikam-joinery.example/old.stock.sync",
+      "lastSignInDateTime": "2026-03-14T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "AllPrincipals",
+          "principalId": null,
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "Directory.ReadWrite.All",
+            "Mail.ReadWrite",
+            "Files.ReadWrite.All"
+          ],
+          "isHighRisk": true
+        }
+      ],
+      "hasHighRiskGrants": true,
+      "assignedUserCount": 40,
+      "assignedGroupCount": 0,
+      "isAdminConsented": true,
+      "isFirstParty": false,
+      "riskLevel": "high",
+      "riskScore": 80,
+      "riskFactors": [
+        "Tenant-wide consent to high-risk scopes"
+      ]
+    },
+    {
+      "id": "demo-sp-003",
+      "appId": "demo-spappid-003",
+      "displayName": "Accounts export (demo)",
+      "publisherName": "Demo Software Ltd",
+      "servicePrincipalType": "Application",
+      "accountEnabled": true,
+      "tags": [
+        "demo-fixture"
+      ],
+      "homepage": "https://app.fabrikam-joinery.example/accounts.export",
+      "lastSignInDateTime": "2026-04-27T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "AllPrincipals",
+          "principalId": null,
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "Directory.ReadWrite.All",
+            "Mail.ReadWrite",
+            "Files.ReadWrite.All"
+          ],
+          "isHighRisk": true
+        }
+      ],
+      "hasHighRiskGrants": true,
+      "assignedUserCount": 32,
+      "assignedGroupCount": 3,
+      "isAdminConsented": true,
+      "isFirstParty": false,
+      "riskLevel": "high",
+      "riskScore": 80,
+      "riskFactors": [
+        "Tenant-wide consent to high-risk scopes"
+      ]
+    },
+    {
+      "id": "demo-sp-004",
+      "appId": "demo-spappid-004",
+      "displayName": "Consultant access (demo)",
+      "publisherName": "Demo Software Ltd",
+      "servicePrincipalType": "Application",
+      "accountEnabled": true,
+      "tags": [
+        "demo-fixture"
+      ],
+      "homepage": "https://app.fabrikam-joinery.example/consultant.access",
+      "lastSignInDateTime": "2026-06-28T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "AllPrincipals",
+          "principalId": null,
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "Directory.ReadWrite.All",
+            "Mail.ReadWrite",
+            "Files.ReadWrite.All"
+          ],
+          "isHighRisk": true
+        }
+      ],
+      "hasHighRiskGrants": true,
+      "assignedUserCount": 15,
+      "assignedGroupCount": 2,
+      "isAdminConsented": true,
+      "isFirstParty": false,
+      "riskLevel": "high",
+      "riskScore": 80,
+      "riskFactors": [
+        "Tenant-wide consent to high-risk scopes"
+      ]
+    },
+    {
+      "id": "demo-sp-005",
+      "appId": "demo-spappid-005",
+      "displayName": "Marketing automation (demo)",
+      "publisherName": "Demo Software Ltd",
+      "servicePrincipalType": "Application",
+      "accountEnabled": true,
+      "tags": [
+        "demo-fixture"
+      ],
+      "homepage": "https://app.fabrikam-joinery.example/marketing.automation",
+      "lastSignInDateTime": "2026-05-31T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "Principal",
+          "principalId": "demo-user-0005",
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskGrants": false,
+      "assignedUserCount": 26,
+      "assignedGroupCount": 3,
+      "isAdminConsented": false,
+      "isFirstParty": false,
+      "riskLevel": "low",
+      "riskScore": 10,
+      "riskFactors": []
+    },
+    {
+      "id": "demo-sp-006",
+      "appId": "demo-spappid-006",
+      "displayName": "Retired backup tool (demo)",
+      "publisherName": "Demo Software Ltd",
+      "servicePrincipalType": "Application",
+      "accountEnabled": false,
+      "tags": [
+        "demo-fixture"
+      ],
+      "homepage": "https://app.fabrikam-joinery.example/retired.backup.tool",
+      "lastSignInDateTime": "2025-04-27T09:00:00.000Z",
+      "consentGrants": [
+        {
+          "consentType": "Principal",
+          "principalId": "demo-user-0006",
+          "resourceId": "demo-resource-graph",
+          "resourceName": "Microsoft Graph (demo)",
+          "scopes": [
+            "User.Read"
+          ],
+          "isHighRisk": false
+        }
+      ],
+      "hasHighRiskGrants": false,
+      "assignedUserCount": 24,
+      "assignedGroupCount": 0,
+      "isAdminConsented": false,
+      "isFirstParty": false,
+      "riskLevel": "low",
+      "riskScore": 10,
+      "riskFactors": []
+    }
+  ],
+  "partialData": false,
+  "collectionIssues": []
+}
