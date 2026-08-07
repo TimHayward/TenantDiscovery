@@ -140,7 +140,7 @@ export function HistoryTab() {
         ) : points.length === 1 ? (
           <SingleScanSnapshot point={points[0]} />
         ) : (
-          <SeverityTrendChart points={points} loading={false} />
+          <SeverityTrendChart points={points} />
         )}
 
         {(history.omittedCompleted > 0 || history.incompleteRuns > 0 || history.failedDetails > 0) && (

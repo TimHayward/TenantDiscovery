@@ -10,7 +10,6 @@ import {
 } from "recharts";
 import type { ScanDetail, ScanRun } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui-kit/table";
-import { Skeleton } from "@workspace/ui-kit/skeleton";
 import { useChartTheme } from "@/lib/useChartTheme";
 import {
   SEVERITY_SERIES,
@@ -206,18 +205,10 @@ export function SingleScanSnapshot({ point }: { point: TrendPoint }) {
  * same reason, and answers the question a reader asks of a trend anyway, which
  * is what the value actually was.
  */
-export function SeverityTrendChart({
-  points,
-  loading,
-}: {
-  points: TrendPoint[];
-  loading: boolean;
-}) {
+export function SeverityTrendChart({ points }: { points: TrendPoint[] }) {
   const { gridColor, tickColor, tooltipStyle } = useChartTheme();
   const rows = useMemo(() => toChartRows(points), [points]);
   const otherTotal = points.reduce((sum, point) => sum + point.other, 0);
-
-  if (loading) return <Skeleton className="h-[320px] w-full" />;
 
   return (
     <div className="space-y-3">
@@ -241,7 +232,6 @@ export function SeverityTrendChart({
               width={34}
               tick={{ fontSize: 11, fill: tickColor }}
               stroke={tickColor}
-              label={undefined}
             />
             <Tooltip
               isAnimationActive={false}
