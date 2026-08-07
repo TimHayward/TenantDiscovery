@@ -24,9 +24,19 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
+      # `pnpm run test` is `pnpm -r --if-present run test`, so this covers every
+      # package that declares a `test` script. The dashboard now declares one
+      # (jsdom + Testing Library + MSW, see docs/testing-the-dashboard.md), and
+      # is therefore already run here. A separate dashboard step would be a
+      # third execution of the same suite, since the coverage step below is the
+      # second, so there is deliberately not one.
       - name: Test
         run: pnpm run test
 
+      # Now reports dashboard coverage as well as api-server coverage. Neither
+      # package sets a threshold; see the "Coverage" section of
+      # docs/testing-the-dashboard.md for the current dashboard figure and the
+      # floor proposed against it.
       - name: Test with coverage
         run: pnpm -r --if-present run test --coverage --coverage.reporter=text --coverage.reporter=lcov
 
