@@ -71,9 +71,12 @@ if (!window.matchMedia) {
 // pays for loading and transforming the tab module and everything it imports
 // (Recharts, TanStack Table) before anything can appear. On a cold module graph
 // that exceeds a second, which made the first test in a file fail while the
-// same assertion passed in the second. Five seconds is comfortably above the
-// observed cost and still well below a hang.
-configure({ asyncUtilTimeout: 5_000 });
+// same assertion passed in the second; under the root `pnpm -r run test`, with
+// the api-server's suite running alongside, it exceeded five. Fifteen seconds
+// is a ceiling for that case, not a budget, and sits under the 30s
+// `testTimeout` in vitest.config.ts so a slow wait is reported as the missing
+// element rather than as an unexplained timeout.
+configure({ asyncUtilTimeout: 15_000 });
 
 // `onUnhandledRequest: "error"` is the point of the whole arrangement: a
 // component that starts asking for something the handlers do not describe fails

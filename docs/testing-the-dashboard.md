@@ -278,7 +278,17 @@ Recharts, TanStack Table — before anything can appear, and that exceeds a
 second on a cold module graph. The symptom is the first test in a file failing
 while the identical assertion passes in the second.
 
-`setup.ts` sets `asyncUtilTimeout` to five seconds.
+It gets worse from the root. `pnpm run test` runs this package alongside the
+api-server's thirty files, and under that load the same first render was
+measured at over seven seconds, which then blew vitest's own five-second
+`testTimeout`. A suite that passes alone and fails from the root is the worst of
+both, so both budgets are raised: `setup.ts` sets `asyncUtilTimeout` to fifteen
+seconds and `vitest.config.ts` sets `testTimeout` to thirty. The second is
+deliberately the larger, so a slow wait is reported as the element that never
+appeared rather than as an unexplained timeout.
+
+They are ceilings for a pathological case, not budgets to spend. A test that
+routinely approaches them is doing something wrong.
 
 ### Testing Library does not clean up on its own here
 

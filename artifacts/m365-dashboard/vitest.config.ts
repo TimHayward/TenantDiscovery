@@ -43,6 +43,20 @@ export default defineConfig({
     // jsdom document and its own MSW server. Threads start faster than forks
     // and there is nothing here that needs process isolation.
     pool: "threads",
+    // Well above the default five seconds, and above the `asyncUtilTimeout`
+    // that `src/test/setup.ts` gives an individual `findBy*`.
+    //
+    // The cost being covered is the first render of a lazy tab: `React.lazy`
+    // defers the tab module, so the first test in a file that renders one pays
+    // to load and transform Recharts and TanStack Table before anything can
+    // appear. Alone that is around two seconds; under `pnpm -r run test`, where
+    // this package runs alongside the api-server's thirty files, it was
+    // measured at over seven. Leaving the default in place meant a suite that
+    // passed on its own and failed from the root, which is the worst of both.
+    //
+    // These are ceilings for a pathological case, not budgets to spend. A test
+    // that routinely approaches them is doing something wrong.
+    testTimeout: 30_000,
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
