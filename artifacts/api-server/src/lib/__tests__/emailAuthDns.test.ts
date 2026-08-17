@@ -1,15 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { lookupDomainEmailAuth } from "../dns/emailAuthDns";
 
-/** Build a DoH JSON response for a given record type. */
-function dohResponse(type: number, datas: string[], status = 0) {
+/**
+ * Build a DoH JSON response for a given record type. Only the `ok` and `json`
+ * members are populated — the lookup reads nothing else off the Response — so
+ * the partial mock is widened to Response once here rather than at every call.
+ */
+function dohResponse(type: number, datas: string[], status = 0): Response {
   return {
     ok: true,
     json: async () => ({
       Status: status,
       Answer: datas.map((data) => ({ name: "x", type, data })),
     }),
-  };
+  } as unknown as Response;
 }
 
 const TXT = 16;
@@ -22,19 +26,19 @@ afterEach(() => {
 
 describe("lookupDomainEmailAuth", () => {
   it("detects SPF, DMARC, MX and DKIM CNAME from DoH answers", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.includes("_dmarc.") && url.includes("type=TXT")) {
-        return dohResponse(TXT, ['"v=DMARC1; p=reject; rua=mailto:x@y.com"']) as any;
+        return dohResponse(TXT, ['"v=DMARC1; p=reject; rua=mailto:x@y.com"']);
       }
       if (url.includes("type=TXT")) {
-        return dohResponse(TXT, ['"v=spf1 include:spf.protection.outlook.com -all"']) as any;
+        return dohResponse(TXT, ['"v=spf1 include:spf.protection.outlook.com -all"']);
       }
       if (url.includes("type=MX")) {
-        return dohResponse(MX, ["0 x.mail.protection.outlook.com."]) as any;
+        return dohResponse(MX, ["0 x.mail.protection.outlook.com."]);
       }
       if (url.includes("type=CNAME")) {
-        return dohResponse(CNAME, ["selector1-domain._domainkey.tenant.onmicrosoft.com."]) as any;
+        return dohResponse(CNAME, ["selector1-domain._domainkey.tenant.onmicrosoft.com."]);
       }
       throw new Error(`unexpected url ${url}`);
     });
@@ -52,7 +56,7 @@ describe("lookupDomainEmailAuth", () => {
 
   it("reports nothing configured for NXDOMAIN without raising issues", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(
-      async () => dohResponse(TXT, [], 3) as any,
+      async () => dohResponse(TXT, [], 3),
     );
 
     const result = await lookupDomainEmailAuth("bare.example");
