@@ -83,7 +83,14 @@ describe("GET /api/m365/findings", () => {
 
     expect(res.body.error).toBe("Invalid request query");
     expect(res.body.issues).toHaveProperty("fieldErrors.severity");
-    expect(res.body.issues.fieldErrors.severity[0]).toContain("Invalid enum value");
+    // Asserted on intent, not on Zod's phrasing: the message must name the
+    // rejected field's permitted values so a caller can correct the request.
+    // Zod 4 rewrote this string (v3 said "Invalid enum value"), and pinning the
+    // exact wording made a library upgrade look like a route regression.
+    const [severityIssue] = res.body.issues.fieldErrors.severity;
+    for (const allowed of ["critical", "high", "medium", "low"]) {
+      expect(severityIssue).toContain(allowed);
+    }
     expect(res.body.issues.formErrors).toEqual([]);
     // A validation failure must not disclose anything about the server.
     expect(JSON.stringify(res.body)).not.toMatch(/at .*[\\/]src[\\/]/);
