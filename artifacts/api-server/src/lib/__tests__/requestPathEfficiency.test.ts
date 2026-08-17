@@ -24,7 +24,10 @@ function instrument(client: StoreFixture["client"]): void {
   const realExecute = client.execute.bind(client);
   const realBatch = client.batch.bind(client);
 
-  vi.spyOn(client, "execute").mockImplementation(async (stmt: Parameters<typeof realExecute>[0]) => {
+  // `execute` is overloaded as of @libsql/client 0.17, and `Parameters<...>`
+  // resolves to the last overload -- which takes a bare SQL string, leaving the
+  // non-string branch below narrowed to `never`. Name the statement type instead.
+  vi.spyOn(client, "execute").mockImplementation(async (stmt: InStatement) => {
     const result = await realExecute(stmt);
     const sql = typeof stmt === "string" ? stmt : stmt.sql;
     const args = typeof stmt === "string" ? undefined : stmt.args;
