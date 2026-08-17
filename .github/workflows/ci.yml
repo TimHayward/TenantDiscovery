@@ -41,7 +41,7 @@ jobs:
         run: pnpm -r --if-present run test --coverage --coverage.reporter=text --coverage.reporter=lcov
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: |
