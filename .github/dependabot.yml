@@ -1,172 +1,80 @@
 version: 2
 
+# Two ecosystems, one entry each.
+#
+# This file previously carried eleven npm entries: one per workspace package,
+# plus a root "/" entry, each allowing ten open pull requests. The per-package
+# entries were written because Dependabot's pnpm-workspace.yaml auto-discovery
+# "cannot be verified from here" (see docs/agent-runs/T05.md).
+#
+# It can be verified now, and it works: the root entry's grouped PR
+# (patch-updates-da7430e60e) updated artifacts/api-server, artifacts/m365-dashboard,
+# artifacts/mockup-sandbox *and* lib/ui-kit -- and lib/ui-kit never had an entry
+# of its own. The root entry already reaches every package.yaml in the workspace,
+# so the per-package entries only duplicated it, which is why the same bump
+# arrived twice (@radix-ui/react-slider 1.4.7 opened at both the root and the
+# sandbox).
+#
+# The other half of the flood was grouping: only `patch` was grouped, so every
+# minor and every major opened its own PR. Landing the Dependabot config on main
+# opened 36 pull requests at once, most of them single Radix minors.
 updates:
-  # One entry per pnpm workspace package. A single root "/" entry is not used
-  # because Dependabot's pnpm-workspace.yaml auto-discovery is new enough that
-  # relying on it to reach every artifacts/*, lib/* and scripts package.json
-  # cannot be verified from here; explicit directories are unambiguous.
   - package-ecosystem: npm
+    # "/" is the pnpm workspace root. Dependabot follows pnpm-workspace.yaml from
+    # here into artifacts/*, lib/*, lib/integrations/* and scripts; do not add
+    # per-package entries alongside this one, or every bump opens twice.
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types:
-          - "patch"
+    # Deliberately low. Majors are ungrouped (see below) and each needs its own
+    # judgement, so this is the number of majors that can be in flight at once
+    # rather than a limit on total churn. Security updates are not counted
+    # against it -- GitHub tracks those under a separate limit -- so lowering it
+    # does not delay a vulnerability fix.
+    open-pull-requests-limit: 5
     # Mirrors pnpm-workspace.yaml's minimumReleaseAge (1440 minutes = 1 day):
     # without this, Dependabot can propose a package published minutes ago and
     # `pnpm install` in CI will refuse it. See docs/agent-runs/T05.md.
     cooldown:
       default-days: 1
-
-  - package-ecosystem: npm
-    directory: "/artifacts/api-server"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
     groups:
-      patch-updates:
+      # Everything that cannot change an API surface, in one pull request across
+      # the whole workspace. This is the shape that made the last sweep tractable:
+      # 59 same-major bumps reviewed and verified together in a single pass.
+      #
+      # `applies-to: version-updates` matters. It leaves security updates
+      # ungrouped so a vulnerability fix arrives as its own PR rather than being
+      # held behind a batch of routine version bumps.
+      minor-and-patch:
         applies-to: version-updates
         patterns:
           - "*"
         update-types:
+          - "minor"
           - "patch"
-    cooldown:
-      default-days: 1
-
-  - package-ecosystem: npm
-    directory: "/artifacts/m365-dashboard"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types:
-          - "patch"
-    cooldown:
-      default-days: 1
-
-  - package-ecosystem: npm
-    directory: "/artifacts/mockup-sandbox"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types:
-          - "patch"
-    cooldown:
-      default-days: 1
-
-  - package-ecosystem: npm
-    directory: "/lib/api-client-react"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types:
-          - "patch"
-    cooldown:
-      default-days: 1
-
-  - package-ecosystem: npm
-    directory: "/lib/api-spec"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types:
-          - "patch"
-    cooldown:
-      default-days: 1
-
-  - package-ecosystem: npm
-    directory: "/lib/api-zod"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types:
-          - "patch"
-    cooldown:
-      default-days: 1
-
-  - package-ecosystem: npm
-    directory: "/lib/db"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types:
-          - "patch"
-    cooldown:
-      default-days: 1
-
-  - package-ecosystem: npm
-    directory: "/lib/permissions-manifest"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types:
-          - "patch"
-    cooldown:
-      default-days: 1
-
-  - package-ecosystem: npm
-    directory: "/scripts"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types:
-          - "patch"
-    cooldown:
-      default-days: 1
+    # Majors are deliberately NOT grouped. They are the updates that need
+    # deciding one at a time: of the six in the last sweep, four were taken
+    # (vitest 4, pino 10, zod 4, react-day-picker 10) and two were declined
+    # because the major was an API redesign rather than a version bump
+    # (@tanstack/react-table 9, react-resizable-panels 4). A single "all majors"
+    # PR would make that an all-or-nothing choice.
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 1
     groups:
-      patch-updates:
+      # Action bumps are almost always a runner-runtime move rather than an input
+      # change, and they can only be verified by running the workflow, so there is
+      # nothing gained by splitting them across pull requests.
+      actions:
         applies-to: version-updates
         patterns:
           - "*"
         update-types:
+          - "major"
+          - "minor"
           - "patch"
