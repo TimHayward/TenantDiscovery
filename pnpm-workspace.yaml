@@ -77,7 +77,7 @@ onlyBuiltDependencies:
 overrides:
   # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
-  esbuild: "0.27.3"
+  esbuild: "0.28.2"
   # vitest 4 accepts vite ^6 || ^7 || ^8 and pnpm would otherwise resolve it a
   # private vite 8. The UIs build on the catalog's vite 7, and
   # @vitejs/plugin-react 5 peers vite ^5 || ^6 || ^7 -- under vite 8 the plugin
