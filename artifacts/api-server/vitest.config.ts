@@ -6,6 +6,17 @@ export default defineConfig({
     // database, but they share process-wide state (module singletons, env
     // overrides), so files run in separate forks rather than shared workers.
     pool: "forks",
+    // Above the default ten seconds. The route suites build a fresh in-memory
+    // libSQL database and an Express app in a `beforeEach`, and a fork pays for
+    // that setup per file. Alone that is comfortably under the default; under
+    // `pnpm -r run test`, where these thirty files now run alongside the
+    // dashboard's jsdom suite, the hook has been observed to exceed it and fail
+    // a file that passes on its own -- the same contention the dashboard's
+    // `testTimeout` comment describes, seen from the other side.
+    //
+    // This is a ceiling for a loaded machine, not a budget. A hook that
+    // routinely approaches it is doing too much setup.
+    hookTimeout: 30_000,
     env: {
       // pino would otherwise emit a request log line per supertest call and
       // spawn a pino-pretty worker thread for every test file.
