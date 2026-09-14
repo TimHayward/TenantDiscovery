@@ -15,8 +15,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@azure/identity": "^4.13.1",
-    "@libsql/client": "^0.17.4",
+    "@azure/identity": "^4.13.2",
+    "@libsql/client": "^0.18.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@workspace/api-zod": "workspace:*",
     "@workspace/permissions-manifest": "workspace:*",
